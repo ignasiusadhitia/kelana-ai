@@ -2,10 +2,10 @@
 # 4. VIEW FUNCTIONS (Formatted output)
 # ==============================================================================
 
-from services.trip_services import calculate_daily_budget, get_trip_category, get_trip_transportation_recommendation, get_recommended_places
+from services.trip_services import calculate_daily_budget, get_trip_category, get_trip_transportation_recommendation, get_recommended_places, get_travel_season
 
 # -> dict means this function returns a structured dictionary of trip data for one destination.
-def build_trip_summary(destination: str, country: str, days: int, budget: float, currency: str, travel_month: str, category: str, transportation, places) -> dict:
+def build_trip_summary(destination: str, country: str, days: int, budget: float, currency: str, travel_month: str, category: str, transportation, places, travel_season: str) -> dict:
     """Prepare and format all trip data for a single destination into a structured dict."""
     return {
         "destination"   : destination,
@@ -18,6 +18,7 @@ def build_trip_summary(destination: str, country: str, days: int, budget: float,
         # Classify the trip style and calculate average spending per day
         "category"      : category,
         "daily_budget"  : f"{calculate_daily_budget(budget, days):,.2f} {currency}/Day",
+        "travel_season" : travel_season,
         "travel_month"  : travel_month,
         "transportation": transportation,
         "places"        : places,
@@ -37,6 +38,9 @@ def print_trip_summary(destinations: list, country: str, days: int, budget: floa
         # Look up transportation recommendation based on trip category.
         transportation = get_trip_transportation_recommendation(category)
 
+        # Look up travel season based on travel month.
+        travel_season = get_travel_season(travel_month)
+
         # Build the summary dict for this destination.
         summary = build_trip_summary(
             destination,
@@ -47,7 +51,8 @@ def print_trip_summary(destinations: list, country: str, days: int, budget: floa
             travel_month,
             category,
             transportation,
-            recommendations[destination]
+            recommendations[destination],
+            travel_season
         )
 
         # Print title
@@ -64,6 +69,7 @@ def print_trip_summary(destinations: list, country: str, days: int, budget: floa
         print(f"{'Category':<20}: {summary['category']}")
         print(f"{'Daily Budget':<20}: {summary['daily_budget']}")
         print(f"{'Travel Month':<20}: {summary['travel_month']}")
+        print(f"{'Travel Season':<20}: {summary['travel_season']}")
         
         # isinstance() checks if a variable is an instance of a specific type or class.
         if isinstance(summary['transportation'], ValueError):

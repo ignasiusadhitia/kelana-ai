@@ -2,7 +2,9 @@
 # 3. BUSINESS LOGIC (Calculations and data lookup)
 # ==============================================================================
 
+from constants.categories import TRIP_CATEGORIES, DEFAULT_CATEGORY
 from constants.places import RECOMMENDED_PLACES
+from constants.seasons import TRAVEL_SEASONS, DEFAULT_SEASON
 from constants.transportation import RECOMMENDED_TRANSPORTATION
 
 def calculate_daily_budget(budget, days):
@@ -11,13 +13,15 @@ def calculate_daily_budget(budget, days):
 
 def get_trip_category(budget):
     """Classify the trip style based on total budget."""
-    if budget < 1000:
-        return "Backpacker"
-    elif budget <= 3000:
-        return "Standard"
-    else:
-        return "Luxury"
-
+    # Iterate through each threshold in order.
+    # Return the first category whose threshold the budget does not exceed.
+    for threshold, category in TRIP_CATEGORIES:
+        if budget <= threshold:
+            return category
+    
+    # If budget exceeds all thresholds, return the default category.
+    return DEFAULT_CATEGORY
+    
 def get_trip_transportation_recommendation(trip_category):
     """Look up recommended transportation based on trip category."""
     transportation = RECOMMENDED_TRANSPORTATION.get(trip_category)
@@ -51,4 +55,9 @@ def get_recommended_places(destinations):
             result[destination] = places
     
     return result
+
+def get_travel_season(travel_month):
+    """Look up the travel season classification based on the travel month."""
+    # use DEFAULT_SEASON as fallback if the month is not listed in TRAVEL_SEASONS.
+    return TRAVEL_SEASONS.get(travel_month, DEFAULT_SEASON)
 
