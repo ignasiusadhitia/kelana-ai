@@ -1,38 +1,80 @@
 # ==============================================================================
-# 5. MAIN CONTROLLER
+# MAIN CONTROLLER
 # ==============================================================================
 # Note: Section numbers follow the app execution order:
-# 1. prompt_engine.py   -> Core input loop
-# 2. validators.py      -> Input validation rules
-# 3. trip_services.py   -> Business logic
-# 4. trip_views.py      -> View functions
-# 5. main.py            -> Controller + Entry point
+# 1. trip_services.py   -> Business logic
+# 2. main.py            -> API endpoints + Entry point
 # ==============================================================================
 
-from utils.prompt_engine import prompt
-from utils.validators import val_budget, val_currency, val_days, val_month, val_string, val_destinations
-from views.trip_views import print_trip_summary
+import uvicorn
+
+# FastAPI dependencies for building the REST API endpoints.
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+from services.trip_services import (
+    calculate_daily_budget,
+    get_trip_category,
+    get_trip_transportation_recommendation,
+    get_all_trip_categories
+    )
+
+# FastAPI validates the JSON body against this model
+# If a field is missing or wrong type, it returns 422 automatically
+class TripRequest(BaseModel):
+    """Request body schema for creating a trip summary."""
+    destination     : str   = Field(min_length=2, max_length=100, description="Name of the destination (e.g. Japan)")
+    days            : int   = Field(ge=1, le=365, description="Trip duration in days (1-365)")
+    budget          : float = Field(gt=0, le=1_000_000, description="Total trip budget in selected currency")
+    travel_style    : str   = Field(min_length=2, max_length=50, description="Travel style preference (e.g. Family)")
+
+app = FastAPI()
+
+# A GET endpoint at the root path
+@app.get("/")
+def home() -> dict[str, str]:
+    return {
+        "message" : "Welcome to KelanaAI"
+    }
+
+# A GET endpoint for health check - used to verify the server is running.
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {
+        "status" : "OK"
+    }
+
+# A POST endpoint to calculate and return a trip summary based on the request body.
+@app.post("/api/v1/trips")
+def create_trip(request: TripRequest) -> dict[str, str | float]:
+    daily_budget = calculate_daily_budget(
+        request.budget, request.days
+    )
+    category = get_trip_category(
+        request.budget
+    )
+    recommendation_transport = get_trip_transportation_recommendation(
+        category
+    )
+    return {
+        "destination"               : request.destination,
+        "budget"                    : request.budget,
+        "daily_budget"              : daily_budget,
+        "category"                  : category,
+        "travel_style"              : request.travel_style,
+        "recommendation_transport"  : recommendation_transport,
+    }
+
+# A GET endpoint to retrieve all available trip categories.
+@app.get("/api/v1/trip-categories")
+def list_trip_categories() -> list[str]:
+    return get_all_trip_categories()
 
 
-def main() -> None:
-    # Call the prompt() function and pass the respective validation functions as callback.    
-
-    # Accept multiple destinations separated by commas (e.g. "Japan", "Korea")
-    destinations = prompt("Destinations (comma separated): ", val_destinations)
-    country = prompt("Country: ", val_string)
-    days = prompt("Days: ", val_days)
-    budget = prompt("Budget: ", val_budget)
-    currency = prompt("Currency: ", val_currency)
-    travel_month = prompt("Travel Month: ", val_month)
-
-    # Print the final formatted results
-    print_trip_summary(destinations, country, days, budget, currency, travel_month)
 
 # ==============================================================================
 # ENTRY POINT
 # ==============================================================================
 
-# Ensure main() only runs if this file is executed directly ('python main.py').
-# Prevents execution if this file is imported as a module by another file.
+# Run the FastAPI app directly with 'python main.py' as an alternative to uvicorn CLI
 if __name__ == "__main__":
-    main()
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

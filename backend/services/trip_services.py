@@ -61,3 +61,10 @@ def get_travel_season(travel_month: str) -> str:
     # use DEFAULT_SEASON as fallback if the month is not listed in TRAVEL_SEASONS.
     return TRAVEL_SEASONS.get(travel_month, DEFAULT_SEASON)
 
+def get_all_trip_categories() -> list[str]:
+    """Return all available trip categories from constants."""
+    # Extract only the category names from TRIP_CATEGORIES tuples, then add the default.
+    # e.g. [(999, "Backpacker"), (3000, "Standard")] -> ["Backpacker", "Standard", "Luxury"]
+    return [category for _, category in TRIP_CATEGORIES] + [DEFAULT_CATEGORY]
+
+

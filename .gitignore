@@ -2,3 +2,5 @@ lessons/
 
 **/__pycache__/
 *.pyc
+
+.venv
