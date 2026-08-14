@@ -15,7 +15,9 @@ from services.trip_services import (
     calculate_daily_budget,
     get_trip_category,
     get_trip_transportation_recommendation,
-    get_all_trip_categories
+    get_all_trip_categories,
+    get_all_recommended_places,
+    get_all_transportation_recommendations
     )
 
 # FastAPI validates the JSON body against this model
@@ -68,6 +70,16 @@ def create_trip(request: TripRequest) -> dict[str, str | float]:
 @app.get("/api/v1/trip-categories")
 def list_trip_categories() -> list[str]:
     return get_all_trip_categories()
+
+# A GET endpoint to retrieve all available recommended places.
+@app.get("/api/v1/recommendations")
+def list_recommended_places() -> list[str]:
+    return get_all_recommended_places()
+
+# A GET endpoint to retrieve all available transportation options.
+@app.get("/api/v1/transportations")
+def list_transportation_recommendations() -> list[str]:
+    return get_all_transportation_recommendations()
 
 
 

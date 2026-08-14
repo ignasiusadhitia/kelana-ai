@@ -67,4 +67,14 @@ def get_all_trip_categories() -> list[str]:
     # e.g. [(999, "Backpacker"), (3000, "Standard")] -> ["Backpacker", "Standard", "Luxury"]
     return [category for _, category in TRIP_CATEGORIES] + [DEFAULT_CATEGORY]
 
+def get_all_recommended_places() -> list[str]:
+    """Return all available recommended places from constants."""
+    # Flatten all place lists from every destination into a single list.
+    # e.g. {"Japan": ["Tokyo Tower", "Shibuya"], "Korea": []} -> ["Tokyo Tower", "Shibuya"]
+    return [place for places in RECOMMENDED_PLACES.values() for place in places]
 
+def get_all_transportation_recommendations() -> list[str]:
+    """Return all available transportation options from constants."""
+    # Extract only the transportation values from the dict.
+    # e.g. {"Backpacker": "Bus", ...} -> ["Bus", "Train", "Flight"]
+    return list(RECOMMENDED_TRANSPORTATION.values())
