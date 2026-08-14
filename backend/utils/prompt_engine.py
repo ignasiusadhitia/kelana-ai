@@ -2,7 +2,9 @@
 # 1. CORE PROMPT ENGINE
 # ==============================================================================
 
-def prompt(message: str, validator):
+from typing import Callable, Any
+
+def prompt(message: str, validator: Callable[[str], Any]) -> Any:
     """
     Core prompt engine to request input from the user and validate its values.
     """

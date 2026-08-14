@@ -48,7 +48,7 @@ def val_currency(val: str) -> str:
 def val_month(val: str) -> str:
     """Ensure the value is a valid English month."""
     # Use a Tuple () because it is static data and processed faster than a List [].
-    valid_months = (
+    valid_months: tuple[str, ...] = (
         "january", "february", "march", "april", "may", "june",
         "july", "august", "september", "october", "november", "december"
     )
@@ -59,7 +59,7 @@ def val_month(val: str) -> str:
     # .title() capitalizes the first letter ("december" -> "December")
     return val.title()
 
-def val_destinations(val: str) -> list:
+def val_destinations(val: str) -> list[str]:
     """Ensure at least one destination is provided."""
     # Check if the raw input is blank before processing.
     # Catches cases like "" or "  " before we even try to split.

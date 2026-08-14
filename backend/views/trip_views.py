@@ -3,9 +3,10 @@
 # ==============================================================================
 
 from services.trip_services import calculate_daily_budget, get_trip_category, get_trip_transportation_recommendation, get_recommended_places, get_travel_season
+from typing import Any
 
 # -> dict means this function returns a structured dictionary of trip data for one destination.
-def build_trip_summary(destination: str, country: str, days: int, budget: float, currency: str, travel_month: str, category: str, transportation, places, travel_season: str) -> dict:
+def build_trip_summary(destination: str, country: str, days: int, budget: float, currency: str, travel_month: str, category: str, transportation: str | ValueError, places: list | ValueError, travel_season: str) -> dict[str, Any]:
     """Prepare and format all trip data for a single destination into a structured dict."""
     return {
         "destination"   : destination,
@@ -25,7 +26,7 @@ def build_trip_summary(destination: str, country: str, days: int, budget: float,
     }
 
 # -> None means this function only executes a process and does not return any value.
-def print_trip_summary(destinations: list, country: str, days: int, budget: float, currency: str, travel_month: str) -> None:
+def print_trip_summary(destinations: list[str], country: str, days: int, budget: float, currency: str, travel_month: str) -> None:
     """Loop each destination, build its summary, then print each one."""
     # get_recommended_places returns a dict: {destinations: [places] or ValueError}
     recommendations = get_recommended_places(destinations)
@@ -89,5 +90,5 @@ def print_trip_summary(destinations: list, country: str, days: int, budget: floa
             for place in summary['places']:
                 print(f" - {place}")
         
-        print(f"\n")
+        print("\n")
 

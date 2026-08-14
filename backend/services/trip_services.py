@@ -7,11 +7,11 @@ from constants.places import RECOMMENDED_PLACES
 from constants.seasons import TRAVEL_SEASONS, DEFAULT_SEASON
 from constants.transportation import RECOMMENDED_TRANSPORTATION
 
-def calculate_daily_budget(budget, days):
+def calculate_daily_budget(budget: float, days: int) -> float:
     """Calculate the average spending per day."""
     return budget/days
 
-def get_trip_category(budget):
+def get_trip_category(budget: float) -> str:
     """Classify the trip style based on total budget."""
     # Iterate through each threshold in order.
     # Return the first category whose threshold the budget does not exceed.
@@ -22,7 +22,7 @@ def get_trip_category(budget):
     # If budget exceeds all thresholds, return the default category.
     return DEFAULT_CATEGORY
     
-def get_trip_transportation_recommendation(trip_category):
+def get_trip_transportation_recommendation(trip_category: str) -> str | ValueError:
     """Look up recommended transportation based on trip category."""
     transportation = RECOMMENDED_TRANSPORTATION.get(trip_category)
     
@@ -32,7 +32,7 @@ def get_trip_transportation_recommendation(trip_category):
     
     return transportation
 
-def get_recommended_places(destinations):
+def get_recommended_places(destinations: list[str]) -> dict[str, list | ValueError]:
     """Look up recommended places for each destination and return a result dict.
 
     Returns a dict where each value is either a list of places or a ValueError instance.
@@ -56,7 +56,7 @@ def get_recommended_places(destinations):
     
     return result
 
-def get_travel_season(travel_month):
+def get_travel_season(travel_month: str) -> str:
     """Look up the travel season classification based on the travel month."""
     # use DEFAULT_SEASON as fallback if the month is not listed in TRAVEL_SEASONS.
     return TRAVEL_SEASONS.get(travel_month, DEFAULT_SEASON)
