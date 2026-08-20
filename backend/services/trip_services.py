@@ -1,18 +1,25 @@
 # ==============================================================================
-# 3. BUSINESS LOGIC (Calculations and data lookup)
+# 4. SERVICES (Business Logic Calculations & Database CRUD Operations)
 # ==============================================================================
 
 from constants.categories import TRIP_CATEGORIES, DEFAULT_CATEGORY
 from constants.places import RECOMMENDED_PLACES
 from constants.seasons import TRAVEL_SEASONS, DEFAULT_SEASON
 from constants.transportation import RECOMMENDED_TRANSPORTATION
+from sqlalchemy.orm import Session
+from models.trip import Trip
+from schemas.trip import TripRequest
+
+# ------------------------------------------------------------------------------
+# Part A: Domain Calculations & Lookups
+# ------------------------------------------------------------------------------
 
 def calculate_daily_budget(budget: float, days: int) -> float:
-    """Calculate the average spending per day."""
+    """Calculate the average daily expenditure."""
     return budget/days
 
 def get_trip_category(budget: float) -> str:
-    """Classify the trip style based on total budget."""
+    """Classify the travel tier based on total budget thresholds."""
     # Iterate through each threshold in order.
     # Return the first category whose threshold the budget does not exceed.
     for threshold, category in TRIP_CATEGORIES:
@@ -78,3 +85,58 @@ def get_all_transportation_recommendations() -> list[str]:
     # Extract only the transportation values from the dict.
     # e.g. {"Backpacker": "Bus", ...} -> ["Bus", "Train", "Flight"]
     return list(RECOMMENDED_TRANSPORTATION.values())
+
+
+# ------------------------------------------------------------------------------
+# Part B: Database CRUD Services
+# ------------------------------------------------------------------------------
+
+def create_trip_db(db: Session, request:TripRequest) -> Trip:
+    """Compute business values, persist a new Trip entity, and return it."""
+    # Step 1: Calculate derived domain attributes
+    daily_budget = calculate_daily_budget(
+        request.budget, request.days        
+    )
+    category = get_trip_category(
+        request.budget
+    )
+
+    # Step 2: Instantiate SQLAlchemy ORM Model
+    trip = Trip(
+        destination         = request.destination,
+        days                = request.days,
+        budget              = request.budget,
+        category            = category,
+        daily_budget        = daily_budget,
+    )
+
+    # Step 3: Persist transaction and refresh instance to fetch generated ID/timestamps
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)    # get the auto-generated id
+    return trip
+
+def get_all_trips_db(db: Session) -> list[Trip]:
+    """Query and return all trip records from the database."""
+    return db.query(Trip).all()
+
+def get_trip_by_id_db(db: Session, trip_id: int) -> Trip | None:
+    """Fetch a single trip record by its primary key ID."""
+    return db.query(Trip).filter(Trip.id == trip_id).first()
+
+def update_trip_db(db: Session, trip: Trip, new_budget: float) -> Trip:
+    """Update trip budget and automatically recalculate derived budget metrics."""
+    # Step 1: Update budget and recalculate derived properties
+    trip.budget         = new_budget
+    trip.category       = get_trip_category(new_budget)
+    trip.daily_budget   = calculate_daily_budget(new_budget, trip.days)
+
+    # Step 2: Commit changes to database and refresh memory state
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+def delete_trip_db(db: Session, trip: Trip) -> None:
+    """Delete a trip from the database."""
+    db.delete(trip)
+    db.commit()

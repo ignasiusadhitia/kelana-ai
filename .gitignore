@@ -4,3 +4,4 @@ lessons/
 *.pyc
 
 .venv
+.env

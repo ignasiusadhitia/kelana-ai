@@ -1,84 +1,119 @@
 # ==============================================================================
-# MAIN CONTROLLER
+# 5. MAIN CONTROLLER (FastAPI Router & Application Entry Point)
 # ==============================================================================
-# Note: Section numbers follow the app execution order:
-# 1. trip_services.py   -> Business logic
-# 2. main.py            -> API endpoints + Entry point
+# Note: Execution flow across layers:
+# 1. database.py        -> Connection & Session dependency
+# 2. models/trip.py     -> Database ORM entities
+# 3. schemas/trip.py    -> Validation & serialization contracts
+# 4. trip_services.py   -> Business rules & CRUD execution
+# 5. main.py            -> HTTP Endpoints & Dependency Injection
 # ==============================================================================
 
 import uvicorn
 
 # FastAPI dependencies for building the REST API endpoints.
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+
 from services.trip_services import (
-    calculate_daily_budget,
-    get_trip_category,
-    get_trip_transportation_recommendation,
+    create_trip_db,
+    get_all_trips_db,
+    get_trip_by_id_db,
+    update_trip_db,
+    delete_trip_db,
     get_all_trip_categories,
     get_all_recommended_places,
-    get_all_transportation_recommendations
-    )
+    get_all_transportation_recommendations,
+)
 
-# FastAPI validates the JSON body against this model
-# If a field is missing or wrong type, it returns 422 automatically
-class TripRequest(BaseModel):
-    """Request body schema for creating a trip summary."""
-    destination     : str   = Field(min_length=2, max_length=100, description="Name of the destination (e.g. Japan)")
-    days            : int   = Field(ge=1, le=365, description="Trip duration in days (1-365)")
-    budget          : float = Field(gt=0, le=1_000_000, description="Total trip budget in selected currency")
-    travel_style    : str   = Field(min_length=2, max_length=50, description="Travel style preference (e.g. Family)")
+from schemas.trip import TripRequest, TripResponse, UpdateTripRequest
+from database import init_db, get_db
 
-app = FastAPI()
 
-# A GET endpoint at the root path
+app = FastAPI(
+    title="KelanaAI API",
+    description="Backend API for travel planning and budget calculation.",
+    version="1.0.0"
+)
+
+# Initialize database tables on application startup
+init_db()
+
 @app.get("/")
 def home() -> dict[str, str]:
+    """Root endpoint welcoming users."""
     return {
-        "message" : "Welcome to KelanaAI"
+        "message": "Welcome to KelanaAI"
     }
 
-# A GET endpoint for health check - used to verify the server is running.
 @app.get("/health")
 def health() -> dict[str, str]:
+    """Health check endpoint to verify service availability."""
     return {
-        "status" : "OK"
+        "status": "OK"
     }
 
-# A POST endpoint to calculate and return a trip summary based on the request body.
-@app.post("/api/v1/trips")
-def create_trip(request: TripRequest) -> dict[str, str | float]:
-    daily_budget = calculate_daily_budget(
-        request.budget, request.days
-    )
-    category = get_trip_category(
-        request.budget
-    )
-    recommendation_transport = get_trip_transportation_recommendation(
-        category
-    )
-    return {
-        "destination"               : request.destination,
-        "budget"                    : request.budget,
-        "daily_budget"              : daily_budget,
-        "category"                  : category,
-        "travel_style"              : request.travel_style,
-        "recommendation_transport"  : recommendation_transport,
-    }
+# ------------------------------------------------------------------------------
+# Trip Resource Endpoints
+# ------------------------------------------------------------------------------
 
-# A GET endpoint to retrieve all available trip categories.
+@app.post("/api/v1/trips", response_model=TripResponse)
+def create_trip(request: TripRequest, db: Session = Depends(get_db)) -> TripResponse:
+    """
+    Create a new trip:
+    - Validates payload via TripRequest schema.
+    - Calculates daily budget and category tier.
+    - Persists the record and returns the created Trip.
+    """
+    return create_trip_db(db, request)
+
+@app.get("/api/v1/trips", response_model=list[TripResponse])
+def list_trips(db: Session = Depends(get_db)) -> list[TripResponse]:
+    """Retrieve a list of all saved trips."""
+    return get_all_trips_db(db)
+
+@app.get("/api/v1/trips/{trip_id}", response_model=TripResponse)
+def get_trip(trip_id: int, db: Session = Depends(get_db)) -> TripResponse:
+    """Retrieve details of a specific trip by its ID."""
+    trip = get_trip_by_id_db(db, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+    return trip
+
+@app.put("/api/v1/trips/{trip_id}", response_model=TripResponse)
+def update_trip(trip_id: int, request: UpdateTripRequest, db: Session = Depends(get_db)) -> TripResponse:
+    """
+    Update trip budget:
+    - Verifies trip existence (returns 404 if not found).
+    - Updates budget and recalculates daily budget and category tier.
+    """
+    trip = get_trip_by_id_db(db, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+    return update_trip_db(db, trip, request.budget)
+
+@app.delete("/api/v1/trips/{trip_id}")
+def delete_trip(trip_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
+    """Delete a specific trip by its ID."""
+    trip = get_trip_by_id_db(db, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+    delete_trip_db(db, trip)
+    return {"message": f"Trip with id {trip_id} deleted successfully."}
+
 @app.get("/api/v1/trip-categories")
 def list_trip_categories() -> list[str]:
+    """Retrieve all available trip categories."""
     return get_all_trip_categories()
 
-# A GET endpoint to retrieve all available recommended places.
 @app.get("/api/v1/recommendations")
 def list_recommended_places() -> list[str]:
+    """Retrieve all available recommended places."""
     return get_all_recommended_places()
 
-# A GET endpoint to retrieve all available transportation options.
 @app.get("/api/v1/transportations")
 def list_transportation_recommendations() -> list[str]:
+    """Retrieve all available transportation options."""
     return get_all_transportation_recommendations()
 
 
