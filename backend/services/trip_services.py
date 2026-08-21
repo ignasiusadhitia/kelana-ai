@@ -9,6 +9,7 @@ from constants.transportation import RECOMMENDED_TRANSPORTATION
 from sqlalchemy.orm import Session
 from models.trip import Trip
 from schemas.trip import TripRequest
+from services.bedrock_service import build_trip_prompt, generate_trip_recommendation
 
 # ------------------------------------------------------------------------------
 # Part A: Domain Calculations & Lookups
@@ -140,3 +141,52 @@ def delete_trip_db(db: Session, trip: Trip) -> None:
     """Delete a trip from the database."""
     db.delete(trip)
     db.commit()
+
+def save_trip_ai_recommendation_db(db: Session, trip: Trip, recommendation: str) -> Trip:
+    """
+    Persist the AI-generated recommendation text into the trip database record.
+    """
+    # Step 1: Assign AI response to model attribute
+    trip.ai_recommendation = recommendation
+
+    # Step 2: Commit transaction and refresh model state
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+
+def create_trip_with_ai_db(db: Session, request: TripRequest) -> Trip:
+    """
+    Hitung nilai bisnis, panggil AI Bedrock, dan simpan trip lengkap dengan rekomendasinya.
+    """
+    # Step 1: Hitung domain metrics
+    daily_budget = calculate_daily_budget(request.budget, request.days)
+    category = get_trip_category(request.budget)
+    # Step 2: Susun prompt & invoke Amazon Bedrock
+    prompt = build_trip_prompt(
+        destination=request.destination,
+        days=request.days,
+        budget=request.budget,
+        category=category
+    )
+    
+    # Graceful handling: jika AI gagal/timeout, trip tetap tersimpan (rekomendasi None)
+    ai_recommendation = None
+    try:
+        ai_recommendation = generate_trip_recommendation(prompt)
+    except Exception as e:
+        print(f"Warning: AI generation failed on create: {e}")
+    # Step 3: Instantiate Model ORM lengkap dengan ai_recommendation
+    trip = Trip(
+        destination       = request.destination,
+        days              = request.days,
+        budget            = request.budget,
+        category          = category,
+        daily_budget      = daily_budget,
+        ai_recommendation = ai_recommendation,
+    )
+    # Step 4: Simpan ke PostgreSQL
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip

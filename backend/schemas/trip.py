@@ -18,13 +18,15 @@ class TripRequest(BaseModel):
 
 class TripResponse(BaseModel):
     """Response schema returned to the client."""
-    id              : int
-    destination     : str
-    days            : int
-    budget          : float
-    category        : str
-    daily_budget    : float
-    created_at      : datetime
+    id                  : int
+    destination         : str
+    days                : int
+    budget              : float
+    category            : str
+    daily_budget        : float
+    created_at          : datetime
+
+    ai_recommendation   : str | None = None
 
     # CONCEPT: from_attributes=True allows Pydantic to read data directly
     # from SQLAlchemy ORM model attributes (ORM mode in Pydantic v2).
@@ -33,3 +35,11 @@ class TripResponse(BaseModel):
 class UpdateTripRequest(BaseModel):
     """Request schema for updating a trip budget."""
     budget: float = Field(gt=0, le=1_000_000, description="Updated budget value")
+
+class GenerateTripResponse(BaseModel):
+    """Response schema specifically returned after generating AI itinerary."""
+    trip_id         : int
+    destination     : str
+    recommendation  : str
+
+    model_config = {"from_attributes": True}

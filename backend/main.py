@@ -21,12 +21,19 @@ from services.trip_services import (
     get_trip_by_id_db,
     update_trip_db,
     delete_trip_db,
+    save_trip_ai_recommendation_db,
+    create_trip_with_ai_db,
     get_all_trip_categories,
     get_all_recommended_places,
     get_all_transportation_recommendations,
 )
 
-from schemas.trip import TripRequest, TripResponse, UpdateTripRequest
+from services.bedrock_service import (
+    build_trip_prompt,
+    generate_trip_recommendation
+)
+
+from schemas.trip import TripRequest, TripResponse, UpdateTripRequest, GenerateTripResponse
 from database import init_db, get_db
 
 
@@ -60,12 +67,9 @@ def health() -> dict[str, str]:
 @app.post("/api/v1/trips", response_model=TripResponse)
 def create_trip(request: TripRequest, db: Session = Depends(get_db)) -> TripResponse:
     """
-    Create a new trip:
-    - Validates payload via TripRequest schema.
-    - Calculates daily budget and category tier.
-    - Persists the record and returns the created Trip.
+    Create a new trip and immediately generate AI itinerary in a single request.
     """
-    return create_trip_db(db, request)
+    return create_trip_with_ai_db(db, request)
 
 @app.get("/api/v1/trips", response_model=list[TripResponse])
 def list_trips(db: Session = Depends(get_db)) -> list[TripResponse]:
@@ -100,6 +104,49 @@ def delete_trip(trip_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
     delete_trip_db(db, trip)
     return {"message": f"Trip with id {trip_id} deleted successfully."}
+
+@app.post("/api/v1/trips/{trip_id}/generate", response_model=GenerateTripResponse)
+def generate_ai_itinerary(trip_id: int, db: Session = Depends(get_db)) -> GenerateTripResponse:
+    """
+    Generate AI-powered travel recommendations for an existing trip:
+    - Step 1: Retrieve existing trip record by ID.
+    - Step 2: Build enhanced contextual prompt.
+    - Step 3: Call Amazon Bedrock Converse API.
+    - Step 4: Save AI recommendation to database.
+    - Step 5: Return structured response.
+    """
+    # Step 1: Validate trip existence
+    trip = get_trip_by_id_db(db, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+    
+    # Step 2: Build prompt with trip context (Destination, Days, Budget, Category)
+    prompt = build_trip_prompt(
+        destination=trip.destination,
+        days=trip.days,
+        budget=trip.budget,
+        category=trip.category
+    )
+
+    # Step 3: Invoke Amazon Bedrock
+    try:
+        ai_recommendation = generate_trip_recommendation(prompt)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate AI itinerary from Amazon Bedrock: {str(e)}"
+        )
+        
+    
+    # Step 4: Persist generated recommendation to database
+    updated_trip = save_trip_ai_recommendation_db(db, trip, ai_recommendation)
+
+    # Step 5: Return payload matching GenerateTripResponse
+    return GenerateTripResponse(
+        trip_id=updated_trip.id,
+        destination=updated_trip.destination,
+        recommendation=updated_trip.ai_recommendation
+    )
 
 @app.get("/api/v1/trip-categories")
 def list_trip_categories() -> list[str]:
