@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/* ==============================================================================
+   KelanaAI Design System Tokens (Single Source of Truth ala Shadcn-UI)
+   Modify these variables to adjust brand colors, card surfaces, and border-radius
+   across the entire frontend application.
+   ============================================================================== */
+
+:root {
+  /* Surface & Canvas Tokens (Default Dark Palette) */
+  --background: #09090b;               /* zinc-950 base canvas */
+  --foreground: #f4f4f5;               /* zinc-100 primary text */
+
+  /* Card & Surface Overlays */
+  --card: rgba(24, 24, 27, 0.65);      /* zinc-900 glassmorphic card */
+  --card-foreground: #fafafa;          /* zinc-50 */
+  --card-border: rgba(255, 255, 255, 0.1);
+
+  /* Brand Primary Tokens */
+  --primary: #2563eb;                  /* blue-600 */
+  --primary-foreground: #ffffff;
+  --primary-hover: #1d4ed8;            /* blue-700 */
+  --primary-glow: rgba(59, 130, 246, 0.2);
+
+  /* Secondary & Surface Controls */
+  --secondary: #18181b;                /* zinc-900 */
+  --secondary-foreground: #d4d4d8;     /* zinc-300 */
+  --secondary-hover: #27272a;          /* zinc-800 */
+
+  /* Muted & Secondary Text */
+  --muted: #27272a;                    /* zinc-800 */
+  --muted-foreground: #a1a1aa;          /* zinc-400 */
+
+  /* Accents */
+  --accent: #0d9488;                   /* teal-600 */
+  --accent-foreground: #ffffff;
+
+  /* Destructive States */
+  --destructive: #dc2626;              /* red-600 */
+  --destructive-foreground: #ffffff;
+
+  /* Form Elements, Borders & Focus Rings */
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(24, 24, 27, 0.7);
+  --ring: #3b82f6;                      /* blue-500 */
+
+  /* Border Radius Design Token (Change this to scale all corners across the app) */
+  --radius: 0.75rem;                   /* 12px base radius */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-border: var(--card-border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Single Source of Truth for Border Radii mapped to --radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-full: 9999px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
