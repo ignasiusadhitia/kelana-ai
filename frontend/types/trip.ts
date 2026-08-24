@@ -1,0 +1,36 @@
+/**
+ * SEPARATION OF CONCERNS: Domain Type Definitions
+ * Typed contracts matching backend Pydantic DTOs.
+ */
+
+/**
+ * Payload contract sent when requesting a new trip itinerary.
+ */
+export interface TripRequest {
+  destination: string;
+  days: number;
+  budget: number;
+  travel_style: string;
+}
+
+/**
+ * Full trip data entity returned by the backend API.
+ */
+export interface TripResponse {
+  id: number;
+  destination: string;
+  days: number;
+  budget: number;
+  category: string;
+  daily_budget: number;
+  created_at: string;
+  ai_recommendation?: string | null;
+}
+
+/**
+ * Lightweight summary information displayed during loading and error states.
+ */
+export interface TripSummaryInfo {
+  destination: string;
+  budget: number | string;
+}

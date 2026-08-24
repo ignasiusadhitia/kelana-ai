@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 class TripRequest(BaseModel):
     """Request schema for creating a new trip."""
     destination     : str   = Field(min_length=2, max_length=100, description="Name of the destination (e.g. Japan)")
-    days            : int   = Field(ge=1, le=365, description="Trip duration in days (1-365)")
+    days            : int   = Field(ge=1, le=14, description="Trip duration in days (1-14)")
     budget          : float = Field(gt=0, le=1_000_000, description="Total trip budget in selected currency")
     travel_style    : str   = Field(min_length=2, max_length=50, description="Travel style preference (e.g. Family)")
 

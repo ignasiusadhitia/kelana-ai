@@ -13,6 +13,7 @@ import uvicorn
 
 # FastAPI dependencies for building the REST API endpoints.
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from services.trip_services import (
@@ -41,6 +42,19 @@ app = FastAPI(
     title="KelanaAI API",
     description="Backend API for travel planning and budget calculation.",
     version="1.0.0"
+)
+
+# Configure CORS middleware to allow requests from Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize database tables on application startup
@@ -120,12 +134,13 @@ def generate_ai_itinerary(trip_id: int, db: Session = Depends(get_db)) -> Genera
     if trip is None:
         raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
     
-    # Step 2: Build prompt with trip context (Destination, Days, Budget, Category)
+    # Step 2: Build prompt with trip context (Destination, Days, Budget, Category, Daily Budget)
     prompt = build_trip_prompt(
         destination=trip.destination,
         days=trip.days,
         budget=trip.budget,
-        category=trip.category
+        category=trip.category,
+        daily_budget=trip.daily_budget
     )
 
     # Step 3: Invoke Amazon Bedrock

@@ -167,7 +167,9 @@ def create_trip_with_ai_db(db: Session, request: TripRequest) -> Trip:
         destination=request.destination,
         days=request.days,
         budget=request.budget,
-        category=category
+        category=category,
+        daily_budget=daily_budget,
+        travel_style=request.travel_style
     )
     
     # Graceful handling: jika AI gagal/timeout, trip tetap tersimpan (rekomendasi None)
