@@ -6,10 +6,61 @@ import remarkGfm from "remark-gfm";
  * COMPONENT: MarkdownRenderer
  * Custom Markdown parser transforming AI output into stylized, branded HTML elements
  * with dedicated time-block badges (Morning, Afternoon, Evening, Tips, Budget).
+ * Includes a robust single-pass LLM markdown normalizer.
  */
 
 interface MarkdownRendererProps {
   content: string;
+}
+
+/**
+ * Normalizes LLM markdown formatting:
+ * 1. Trims spaces INSIDE bold delimiters: `** text **` -> `**text**` so CommonMark parses it as bold.
+ * 2. Guarantees a single space OUTSIDE if a normal word is glued directly to the asterisks: `to**The` -> `to **The`.
+ * 3. Preserves punctuation directly attached to bold: `**Activity 1:**` -> `**Activity 1:**` (no space before `:`).
+ */
+function sanitizeMarkdown(text: string): string {
+  if (!text) return "";
+
+  return (
+    text
+      // Normalize double asterisks bold pairs
+      .replace(/(^|[\s\S])\*\*([^*\n]+?)\*\*([\s\S]|$)/g, (match, before, content, after) => {
+        const trimmed = content.trim();
+        if (!trimmed) return match;
+
+        // If preceding char is an alphanumeric letter/number, add space before `**`
+        let prefix = before || "";
+        if (before && /[a-zA-Z0-9]/.test(before)) {
+          prefix = `${before} `;
+        }
+
+        // If succeeding char is an alphanumeric letter/number, add space after `**`
+        let suffix = after || "";
+        if (after && /[a-zA-Z0-9]/.test(after)) {
+          suffix = ` ${after}`;
+        }
+
+        return `${prefix}**${trimmed}**${suffix}`;
+      })
+      // Normalize double underscore bold pairs
+      .replace(/(^|[\s\S])__([^_\n]+?)__([\s\S]|$)/g, (match, before, content, after) => {
+        const trimmed = content.trim();
+        if (!trimmed) return match;
+
+        let prefix = before || "";
+        if (before && /[a-zA-Z0-9]/.test(before)) {
+          prefix = `${before} `;
+        }
+
+        let suffix = after || "";
+        if (after && /[a-zA-Z0-9]/.test(after)) {
+          suffix = ` ${after}`;
+        }
+
+        return `${prefix}**${trimmed}**${suffix}`;
+      })
+  );
 }
 
 /**
@@ -155,9 +206,11 @@ const markdownComponents: Components = {
 };
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  const sanitizedContent = sanitizeMarkdown(content);
+
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-      {content}
+      {sanitizedContent}
     </ReactMarkdown>
   );
 }

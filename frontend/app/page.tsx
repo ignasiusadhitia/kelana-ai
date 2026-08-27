@@ -1,8 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Sparkles, Folder, MapPin, Trash2, ArrowRight } from "lucide-react";
 import { useTripGenerator } from "@/hooks/useTripGenerator";
 import { Navbar } from "@/components/Navbar";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Footer } from "@/components/Footer";
 import { TravelForm } from "@/components/TravelForm";
 import { LoadingState } from "@/components/LoadingState";
@@ -11,14 +17,48 @@ import { TripRecommendation } from "@/components/TripRecommendation";
 import { SummaryBar } from "@/components/SummaryBar";
 import { Typography } from "@/components/ui/typography";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollableTrack } from "@/components/ui/scrollable-track";
+import { TripRequest, TripResponse } from "@/types/trip";
+import { toast } from "@/components/ui/toast";
+
+// Code-splitting / Lazy-load quick preview modal (zero hydration overhead on initial load)
+const TripDetailModal = dynamic(
+  () => import("@/components/TripDetailModal").then((mod) => mod.TripDetailModal),
+  { ssr: false }
+);
+
+// High-performance lightweight shimmer blur generator for smooth image loading
+const shimmer = (w: number, h: number) => `
+<svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="g">
+      <stop stop-color="#18181b" offset="20%" />
+      <stop stop-color="#27272a" offset="50%" />
+      <stop stop-color="#18181b" offset="70%" />
+    </linearGradient>
+  </defs>
+  <rect width="${w}" height="${h}" fill="#18181b" />
+  <rect id="r" width="${w}" height="${h}" fill="url(#g)" />
+  <animate xlink:href="#r" attributeName="x" from="-${w}" to="${w}" dur="1.2s" repeatCount="indefinite"  />
+</svg>`;
+
+const toBase64 = (str: string) =>
+  typeof window === "undefined"
+    ? Buffer.from(str).toString("base64")
+    : window.btoa(str);
 
 // ARCHITECTURE: Main Homepage Controller & View Orchestrator
-// PATTERN: State-Driven UI State Machine (Form -> Loading -> Recommendation | Error)
+// PATTERN: State-Driven UI State Machine + Portal-Backed Quick Preview Modal + Seamless /trips Redirection
 
 /**
  * Main application homepage rendering the hero showcase, travel form, and AI-curated guides.
  */
 export default function Home() {
+  const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [selectedModalTrip, setSelectedModalTrip] = useState<TripResponse | null>(null);
+
   const {
     trip,
     isLoading,
@@ -26,10 +66,33 @@ export default function Home() {
     summaryInfo,
     savedTrips,
     generateTrip,
-    loadSavedTrip,
     deleteSavedTrip,
     resetTrip,
   } = useTripGenerator();
+
+  const isGeneratingOrNavigating = isLoading || isNavigating;
+
+  // Handler submitting form with butter-smooth redirect to /trips
+  const handleFormSubmit = async (data: TripRequest) => {
+    try {
+      setIsNavigating(true);
+      const createdTrip = await generateTrip(data);
+      if (createdTrip && createdTrip.id) {
+        toast.success(`Itinerary for ${createdTrip.destination} has been created & saved!`, {
+          title: "Trip Created",
+        });
+        router.push(`/trips?highlight=${createdTrip.id}`);
+      } else {
+        setIsNavigating(false);
+      }
+    } catch (e) {
+      setIsNavigating(false);
+      toast.error(e instanceof Error ? e.message : "Failed to generate travel plan.", {
+        title: "Creation Failed",
+      });
+      console.error("Failed to generate trip:", e);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -37,77 +100,91 @@ export default function Home() {
       <Navbar onPlanTrip={resetTrip} />
 
       {/* Main Content Area */}
-      <main className="relative flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="relative flex-1 px-4 py-8 pb-24 sm:pb-8 sm:px-6 lg:px-8">
         {/* Ambient Top Glow Orbs */}
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-96 w-full max-w-4xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12),transparent_60%)]" />
-        <div className="pointer-events-none absolute top-40 right-1/4 h-72 w-72 rounded-full bg-indigo-500/5 blur-3xl" />
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-96 w-full max-w-5xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12),transparent_60%)]" />
 
-        <div className="relative mx-auto max-w-3xl space-y-6">
-          {/* Destination Hero Image & Headline Banner (Shown when not viewing results) */}
-          {!trip && (
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl">
-              {/* Hero Image Container */}
-              <div className="relative h-56 sm:h-72 md:h-80 w-full overflow-hidden">
-                <Image
-                  src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1400&auto=format&fit=crop"
-                  alt="Iconic Travel Destination — Kyoto & Mount Fuji, Japan"
-                  fill
-                  priority
-                  className="object-cover object-center transform transition-transform duration-700 hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 800px"
-                />
+        <div className="mx-auto max-w-5xl space-y-6">
+          {/* Destination Hero Image & Headline Banner */}
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl">
+            {/* Hero Image Container */}
+            <div className="relative h-60 sm:h-72 md:h-80 w-full overflow-hidden">
+              <Image
+                src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1400&auto=format&fit=crop"
+                alt="Iconic Travel Destination — Kyoto & Mount Fuji, Japan"
+                fill
+                priority
+                placeholder="blur"
+                blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(1400, 800))}`}
+                className="object-cover object-center transform transition-transform duration-700 hover:scale-105"
+                sizes="(max-width: 768px) 100vw, 800px"
+              />
 
-                {/* Dark Gradient Overlay for Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
-                <div className="absolute inset-0 bg-blue-950/20 mix-blend-overlay" />
+              {/* Dark Gradient Overlay for Readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+              <div className="absolute inset-0 bg-blue-950/20 mix-blend-overlay" />
 
-                {/* Content Overlay */}
-                <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 text-left">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-zinc-900/80 px-3 py-1 text-xs font-semibold text-white mb-3 backdrop-blur-md w-fit">
-                    <span className="text-amber-400">✨</span>
-                    <span>Featured Destination: Kyoto, Japan</span>
-                  </div>
-
-                  <Typography variant="h1" className="drop-shadow-md">
-                    Plan Your Next Journey with{" "}
-                    <Typography as="span" variant="gradient">
-                      KelanaAI
-                    </Typography>
-                  </Typography>
-
-                  <Typography variant="lead" className="mt-1.5 max-w-xl drop-shadow-sm">
-                    Custom day-by-day itineraries, smart daily budget allowances, and authentic local spots.
-                  </Typography>
+              {/* Content Overlay */}
+              <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-8 text-left">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-900/85 px-2.5 py-0.5 text-[11px] font-semibold text-white mb-2.5 backdrop-blur-md w-fit">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Featured Destination: Kyoto, Japan</span>
                 </div>
+
+                <Typography variant="h1" className="text-2xl sm:text-4xl md:text-5xl font-black drop-shadow-md tracking-tight leading-tight">
+                  Plan Your Next Journey with{" "}
+                  <Typography as="span" variant="gradient">
+                    KelanaAI
+                  </Typography>
+                </Typography>
+
+                <Typography variant="lead" className="mt-1 sm:mt-1.5 text-xs sm:text-base text-zinc-300 max-w-xl drop-shadow-sm line-clamp-2 sm:line-clamp-none">
+                  Custom day-by-day itineraries, smart daily budget allowances, and authentic local spots.
+                </Typography>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Saved Plans History Chips (If user has previously saved trips) */}
-          {!trip && !isLoading && savedTrips.length > 0 && (
-            <div className="rounded-2xl border border-white/5 bg-zinc-900/40 p-4 backdrop-blur-md">
-              <div className="flex items-center justify-between mb-2.5">
-                <Typography variant="kicker" className="flex items-center gap-1.5">
-                  <span>📂</span>
-                  <span>Recent Saved Plans ({savedTrips.length})</span>
-                </Typography>
-                <Typography variant="muted">Click to view anytime</Typography>
+          {/* Quick Saved Itineraries History Toolbar (Spacious swipeable track with Left/Right Chevrons) */}
+          {savedTrips.length > 0 && (
+            <div className="rounded-2xl border border-border/80 bg-card/40 p-4 sm:p-5 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Folder className="w-4 h-4 text-blue-400" />
+                  <Typography variant="kicker" className="text-zinc-200 text-xs sm:text-sm font-bold tracking-wide">
+                    Saved Itineraries
+                  </Typography>
+                  <span className="rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-blue-300">
+                    {savedTrips.length}
+                  </span>
+                </div>
+
+                <Link
+                  href="/trips"
+                  className="text-xs font-semibold text-primary hover:text-blue-400 transition-colors inline-flex items-center gap-1 active:scale-95"
+                >
+                  <span className="hidden sm:inline">Open Full Dashboard</span>
+                  <span className="sm:hidden">All Trips</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              {/* Saved Plans History Chips with Automatic Left/Right Flanking Chevrons */}
+              <ScrollableTrack className="mt-3.5 gap-2.5">
                 {savedTrips.map((saved) => (
                   <div
                     key={saved.id}
-                    className="group inline-flex items-center rounded-xl border border-border bg-secondary/80 px-3 py-1.5 text-xs text-zinc-200 transition-all hover:border-primary/50 hover:bg-zinc-800"
+                    className="group shrink-0 inline-flex items-center rounded-xl border border-border bg-secondary/90 hover:bg-zinc-800/90 px-3.5 py-2 text-xs text-zinc-200 transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.98]"
                   >
                     <button
                       type="button"
-                      onClick={() => loadSavedTrip(saved)}
-                      className="cursor-pointer flex items-center gap-1.5 font-medium hover:text-white"
+                      onClick={() => setSelectedModalTrip(saved)}
+                      className="cursor-pointer flex items-center gap-2 font-medium hover:text-white"
+                      title="Click to open quick preview modal"
                     >
-                      <span className="text-blue-400">📍</span>
-                      <span>{saved.destination}</span>
-                      <Typography as="span" variant="muted" className="text-zinc-400">
+                      <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span className="font-semibold text-white text-xs sm:text-sm">{saved.destination}</span>
+                      <Typography as="span" variant="muted" className="text-zinc-400 text-xs">
                         ({saved.days}D • ${Number(saved.budget).toLocaleString()})
                       </Typography>
                     </button>
@@ -117,47 +194,74 @@ export default function Home() {
                         e.stopPropagation();
                         deleteSavedTrip(saved.id);
                       }}
-                      className="cursor-pointer ml-2 text-muted-foreground hover:text-destructive transition"
+                      className="cursor-pointer ml-2 flex h-5 w-5 items-center justify-center rounded-full text-zinc-500 hover:bg-destructive/20 hover:text-destructive transition active:scale-90"
                       title="Remove from history"
+                      aria-label="Remove from history"
                     >
-                      ✕
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
-              </div>
+              </ScrollableTrack>
             </div>
           )}
 
           {/* Main Card Container for Form, Loading, Error, or Results */}
           <Card id="planner" className="overflow-hidden">
             {/* Top Summary Bar when active in loading or error state */}
-            {(isLoading || error) && summaryInfo && (
+            {(isGeneratingOrNavigating || error) && summaryInfo && (
               <SummaryBar summaryInfo={summaryInfo} />
             )}
 
-            {/* Loading State */}
-            {isLoading && <LoadingState />}
+            {/* Loading State: Persists smoothly until /trips page is reached */}
+            {isGeneratingOrNavigating && <LoadingState />}
 
             {/* Graceful Error State */}
-            {error && !isLoading && (
+            {error && !isGeneratingOrNavigating && (
               <ErrorState onRetry={resetTrip} message={error} />
             )}
 
-            {/* AI Recommendation State */}
-            {trip && !isLoading && !error && (
-              <TripRecommendation trip={trip} onReset={resetTrip} />
+            {/* AI Recommendation State (If active) */}
+            {trip && !isGeneratingOrNavigating && !error && (
+              <div className="space-y-4">
+                <TripRecommendation trip={trip} onReset={resetTrip} />
+                <div className="p-4 border-t border-border bg-secondary/30 flex items-center justify-between">
+                  <Typography variant="muted" className="text-xs">
+                    Itinerary saved to your dashboard.
+                  </Typography>
+                  <Link href={`/trips/${trip.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs gap-1">
+                      <span>Open in Full Page</span>
+                      <span>→</span>
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             )}
 
             {/* Travel Form State */}
-            {!isLoading && !error && !trip && (
-              <TravelForm onSubmit={generateTrip} />
+            {!isGeneratingOrNavigating && !error && !trip && (
+              <TravelForm onSubmit={handleFormSubmit} />
             )}
           </Card>
         </div>
       </main>
 
+      {/* Quick Preview Modal Wrapped in React Portal */}
+      <TripDetailModal
+        trip={selectedModalTrip}
+        isOpen={selectedModalTrip !== null}
+        onClose={() => setSelectedModalTrip(null)}
+        onTripUpdated={(updated) => {
+          setSelectedModalTrip(updated);
+        }}
+      />
+
       {/* Footer */}
-      <Footer onPlanTrip={resetTrip} />
+      <Footer />
+
+      {/* Mobile Native App Bottom Navigation Bar */}
+      <MobileBottomNav onPlanTrip={resetTrip} />
     </div>
   );
 }

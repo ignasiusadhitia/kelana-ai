@@ -25,8 +25,8 @@ export function Footer({ onPlanTrip }: FooterProps) {
   };
 
   return (
-    <footer className="mt-auto border-t border-border bg-background/80 backdrop-blur-xl py-10 text-xs text-muted-foreground">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+    <footer className="mt-auto mb-16 sm:mb-0 border-t border-border bg-background/80 backdrop-blur-xl py-8 sm:py-10 px-4 sm:px-6 lg:px-8 text-xs text-muted-foreground">
+      <div className="mx-auto max-w-5xl">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-border">
           {/* Brand Summary */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left gap-1">

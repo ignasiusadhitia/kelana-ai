@@ -15,6 +15,7 @@ class Trip(Base):
     budget          = Column(Float,     nullable=False)
     category        = Column(String,    nullable=False)
     daily_budget    = Column(Float,     nullable=False)
+    travel_style    = Column(String,    nullable=True, default="Solo")
 
     # CONCEPT: server_default=func.now() tells database server (e.g. Postgres)
     # to generate the timestamp upon INSERT, keeping it timezone-aware.    
@@ -22,4 +23,3 @@ class Trip(Base):
 
     # NEW -- store the AI-generated recommendation
     ai_recommendation = Column(Text, nullable=True)
-

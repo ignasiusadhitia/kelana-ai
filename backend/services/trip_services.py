@@ -109,6 +109,7 @@ def create_trip_db(db: Session, request:TripRequest) -> Trip:
         budget              = request.budget,
         category            = category,
         daily_budget        = daily_budget,
+        travel_style        = request.travel_style,
     )
 
     # Step 3: Persist transaction and refresh instance to fetch generated ID/timestamps
@@ -185,6 +186,7 @@ def create_trip_with_ai_db(db: Session, request: TripRequest) -> Trip:
         budget            = request.budget,
         category          = category,
         daily_budget      = daily_budget,
+        travel_style      = request.travel_style,
         ai_recommendation = ai_recommendation,
     )
     # Step 4: Simpan ke PostgreSQL

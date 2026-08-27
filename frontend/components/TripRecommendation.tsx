@@ -1,29 +1,32 @@
+"use client";
+
 import { useState } from "react";
+import { Sparkles, RefreshCw, Printer } from "lucide-react";
 import { TripResponse } from "@/types/trip";
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
-import { Typography } from "@/components/ui/typography";
+import { LoadingState } from "@/components/LoadingState";
 import { Button } from "@/components/ui/button";
+import { updateTripBudget, regenerateTripAi } from "@/services/tripService";
+import { toast } from "@/components/ui/toast";
+import { formatBudget } from "@/lib/utils";
+import { TripHeader } from "./trip-detail/TripHeader";
+import { TripMetricsGrid } from "./trip-detail/TripMetricsGrid";
+import { TripDayAccordions, SectionItem } from "./trip-detail/TripDayAccordions";
+import { EditBudgetModal } from "./trip-detail/EditBudgetModal";
 
 /**
  * COMPONENT: TripRecommendation
- * Displays the curated bespoke travel guide with interactive filtering, day accordions,
- * and multi-format export toolbars (Copy, Download Markdown, Print/PDF).
- * Utilizes atomic Typography and Button UI primitives.
+ * Master orchestrator for curated travel blueprint view.
+ * Clean, modularized architecture delegating to specialized sub-components:
+ * - TripHeader (Title, persona badges, export/copy/print toolbar)
+ * - TripMetricsGrid (5-metric overview cards + budget edit trigger)
+ * - TripDayAccordions (Day-by-day filter tabs & collapsible Markdown sections)
+ * - EditBudgetModal (Portal-based in-place budget editor & AI regeneration)
  */
 
 interface TripRecommendationProps {
   trip: TripResponse;
   onReset: () => void;
-}
-
-interface SectionItem {
-  id: string;
-  rawTitle: string;
-  cleanTitle: string;
-  icon: string;
-  body: string;
-  isDay: boolean;
-  dayNumber?: number;
+  onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
 // Helper to extract emoji characters from string headings
@@ -37,12 +40,17 @@ function cleanTitleText(text: string): string {
   return text.replace(/^[\p{Emoji}\p{Extended_Pictographic}\s:-]+/u, "").trim();
 }
 
-export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
-  const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+export function TripRecommendation({
+  trip,
+  onReset,
+  onTripUpdated,
+}: TripRecommendationProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditBudgetOpen, setIsEditBudgetOpen] = useState(false);
+  const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
-  // PATTERN: Parses markdown sections by top-level "## " headings for tabbed/accordion view
+  // Parses markdown sections by top-level "## " headings for tabbed/accordion view
   const parseSections = (rawText: string): SectionItem[] => {
     const sectionDelimiter = /(?:^|\n)(?=##\s+)/g;
     const rawParts = rawText.split(sectionDelimiter).filter((s) => s.trim().length > 0);
@@ -93,30 +101,6 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
   };
 
   const sections = trip.ai_recommendation ? parseSections(trip.ai_recommendation) : [];
-  const daySections = sections.filter((s) => s.isDay);
-
-  const toggleSection = (id: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [id]: prev[id] === undefined ? false : !prev[id],
-    }));
-  };
-
-  const handleExpandAll = () => {
-    const nextState: Record<string, boolean> = {};
-    sections.forEach((s) => {
-      nextState[s.id] = true;
-    });
-    setExpandedSections(nextState);
-  };
-
-  const handleCollapseAll = () => {
-    const nextState: Record<string, boolean> = {};
-    sections.forEach((s) => {
-      nextState[s.id] = false;
-    });
-    setExpandedSections(nextState);
-  };
 
   // Copy raw markdown content to clipboard
   const handleCopy = async () => {
@@ -124,9 +108,11 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
     try {
       await navigator.clipboard.writeText(trip.ai_recommendation);
       setCopied(true);
+      toast.success("Itinerary copied to clipboard!", { title: "Copied" });
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy itinerary text to clipboard.");
     }
   };
 
@@ -142,6 +128,7 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toast.info("Downloading itinerary Markdown document...", { title: "Export Started" });
   };
 
   // Trigger browser native print dialog for PDF saving
@@ -149,256 +136,95 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
     window.print();
   };
 
-  // Filter sections by selected day tab or full overview
-  const filteredSections = sections.filter((section) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "guides") return !section.isDay;
-    return section.id === activeFilter;
-  });
+  // Handle Edit Budget submission with optional AI regeneration
+  const handleSaveBudget = async (newBudget: number, alsoRegenerate: boolean) => {
+    try {
+      setIsUpdatingBudget(true);
+
+      if (alsoRegenerate) {
+        setIsEditBudgetOpen(false);
+        setIsRegenerating(true);
+
+        const updated = await updateTripBudget(trip.id, newBudget);
+        const regenRes = await regenerateTripAi(trip.id);
+        const fullyUpdatedTrip: TripResponse = {
+          ...updated,
+          ai_recommendation: regenRes.recommendation,
+        };
+        onTripUpdated?.(fullyUpdatedTrip);
+        toast.success("Budget updated & AI itinerary regenerated successfully!", {
+          title: "Itinerary Updated",
+        });
+      } else {
+        const updated = await updateTripBudget(trip.id, newBudget);
+        onTripUpdated?.(updated);
+        setIsEditBudgetOpen(false);
+        toast.success(`Budget updated to ${formatBudget(newBudget)} successfully!`, {
+          title: "Budget Saved",
+        });
+      }
+    } finally {
+      setIsUpdatingBudget(false);
+      setIsRegenerating(false);
+    }
+  };
+
+  // Handle direct Regenerate AI Guide submission
+  const handleRegenerateAi = async () => {
+    if (isRegenerating) return;
+    try {
+      setIsRegenerating(true);
+      const res = await regenerateTripAi(trip.id);
+      const updatedTrip: TripResponse = {
+        ...trip,
+        ai_recommendation: res.recommendation,
+      };
+      onTripUpdated?.(updatedTrip);
+      toast.success("AI Itinerary regenerated successfully!", {
+        title: "Regeneration Complete",
+      });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to regenerate AI itinerary.",
+        { title: "Regeneration Failed" }
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // If regeneration is in progress, display the official animated LoadingState component
+  if (isRegenerating) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <LoadingState />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Hero Header Card */}
+      {/* Hero Header Card with Action Toolbar */}
       <div className="relative overflow-hidden rounded-2xl border border-card-border bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-blue-950/40 p-6 sm:p-8 shadow-xl backdrop-blur-xl">
-        {/* Ambient Top Right Glow */}
         <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Typography as="span" variant="kicker" className="rounded-full bg-blue-500/20 px-2.5 py-0.5 text-[10px] text-blue-300">
-                CURATED TRAVEL BLUEPRINT
-              </Typography>
-              <Typography variant="muted">Plan #{trip.id}</Typography>
-            </div>
-            <Typography variant="h2" className="text-white">
-              {trip.destination}
-            </Typography>
-            <Typography variant="lead" className="text-zinc-300 mt-1 block">
-              Custom {trip.days}-Day travel plan optimized for a total budget of USD {Number(trip.budget).toLocaleString()}
-            </Typography>
-          </div>
+        <TripHeader
+          trip={trip}
+          copied={copied}
+          onRegenerateAi={handleRegenerateAi}
+          onCopy={handleCopy}
+          onDownloadMarkdown={handleDownloadMarkdown}
+          onPrint={handlePrint}
+        />
 
-          {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleCopy}
-            >
-              {copied ? (
-                <>
-                  <span className="text-emerald-400">✓</span>
-                  <span className="text-emerald-400 font-bold">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <span>📋</span>
-                  <span>Copy</span>
-                </>
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleDownloadMarkdown}
-            >
-              <span>📥</span>
-              <span>Export .md</span>
-            </Button>
-
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handlePrint}
-            >
-              <span>🖨️</span>
-              <span>Print / PDF</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* 4 Metric Badges */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-white/5 bg-zinc-950/60 p-3.5 backdrop-blur-md">
-            <Typography variant="kicker" className="block text-zinc-400">
-              Duration
-            </Typography>
-            <Typography variant="h4" className="mt-0.5 block text-white font-extrabold">
-              📅 {trip.days} Days
-            </Typography>
-          </div>
-
-          <div className="rounded-xl border border-white/5 bg-zinc-950/60 p-3.5 backdrop-blur-md">
-            <Typography variant="kicker" className="block text-zinc-400">
-              Total Budget
-            </Typography>
-            <Typography variant="h4" className="mt-0.5 block text-white font-extrabold">
-              💵 USD {Number(trip.budget).toLocaleString()}
-            </Typography>
-          </div>
-
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/30 p-3.5 backdrop-blur-md">
-            <Typography variant="kicker" className="block text-emerald-300">
-              Daily Limit
-            </Typography>
-            <Typography variant="h4" className="mt-0.5 block text-emerald-400 font-extrabold">
-              ⚡ ${Number(trip.daily_budget).toLocaleString()}/day
-            </Typography>
-          </div>
-
-          <div className="rounded-xl border border-blue-500/20 bg-blue-950/30 p-3.5 backdrop-blur-md">
-            <Typography variant="kicker" className="block text-blue-300">
-              Category Tier
-            </Typography>
-            <Typography variant="h4" className="mt-0.5 block text-blue-300 font-extrabold">
-              🏷️ {trip.category}
-            </Typography>
-          </div>
-        </div>
+        <TripMetricsGrid
+          trip={trip}
+          onOpenEditBudget={() => setIsEditBudgetOpen(true)}
+        />
       </div>
 
-      {/* Navigation Filter Tabs & Accordion Controls */}
-      {sections.length > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          {/* Day Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveFilter("all")}
-              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                activeFilter === "all"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-blue-600/20 ring-2 ring-primary/30"
-                  : "border border-border bg-secondary/80 text-muted-foreground hover:border-zinc-700 hover:text-foreground"
-              }`}
-            >
-              All Days Overview
-            </button>
-
-            {daySections.map((sec, i) => (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => setActiveFilter(sec.id)}
-                className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-bold transition-all ${
-                  activeFilter === sec.id
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-blue-600/20 ring-2 ring-primary/30"
-                    : "border border-border bg-secondary/80 text-muted-foreground hover:border-zinc-700 hover:text-foreground"
-                }`}
-              >
-                Day {i + 1}
-              </button>
-            ))}
-
-            {sections.some((s) => !s.isDay) && (
-              <button
-                type="button"
-                onClick={() => setActiveFilter("guides")}
-                className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-bold transition-all ${
-                  activeFilter === "guides"
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-blue-600/20 ring-2 ring-primary/30"
-                    : "border border-border bg-secondary/80 text-muted-foreground hover:border-zinc-700 hover:text-foreground"
-                }`}
-              >
-                🍜 Guides & Tips
-              </button>
-            )}
-          </div>
-
-          {/* Accordion Expand / Collapse All */}
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={handleExpandAll}
-              className="cursor-pointer font-medium text-muted-foreground hover:text-primary transition"
-            >
-              Expand all
-            </button>
-            <span className="text-zinc-700">•</span>
-            <button
-              type="button"
-              onClick={handleCollapseAll}
-              className="cursor-pointer font-medium text-muted-foreground hover:text-primary transition"
-            >
-              Collapse all
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Structured Sections / Cards */}
-      <div className="space-y-4 pt-1">
-        {filteredSections.map((section) => {
-          const isCollapsed = expandedSections[section.id] === false;
-
-          return (
-            <div
-              key={section.id}
-              className="overflow-hidden rounded-2xl border border-card-border bg-card shadow-md backdrop-blur-md transition-all hover:border-zinc-700"
-            >
-              {/* Card Header (Accordion Button) */}
-              <button
-                type="button"
-                onClick={() => toggleSection(section.id)}
-                className="cursor-pointer flex w-full items-center justify-between gap-3 px-6 py-4.5 text-left transition hover:bg-zinc-800/50"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold shadow-sm ${
-                      section.isDay
-                        ? "bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-blue-500/20"
-                        : "bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-orange-500/20"
-                    }`}
-                  >
-                    {section.icon}
-                  </span>
-                  <Typography variant="h3" className="tracking-tight">
-                    {section.cleanTitle}
-                  </Typography>
-                </div>
-
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Typography variant="muted" className="text-muted-foreground">
-                    {isCollapsed ? "Show Details" : "Hide"}
-                  </Typography>
-                  <svg
-                    className={`h-4 w-4 transform transition-transform duration-200 ${
-                      isCollapsed ? "-rotate-90" : "rotate-0"
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </button>
-
-              {/* Card Body */}
-              {!isCollapsed && (
-                <div className="border-t border-card-border px-6 py-5 bg-zinc-950/40">
-                  <MarkdownRenderer content={section.body} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {filteredSections.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            No sections match the selected filter.
-          </div>
-        )}
-      </div>
+      {/* Structured Day Tabs & Accordion Markdown Content */}
+      <TripDayAccordions sections={sections} />
 
       {/* Bottom Action CTA */}
       <div className="pt-4 border-t border-card-border flex flex-col sm:flex-row gap-3">
@@ -406,9 +232,21 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
           type="button"
           size="lg"
           onClick={onReset}
-          className="flex-1 py-4 text-sm"
+          className="flex-1 py-4 text-sm gap-2 active:scale-95"
         >
-          ✨ Plan Another Journey
+          <Sparkles className="w-4 h-4" />
+          <span>Plan Another Journey</span>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={handleRegenerateAi}
+          className="px-6 py-4 text-sm gap-2 active:scale-95"
+        >
+          <RefreshCw className="w-4 h-4" />
+          <span>Regenerate Itinerary</span>
         </Button>
 
         <Button
@@ -416,11 +254,21 @@ export function TripRecommendation({ trip, onReset }: TripRecommendationProps) {
           variant="secondary"
           size="lg"
           onClick={handlePrint}
-          className="px-6 py-4 text-sm"
+          className="px-6 py-4 text-sm gap-2 active:scale-95"
         >
-          🖨️ Print Itinerary
+          <Printer className="w-4 h-4" />
+          <span>Print Itinerary</span>
         </Button>
       </div>
+
+      {/* Portal-based Edit Budget Modal */}
+      <EditBudgetModal
+        isOpen={isEditBudgetOpen}
+        trip={trip}
+        isUpdating={isUpdatingBudget}
+        onClose={() => setIsEditBudgetOpen(false)}
+        onSave={handleSaveBudget}
+      />
     </div>
   );
 }

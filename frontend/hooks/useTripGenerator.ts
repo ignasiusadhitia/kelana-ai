@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripRequest, TripResponse, TripSummaryInfo } from "@/types/trip";
 import { createTripService } from "@/services/tripService";
+import { toast } from "@/components/ui/toast";
+import { tripKeys } from "@/lib/queryKeys";
 
 // PATTERN: Custom Hook + TanStack Query Mutation + LocalStorage Persistence
 const STORAGE_KEY = "kelana_saved_trips_v1";
@@ -24,6 +26,7 @@ function getInitialSavedTrips(): TripResponse[] {
  * Custom hook orchestrating trip creation, server state, and local persistence.
  */
 export function useTripGenerator() {
+  const queryClient = useQueryClient();
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [summaryInfo, setSummaryInfo] = useState<TripSummaryInfo | null>(null);
   const [savedTrips, setSavedTrips] = useState<TripResponse[]>(getInitialSavedTrips);
@@ -53,17 +56,18 @@ export function useTripGenerator() {
       setTrip(null);
     },
     onSuccess: (data) => {
-      setTrip(data);
       persistTrip(data);
+      // Invalidate trips cache so dashboard is instantly refreshed
+      queryClient.invalidateQueries({ queryKey: tripKeys.all });
     },
     retry: 1,
   });
 
   /**
-   * Triggers the trip generation mutation.
+   * Triggers the trip generation mutation and returns the created TripResponse.
    */
-  const generateTrip = async (payload: TripRequest) => {
-    await tripMutation.mutateAsync(payload);
+  const generateTrip = async (payload: TripRequest): Promise<TripResponse> => {
+    return await tripMutation.mutateAsync(payload);
   };
 
   /**
@@ -90,6 +94,7 @@ export function useTripGenerator() {
     if (trip?.id === id) {
       setTrip(null);
     }
+    toast.info("Removed trip from quick history.", { title: "Quick History" });
   };
 
   /**

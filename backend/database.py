@@ -21,9 +21,18 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 # CONCEPT: Base class that maintains a catalog of ORM classes and database tables.
 Base = declarative_base()
 
+from sqlalchemy import text
+
 def init_db() -> None:
-    """Create all database tables defined by models inheriting from Base."""
+    """Create all database tables defined by models inheriting from Base and safely migrate columns."""
     Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS travel_style VARCHAR DEFAULT 'Solo';"))
+            conn.execute(text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS ai_recommendation TEXT;"))
+            conn.commit()
+    except Exception as e:
+        print(f"Database schema migration note: {e}")
 
 # CONCEPT: FastAPI Dependency using Generator (yield) to ensure session cleanup.
 def get_db() -> Generator[Session, None, None]:

@@ -1,0 +1,64 @@
+import { NextResponse } from "next/server";
+
+// ARCHITECTURE: Dynamic Server-Side Proxy Endpoint for AI Itinerary Regeneration
+// PATTERN: Proxy Pattern forwarding regeneration requests to FastAPI backend (Amazon Bedrock)
+const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+
+interface RouteParams {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+/**
+ * POST /api/v1/trips/[id]/generate
+ * Proxy endpoint to regenerate AI itinerary for an existing trip in FastAPI/Bedrock.
+ */
+export async function POST(request: Request, context: RouteParams) {
+  try {
+    const { id } = await context.params;
+    const tripId = parseInt(id, 10);
+
+    if (isNaN(tripId) || tripId <= 0) {
+      return NextResponse.json(
+        { detail: "Invalid trip ID parameter" },
+        { status: 400 }
+      );
+    }
+
+    const response = await fetch(
+      `${BACKEND_URL}/api/v1/trips/${tripId}/generate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { detail: rawText || `Backend returned status ${response.status}` };
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { detail: data.detail || "Failed to regenerate AI itinerary" },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
+  } catch (error: unknown) {
+    console.error("API AI regeneration error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json(
+      { detail: `Backend connection error: ${errorMessage}` },
+      { status: 502 }
+    );
+  }
+}

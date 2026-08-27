@@ -1,6 +1,6 @@
 /**
  * SEPARATION OF CONCERNS: Domain Type Definitions
- * Typed contracts matching backend Pydantic DTOs.
+ * Typed contracts matching backend Pydantic DTOs and frontend entities.
  */
 
 /**
@@ -14,7 +14,7 @@ export interface TripRequest {
 }
 
 /**
- * Full trip data entity returned by the backend API.
+ * Full trip data entity returned by the backend API and PostgreSQL.
  */
 export interface TripResponse {
   id: number;
@@ -24,6 +24,7 @@ export interface TripResponse {
   category: string;
   daily_budget: number;
   created_at: string;
+  travel_style?: string | null;
   ai_recommendation?: string | null;
 }
 

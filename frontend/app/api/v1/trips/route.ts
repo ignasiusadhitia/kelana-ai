@@ -41,7 +41,13 @@ export async function POST(request: Request) {
       body: JSON.stringify(validation.data),
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { detail: rawText || `Backend error (${response.status})` };
+    }
 
     // Propagate backend HTTP status and error details
     if (!response.ok) {
@@ -76,7 +82,14 @@ export async function GET() {
       },
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { detail: rawText || `Backend error (${response.status})` };
+    }
+
     return NextResponse.json(data, { status: response.status });
   } catch (error: unknown) {
     const errorMessage =
