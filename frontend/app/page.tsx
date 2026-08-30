@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Folder, MapPin, Trash2, ArrowRight } from "lucide-react";
 import { useTripGenerator } from "@/hooks/useTripGenerator";
 import { Navbar } from "@/components/Navbar";
@@ -17,9 +18,11 @@ import { TripRecommendation } from "@/components/TripRecommendation";
 import { SummaryBar } from "@/components/SummaryBar";
 import { Typography } from "@/components/ui/typography";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ScrollableTrack } from "@/components/ui/scrollable-track";
 import { TripRequest, TripResponse } from "@/types/trip";
+import { getTrips, deleteTripService } from "@/services/tripService";
+import { tripKeys } from "@/lib/queryKeys";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/components/ui/toast";
 
 // Code-splitting / Lazy-load quick preview modal (zero hydration overhead on initial load)
@@ -48,25 +51,41 @@ const toBase64 = (str: string) =>
     ? Buffer.from(str).toString("base64")
     : window.btoa(str);
 
-// ARCHITECTURE: Main Homepage Controller & View Orchestrator
-// PATTERN: State-Driven UI State Machine + Portal-Backed Quick Preview Modal + Seamless /trips Redirection
-
 /**
  * Main application homepage rendering the hero showcase, travel form, and AI-curated guides.
  */
 export default function Home() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
   const [selectedModalTrip, setSelectedModalTrip] = useState<TripResponse | null>(null);
+
+  // Fetch real user trips from database for authenticated toolbar
+  const { data: userTrips = [] } = useQuery<TripResponse[]>({
+    queryKey: tripKeys.lists(),
+    queryFn: () => getTrips("active"),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 30,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteTripService(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tripKeys.all });
+      toast.info("Itinerary removed from your dashboard.", { title: "Deleted" });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete trip.");
+    },
+  });
 
   const {
     trip,
     isLoading,
     error,
     summaryInfo,
-    savedTrips,
     generateTrip,
-    deleteSavedTrip,
     resetTrip,
   } = useTripGenerator();
 
@@ -93,6 +112,8 @@ export default function Home() {
       console.error("Failed to generate trip:", e);
     }
   };
+
+  const displayedSavedTrips = isAuthenticated ? userTrips.slice(0, 10) : [];
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -132,22 +153,22 @@ export default function Home() {
                 </div>
 
                 <Typography variant="h1" className="text-2xl sm:text-4xl md:text-5xl font-black drop-shadow-md tracking-tight leading-tight">
-                  Plan Your Next Journey with{" "}
+                  Plan Your Next Trip with{" "}
                   <Typography as="span" variant="gradient">
                     KelanaAI
                   </Typography>
                 </Typography>
 
                 <Typography variant="lead" className="mt-1 sm:mt-1.5 text-xs sm:text-base text-zinc-300 max-w-xl drop-shadow-sm line-clamp-2 sm:line-clamp-none">
-                  Custom day-by-day itineraries, smart daily budget allowances, and authentic local spots.
+                  Day-by-day itineraries, daily budget breakdowns, and curated local recommendations.
                 </Typography>
               </div>
             </div>
           </div>
 
-          {/* Quick Saved Itineraries History Toolbar (Spacious swipeable track with Left/Right Chevrons) */}
-          {savedTrips.length > 0 && (
-            <div className="rounded-2xl border border-border/80 bg-card/40 p-4 sm:p-5 backdrop-blur-md">
+          {/* Quick Saved Itineraries History Toolbar for Authenticated User */}
+          {isAuthenticated && displayedSavedTrips.length > 0 && (
+            <div className="rounded-2xl border border-border/80 bg-card/40 p-4 sm:p-5 backdrop-blur-md animate-in fade-in duration-200">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Folder className="w-4 h-4 text-blue-400" />
@@ -155,7 +176,7 @@ export default function Home() {
                     Saved Itineraries
                   </Typography>
                   <span className="rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-blue-300">
-                    {savedTrips.length}
+                    {displayedSavedTrips.length}
                   </span>
                 </div>
 
@@ -171,7 +192,7 @@ export default function Home() {
 
               {/* Saved Plans History Chips with Automatic Left/Right Flanking Chevrons */}
               <ScrollableTrack className="mt-3.5 gap-2.5">
-                {savedTrips.map((saved) => (
+                {displayedSavedTrips.map((saved) => (
                   <div
                     key={saved.id}
                     className="group shrink-0 inline-flex items-center rounded-xl border border-border bg-secondary/90 hover:bg-zinc-800/90 px-3.5 py-2 text-xs text-zinc-200 transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.98]"
@@ -192,7 +213,7 @@ export default function Home() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteSavedTrip(saved.id);
+                        deleteMutation.mutate(saved.id);
                       }}
                       className="cursor-pointer ml-2 flex h-5 w-5 items-center justify-center rounded-full text-zinc-500 hover:bg-destructive/20 hover:text-destructive transition active:scale-90"
                       title="Remove from history"
@@ -216,52 +237,48 @@ export default function Home() {
             {/* Loading State: Persists smoothly until /trips page is reached */}
             {isGeneratingOrNavigating && <LoadingState />}
 
-            {/* Graceful Error State */}
+            {/* Graceful Error State with Intelligent Auth Detection */}
             {error && !isGeneratingOrNavigating && (
-              <ErrorState onRetry={resetTrip} message={error} />
-            )}
-
-            {/* AI Recommendation State (If active) */}
-            {trip && !isGeneratingOrNavigating && !error && (
-              <div className="space-y-4">
-                <TripRecommendation trip={trip} onReset={resetTrip} />
-                <div className="p-4 border-t border-border bg-secondary/30 flex items-center justify-between">
-                  <Typography variant="muted" className="text-xs">
-                    Itinerary saved to your dashboard.
-                  </Typography>
-                  <Link href={`/trips/${trip.id}`}>
-                    <Button variant="outline" size="sm" className="text-xs gap-1">
-                      <span>Open in Full Page</span>
-                      <span>→</span>
-                    </Button>
-                  </Link>
-                </div>
+              <div className="p-6 sm:p-8">
+                <ErrorState
+                  onRetry={resetTrip}
+                  message={error}
+                />
               </div>
             )}
 
-            {/* Travel Form State */}
-            {!isGeneratingOrNavigating && !error && !trip && (
-              <TravelForm onSubmit={handleFormSubmit} />
+            {/* Main Interactive Planner Form */}
+            {!trip && !isGeneratingOrNavigating && !error && (
+              <div className="p-6 sm:p-8">
+                <TravelForm onSubmit={handleFormSubmit} />
+              </div>
+            )}
+
+            {/* Generated Trip Blueprint View */}
+            {trip && !isGeneratingOrNavigating && !error && (
+              <div className="p-6 sm:p-8">
+                <TripRecommendation
+                  trip={trip}
+                  onReset={resetTrip}
+                />
+              </div>
             )}
           </Card>
         </div>
       </main>
 
-      {/* Quick Preview Modal Wrapped in React Portal */}
-      <TripDetailModal
-        trip={selectedModalTrip}
-        isOpen={selectedModalTrip !== null}
-        onClose={() => setSelectedModalTrip(null)}
-        onTripUpdated={(updated) => {
-          setSelectedModalTrip(updated);
-        }}
-      />
-
       {/* Footer */}
       <Footer />
 
-      {/* Mobile Native App Bottom Navigation Bar */}
-      <MobileBottomNav onPlanTrip={resetTrip} />
+      {/* Mobile Bottom Navigation Dock */}
+      <MobileBottomNav />
+
+      {/* Quick Preview Detail Modal */}
+      <TripDetailModal
+        trip={selectedModalTrip}
+        isOpen={!!selectedModalTrip}
+        onClose={() => setSelectedModalTrip(null)}
+      />
     </div>
   );
 }

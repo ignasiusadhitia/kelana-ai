@@ -71,18 +71,18 @@ STRICT BUDGET & REALISM RULES:
 FORMATTING STRUCTURE:
 For EACH Day, provide:
 - Header: ## Day X: [Catchy Thematic Title, e.g., "Old-Town Heritage & Back-Alley Dining"]
-- ### 🌅 Morning: 2 specific activities with location/neighborhood context.
-- ### ☀️ Afternoon: Cultural site, neighborhood stroll, or artisan shops with transit tips.
-- ### 🌙 Evening: Specific dinner recommendation (naming the restaurant or food street) & evening vibe.
-- ### 💡 Insider Tip: 1 practical, non-obvious piece of advice (e.g., ticket booking in advance, secret viewpoint, optimal arrival time).
-- ### 💰 Daily Cost Breakdown: Itemized estimates (Stay, Food, Transit, Activities) summing up to <= USD {daily_budget:,.2f}.
+- ### Morning: 2 specific activities with location/neighborhood context.
+- ### Afternoon: Cultural site, neighborhood stroll, or artisan shops with transit tips.
+- ### Evening: Specific dinner recommendation (naming the restaurant or food street) & evening atmosphere.
+- ### Insider Tip: 1 practical, non-obvious piece of advice (e.g., ticket booking in advance, secret viewpoint, optimal arrival time).
+- ### Daily Cost Breakdown: Itemized estimates (Stay, Food, Transit, Activities) summing up to <= USD {daily_budget:,.2f}.
 
 Additional Sections at the End:
-- ## 🍜 Essential Local Dishes & Where to Try Them
-- ## 🚆 Smart Navigation & Transit Advice
-- ## 🎒 Practical Packing & Local Etiquette Tips
+- ## Essential Local Dishes & Where to Try Them
+- ## Smart Navigation & Transit Advice
+- ## Practical Packing & Local Etiquette Tips
 
-Format output strictly as clean Markdown."""
+Format output strictly as clean Markdown without emoji prefixes in headings."""
 
 def generate_trip_recommendation(prompt: str) -> str:
     """

@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { tripFormSchema } from "@/schemas/tripSchema";
 
-// ARCHITECTURE: Next.js Route Handler acting as a secure Server-Side Reverse Proxy
-// PATTERN: Proxy Pattern with Defense-in-Depth Schema Validation shielding direct backend access
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+
+function getForwardHeaders(request: Request): HeadersInit {
+  const authHeader = request.headers.get("authorization");
+  return {
+    "Content-Type": "application/json",
+    ...(authHeader ? { Authorization: authHeader } : {}),
+  };
+}
 
 /**
  * POST /api/v1/trips
@@ -32,12 +38,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Forward sanitized payload to FastAPI backend service
+    // Forward sanitized payload with Authorization header to FastAPI backend
     const response = await fetch(`${BACKEND_URL}/api/v1/trips`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getForwardHeaders(request),
       body: JSON.stringify(validation.data),
     });
 
@@ -49,7 +53,6 @@ export async function POST(request: Request) {
       data = { detail: rawText || `Backend error (${response.status})` };
     }
 
-    // Propagate backend HTTP status and error details
     if (!response.ok) {
       return NextResponse.json(
         { detail: data.detail || "Failed to create trip from backend" },
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: response.status });
   } catch (error: unknown) {
     console.error("API proxy error:", error);
     const errorMessage =
@@ -71,15 +74,16 @@ export async function POST(request: Request) {
 
 /**
  * GET /api/v1/trips
- * Proxy endpoint to retrieve all saved trips from backend database.
+ * Proxy endpoint to retrieve all saved trips for the authenticated user.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/v1/trips`, {
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status") || "active";
+
+    const response = await fetch(`${BACKEND_URL}/api/v1/trips?status=${encodeURIComponent(statusParam)}`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getForwardHeaders(request),
     });
 
     const rawText = await response.text();

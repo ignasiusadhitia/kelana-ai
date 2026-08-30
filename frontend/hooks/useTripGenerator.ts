@@ -106,10 +106,18 @@ export function useTripGenerator() {
   };
 
   // Normalized human-readable error message
-  const errorMessage = tripMutation.error
+  const rawErrorMessage = tripMutation.error
     ? tripMutation.error instanceof Error
       ? tripMutation.error.message
       : "We encountered an issue preparing your travel plan. Please check your connection and try again."
+    : null;
+
+  const errorMessage = rawErrorMessage
+    ? rawErrorMessage.toLowerCase().includes("bearer") ||
+      rawErrorMessage.toLowerCase().includes("authentication") ||
+      rawErrorMessage.toLowerCase().includes("401")
+      ? "Authentication required. Please sign in or create an account to generate itineraries."
+      : rawErrorMessage
     : null;
 
   return {

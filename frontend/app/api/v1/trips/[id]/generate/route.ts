@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-// ARCHITECTURE: Dynamic Server-Side Proxy Endpoint for AI Itinerary Regeneration
-// PATTERN: Proxy Pattern forwarding regeneration requests to FastAPI backend (Amazon Bedrock)
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
 interface RouteParams {
@@ -10,9 +8,17 @@ interface RouteParams {
   }>;
 }
 
+function getForwardHeaders(request: Request): HeadersInit {
+  const authHeader = request.headers.get("authorization");
+  return {
+    "Content-Type": "application/json",
+    ...(authHeader ? { Authorization: authHeader } : {}),
+  };
+}
+
 /**
  * POST /api/v1/trips/[id]/generate
- * Proxy endpoint to regenerate AI itinerary for an existing trip in FastAPI/Bedrock.
+ * Proxy endpoint to regenerate AI itinerary with Authorization forward.
  */
 export async function POST(request: Request, context: RouteParams) {
   try {
@@ -30,9 +36,7 @@ export async function POST(request: Request, context: RouteParams) {
       `${BACKEND_URL}/api/v1/trips/${tripId}/generate`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getForwardHeaders(request),
       }
     );
 

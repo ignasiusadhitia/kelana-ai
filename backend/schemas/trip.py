@@ -26,6 +26,8 @@ class TripResponse(BaseModel):
     daily_budget        : float
     travel_style        : str | None = "Solo"
     created_at          : datetime
+    deleted_at          : datetime | None = None
+    user_id             : int
 
     ai_recommendation   : str | None = None
 

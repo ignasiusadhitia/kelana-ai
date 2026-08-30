@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Trash2, Info } from "lucide-react";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 import { Portal } from "@/components/ui/portal";
@@ -90,7 +91,7 @@ export function ConfirmDialog({
                   : "border-blue-500/30 bg-blue-950/40 text-blue-400"
               }`}
             >
-              {icon || (variant === "destructive" ? "🗑️" : "ℹ️")}
+              {icon || (variant === "destructive" ? <Trash2 className="w-5 h-5 text-red-400" /> : <Info className="w-5 h-5 text-blue-400" />)}
             </div>
 
             <div className="flex-1 min-w-0">

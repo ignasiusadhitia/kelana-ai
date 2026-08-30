@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-// ARCHITECTURE: Dynamic Server-Side Proxy Endpoint for Single Trip
-// PATTERN: Proxy Pattern handling GET, PUT (Update Budget), and DELETE for /api/v1/trips/[id]
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
 interface RouteParams {
@@ -10,9 +8,14 @@ interface RouteParams {
   }>;
 }
 
-/**
- * Helper to safely parse backend response (handling non-JSON error pages like 500 HTML)
- */
+function getForwardHeaders(request: Request): HeadersInit {
+  const authHeader = request.headers.get("authorization");
+  return {
+    "Content-Type": "application/json",
+    ...(authHeader ? { Authorization: authHeader } : {}),
+  };
+}
+
 async function parseBackendResponse(response: Response) {
   const text = await response.text();
   try {
@@ -24,7 +27,7 @@ async function parseBackendResponse(response: Response) {
 
 /**
  * GET /api/v1/trips/[id]
- * Proxy endpoint to retrieve a single trip by ID from FastAPI backend (reading PostgreSQL).
+ * Proxy endpoint to retrieve a single trip by ID with Authorization forward.
  */
 export async function GET(request: Request, context: RouteParams) {
   try {
@@ -40,9 +43,7 @@ export async function GET(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getForwardHeaders(request),
       cache: "no-store",
     });
 
@@ -69,7 +70,7 @@ export async function GET(request: Request, context: RouteParams) {
 
 /**
  * PUT /api/v1/trips/[id]
- * Proxy endpoint to update trip budget and recalculate daily limits in FastAPI backend.
+ * Proxy endpoint to update trip budget with Authorization forward.
  */
 export async function PUT(request: Request, context: RouteParams) {
   try {
@@ -93,9 +94,7 @@ export async function PUT(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getForwardHeaders(request),
       body: JSON.stringify({ budget: body.budget }),
     });
 
@@ -122,7 +121,7 @@ export async function PUT(request: Request, context: RouteParams) {
 
 /**
  * DELETE /api/v1/trips/[id]
- * Proxy endpoint to remove a trip from FastAPI database.
+ * Proxy endpoint to remove a trip with Authorization forward.
  */
 export async function DELETE(request: Request, context: RouteParams) {
   try {
@@ -138,9 +137,7 @@ export async function DELETE(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getForwardHeaders(request),
     });
 
     const data = await parseBackendResponse(response);

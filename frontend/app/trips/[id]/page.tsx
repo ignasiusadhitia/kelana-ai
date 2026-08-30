@@ -1,10 +1,11 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTrip } from "@/services/tripService";
+import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "@/components/Navbar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Footer } from "@/components/Footer";
@@ -12,12 +13,14 @@ import { TripRecommendation } from "@/components/TripRecommendation";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Plus, AlertTriangle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, AlertTriangle, RotateCcw, Lock, LogIn, ShieldAlert, Map } from "lucide-react";
 import { tripKeys } from "@/lib/queryKeys";
 import { TripResponse } from "@/types/trip";
 
-// ARCHITECTURE: Dynamic Route Segment (/trips/[id])
-// PATTERN: 100% Unified Presentation Component (Reusing TripRecommendation with cache invalidation)
+/**
+ * DYNAMIC ROUTE: /trips/[id] (Single Trip Detailed View)
+ * Features intelligent error disambiguation (401 Auth Required vs 403 Forbidden vs 404 Not Found).
+ */
 
 interface PageProps {
   params: Promise<{
@@ -30,6 +33,14 @@ export default function TripDetailPage({ params }: PageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const tripId = parseInt(resolvedParams.id, 10);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+
+  // Route Protection: Automatically redirect unauthenticated users to login
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      router.push(`/login?redirect=/trips/${tripId}`);
+    }
+  }, [isAuthLoading, isAuthenticated, router, tripId]);
 
   // Fetch trip from PostgreSQL database via internal Next.js proxy
   const {
@@ -41,9 +52,19 @@ export default function TripDetailPage({ params }: PageProps) {
   } = useQuery({
     queryKey: tripKeys.detail(tripId),
     queryFn: () => getTrip(tripId),
-    enabled: !isNaN(tripId) && tripId > 0,
+    enabled: !isNaN(tripId) && tripId > 0 && isAuthenticated,
     staleTime: 1000 * 60,
   });
+
+  const errorMsg = error instanceof Error ? error.message : String(error || "");
+  const is401 =
+    errorMsg.includes("401") ||
+    errorMsg.toLowerCase().includes("authentication") ||
+    errorMsg.toLowerCase().includes("unauthorized");
+  const is403 =
+    errorMsg.includes("403") ||
+    errorMsg.toLowerCase().includes("forbidden") ||
+    errorMsg.toLowerCase().includes("permission");
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -85,18 +106,80 @@ export default function TripDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Error / Not Found State */}
-          {isError && !isLoading && (
-            <Card className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-card/40 p-8 sm:p-12 text-center backdrop-blur-xl">
-              {/* Ambient Red Glow */}
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(239,68,68,0.08),transparent_70%)]" />
+          {/* Error Disambiguation 1: 401 Unauthorized */}
+          {isError && !isLoading && is401 && (
+            <Card className="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-card/50 p-8 sm:p-12 text-center backdrop-blur-xl animate-in fade-in duration-300">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(59,130,246,0.1),transparent_70%)]" />
+              <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-950/40 text-blue-400 shadow-inner">
+                <Lock className="w-8 h-8" />
+              </div>
 
-              {/* Center Illustrated Warning Icon Badge */}
+              <Typography variant="h3" className="font-bold text-white text-xl">
+                Sign In Required to View Itinerary
+              </Typography>
+
+              <Typography variant="muted" as="p" className="mx-auto mt-2 max-w-md text-sm text-zinc-300">
+                This travel itinerary is private. Please sign in to your traveler account to view details.
+              </Typography>
+
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <Link href={`/login?redirect=/trips/${tripId}`}>
+                  <Button variant="default" size="sm" className="gap-2 px-6 active:scale-95 shadow-md">
+                    <LogIn className="w-4 h-4" />
+                    <span>Sign In</span>
+                  </Button>
+                </Link>
+                <Link href="/trips">
+                  <Button variant="outline" size="sm" className="gap-2 px-5 active:scale-95">
+                    <span>Back to Trips</span>
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          )}
+
+          {/* Error Disambiguation 2: 403 Forbidden (Cross-User Privacy) */}
+          {isError && !isLoading && is403 && (
+            <Card className="relative overflow-hidden rounded-3xl border border-amber-500/20 bg-card/50 p-8 sm:p-12 text-center backdrop-blur-xl animate-in fade-in duration-300">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(245,158,11,0.08),transparent_70%)]" />
+              <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-950/40 text-amber-400 shadow-inner">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+
+              <Typography variant="h3" className="font-bold text-white text-xl">
+                Access Restricted (Private Itinerary)
+              </Typography>
+
+              <Typography variant="muted" as="p" className="mx-auto mt-2 max-w-md text-sm text-zinc-300">
+                This travel plan belongs to another traveler and is protected by KelanaAI security. You can only view itineraries created on your own account.
+              </Typography>
+
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <Link href="/trips">
+                  <Button variant="default" size="sm" className="gap-2 px-6 active:scale-95">
+                    <Map className="w-4 h-4" />
+                    <span>View My Trips</span>
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="outline" size="sm" className="gap-2 px-5 active:scale-95">
+                    <Plus className="w-4 h-4" />
+                    <span>Plan New Trip</span>
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          )}
+
+          {/* Error Disambiguation 3: 404 Not Found or Connection Error */}
+          {isError && !isLoading && !is401 && !is403 && (
+            <Card className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-card/40 p-8 sm:p-12 text-center backdrop-blur-xl animate-in fade-in duration-300">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(239,68,68,0.08),transparent_70%)]" />
               <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-950/40 text-red-400 shadow-inner">
                 <AlertTriangle className="w-8 h-8 text-red-400" />
               </div>
 
-              <Typography variant="h3" className="font-bold text-white">
+              <Typography variant="h3" className="font-bold text-white text-xl">
                 Itinerary Not Found
               </Typography>
 
@@ -108,11 +191,11 @@ export default function TripDetailPage({ params }: PageProps) {
 
               <div className="mt-6 flex items-center justify-center gap-3">
                 <Link href="/trips">
-                  <Button variant="secondary" size="sm" className="px-4">
+                  <Button variant="secondary" size="sm" className="px-4 active:scale-95">
                     View All Trips
                   </Button>
                 </Link>
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5 px-4">
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5 px-4 active:scale-95">
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Try Again</span>
                 </Button>
@@ -120,19 +203,16 @@ export default function TripDetailPage({ params }: PageProps) {
             </Card>
           )}
 
-          {/* Loaded Trip Details: Identical presentation using TripRecommendation */}
+          {/* Loaded Trip Details: Reusing TripRecommendation */}
           {trip && !isLoading && !isError && (
             <TripRecommendation
               trip={trip}
               onReset={() => router.push("/")}
               onTripUpdated={(updated) => {
-                // Optimistically update active detail cache
                 queryClient.setQueryData(tripKeys.detail(tripId), updated);
-                // Optimistically update trips list cache as well for instant dashboard sync
                 queryClient.setQueryData<TripResponse[]>(tripKeys.lists(), (old) =>
                   old ? old.map((t) => (t.id === tripId ? updated : t)) : []
                 );
-                // Re-sync server cache in the background
                 queryClient.invalidateQueries({ queryKey: tripKeys.all });
               }}
             />

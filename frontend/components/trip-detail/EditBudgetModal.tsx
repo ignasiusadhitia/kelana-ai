@@ -69,7 +69,9 @@ export function EditBudgetModal({
         }}
         className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200"
       >
-        <div className="relative w-full max-w-md rounded-2xl border border-border bg-zinc-900 p-6 shadow-2xl">
+        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/95 p-6 shadow-2xl ring-1 ring-white/10 backdrop-blur-2xl animate-in zoom-in-95 duration-150">
+          {/* Top Ambient Glow */}
+          <div className="pointer-events-none absolute -top-16 -right-16 h-36 w-36 rounded-full bg-blue-500/15 blur-3xl" />
           {/* Modal Header */}
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center gap-2">
@@ -89,8 +91,8 @@ export function EditBudgetModal({
             </button>
           </div>
 
-          {/* Modal Form */}
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {/* Modal Form with noValidate */}
+          <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
             <Typography variant="caption" className="text-muted-foreground block">
               Adjusting your total budget will recalculate your daily spending limit and category tier.
             </Typography>
@@ -110,8 +112,8 @@ export function EditBudgetModal({
                   setErrorMessage(null);
                 }}
                 placeholder="e.g. 2500"
+                className={errorMessage ? "border-red-500/80 focus-visible:ring-red-500/30" : ""}
                 autoFocus
-                required
               />
             </div>
 

@@ -1,22 +1,38 @@
 import { TripRequest, TripResponse } from "@/types/trip";
 import { API_ENDPOINTS } from "@/constants/trip";
+import { getAuthToken } from "./authService";
 
 /**
- * SERVICE LAYER: Centralized HTTP Service for trip data operations.
- * Isolates data fetching, error normalization, and network requests from UI components.
- * Follows DB-First Read patterns (PostgreSQL reads are fast and free; AI Bedrock is invoked only on generation).
+ * SERVICE LAYER: Centralized HTTP Service for trip data operations (Session 8 Auth Protected & Soft Delete).
+ * Automatically attaches Bearer token header to all requests.
  */
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 /**
- * Retrieves all saved trips from the persistent database.
- * @returns Promise resolving to an array of TripResponse objects.
+ * Retrieves saved trips belonging to the authenticated user.
+ * Supports status="active" (default) and status="trash".
  */
-export async function getTrips(): Promise<TripResponse[]> {
-  const response = await fetch(API_ENDPOINTS.TRIPS, {
+export async function getTrips(
+  statusOrContext?: "active" | "trash" | unknown
+): Promise<TripResponse[]> {
+  const status =
+    typeof statusOrContext === "string" && (statusOrContext === "active" || statusOrContext === "trash")
+      ? statusOrContext
+      : "active";
+  const url = `${API_ENDPOINTS.TRIPS}?status=${encodeURIComponent(status)}`;
+  const response = await fetch(url, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     cache: "no-store",
   });
 
@@ -31,16 +47,12 @@ export async function getTrips(): Promise<TripResponse[]> {
 }
 
 /**
- * Retrieves a single trip with full itinerary details by its numeric ID.
- * @param id The unique trip identifier.
- * @returns Promise resolving to the requested TripResponse.
+ * Retrieves a single trip with full itinerary details by ID with ownership verification.
  */
 export async function getTrip(id: number): Promise<TripResponse> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     cache: "no-store",
   });
 
@@ -55,18 +67,14 @@ export async function getTrip(id: number): Promise<TripResponse> {
 }
 
 /**
- * Creates a new trip and triggers AI itinerary generation.
- * @param payload TripRequest parameters (destination, duration, budget, travel style).
- * @returns Promise resolving to the created TripResponse.
+ * Creates a new trip bound to the authenticated user and triggers AI itinerary generation.
  */
 export async function createTripService(
   payload: TripRequest
 ): Promise<TripResponse> {
   const response = await fetch(API_ENDPOINTS.TRIPS, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -79,10 +87,7 @@ export async function createTripService(
 }
 
 /**
- * Updates the total budget for an existing trip in PostgreSQL and recalculates limits.
- * @param id The unique trip identifier.
- * @param budget The new positive numeric budget.
- * @returns Promise resolving to the updated TripResponse.
+ * Updates the total budget for an existing trip with ownership validation.
  */
 export async function updateTripBudget(
   id: number,
@@ -90,9 +95,7 @@ export async function updateTripBudget(
 ): Promise<TripResponse> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ budget }),
   });
 
@@ -107,18 +110,14 @@ export async function updateTripBudget(
 }
 
 /**
- * Regenerates AI itinerary for an existing trip via Amazon Bedrock and saves to PostgreSQL.
- * @param id The unique trip identifier.
- * @returns Promise resolving to the regenerated itinerary data.
+ * Regenerates AI itinerary for an existing trip with ownership validation.
  */
 export async function regenerateTripAi(
   id: number
 ): Promise<{ trip_id: number; destination: string; recommendation: string }> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/generate`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -132,21 +131,54 @@ export async function regenerateTripAi(
 }
 
 /**
- * Deletes a trip by ID from the database.
- * @param id The unique trip identifier.
+ * Soft-deletes a trip by ID (moves to trash bin).
  */
 export async function deleteTripService(id: number): Promise<void> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(
       errorData.detail || `Failed to delete trip (${response.status})`
+    );
+  }
+}
+
+/**
+ * Restores a soft-deleted trip back to the active dashboard.
+ */
+export async function restoreTripService(id: number): Promise<TripResponse> {
+  const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/restore`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || `Failed to restore trip (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Permanently deletes a trip from the database (irreversible hard delete).
+ */
+export async function permanentDeleteTripService(id: number): Promise<void> {
+  const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/permanent`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || `Failed to permanently delete trip (${response.status})`
     );
   }
 }

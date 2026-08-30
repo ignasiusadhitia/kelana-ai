@@ -24,6 +24,7 @@ export interface TripResponse {
   category: string;
   daily_budget: number;
   created_at: string;
+  deleted_at?: string | null;
   travel_style?: string | null;
   ai_recommendation?: string | null;
 }

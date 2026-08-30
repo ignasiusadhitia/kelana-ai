@@ -2,39 +2,35 @@
 # 1. DATABASE CONFIGURATION (SQLAlchemy Connection & Session Management)
 # ==============================================================================
 
+import os
 from typing import Generator
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
-import os
 
-# Load evironment variables from .env file (never hardcode connection strings)
+# Load environment variables from .env file
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# CONCEPT: Engine manages the connection pool to the database.
+# Engine manages the connection pool to the database
 engine = create_engine(DATABASE_URL)
 
-# CONCEPT: SessionLocal is a factory that generates new database sessions.
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+# SessionLocal is a factory that generates new database sessions
+SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
-# CONCEPT: Base class that maintains a catalog of ORM classes and database tables.
+# Base class that maintains a catalog of ORM classes and database tables
 Base = declarative_base()
 
-from sqlalchemy import text
 
 def init_db() -> None:
-    """Create all database tables defined by models inheriting from Base and safely migrate columns."""
+    """Create all SQLAlchemy tables for the configured database."""
+    # import all models so their metadata is registered before create_all
+    import models.user  # noqa: F401
+    import models.trip  # noqa: F401
     Base.metadata.create_all(bind=engine)
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS travel_style VARCHAR DEFAULT 'Solo';"))
-            conn.execute(text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS ai_recommendation TEXT;"))
-            conn.commit()
-    except Exception as e:
-        print(f"Database schema migration note: {e}")
 
-# CONCEPT: FastAPI Dependency using Generator (yield) to ensure session cleanup.
+
+# FastAPI Dependency using Generator (yield) to ensure session cleanup
 def get_db() -> Generator[Session, None, None]:
     """Provide a database session per request and close it after completion."""
     db = SessionLocal()

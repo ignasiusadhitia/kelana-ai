@@ -7,6 +7,9 @@
    ============================================================================== */
 
 :root {
+  /* Enforce native dark color scheme for browser controls, scrollbars, and OS modes */
+  color-scheme: dark;
+
   /* Surface & Canvas Tokens (Default Dark Palette) */
   --background: #09090b;               /* zinc-950 base canvas */
   --foreground: #f4f4f5;               /* zinc-100 primary text */
@@ -148,6 +151,21 @@ button, a, input, select, textarea {
 
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0.75rem);
+}
+
+/* Fix WebKit / Chromium Browser Autofill Yellow/White flash on dark inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0px 1000px #18181b inset;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 body {

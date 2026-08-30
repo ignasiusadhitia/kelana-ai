@@ -29,15 +29,21 @@ interface TripRecommendationProps {
   onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
-// Helper to extract emoji characters from string headings
-function extractLeadingEmoji(text: string): string | null {
-  const match = text.match(/^[\p{Emoji}\p{Extended_Pictographic}]+/u);
-  return match ? match[0] : null;
-}
-
-// Helper to strip leading emoji from title to avoid duplicate icons
+// Helper to strip leading emoji and markdown artifacts (**bold**, *italic*, `code`, # headings) from title strings
 function cleanTitleText(text: string): string {
-  return text.replace(/^[\p{Emoji}\p{Extended_Pictographic}\s:-]+/u, "").trim();
+  if (!text) return "";
+  return text
+    .replace(/^#+\s*/, "")
+    .replace(/^[\p{Emoji}\p{Extended_Pictographic}\s:-]+/u, "")
+    .replace(/\*\*\*(.*?)\*\*\*/g, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/___(.*?)___/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/[*_`]/g, "")
+    .trim();
 }
 
 export function TripRecommendation({
@@ -61,7 +67,7 @@ export function TripRecommendation({
           id: "section-0",
           rawTitle: "Itinerary Overview",
           cleanTitle: "Itinerary Overview",
-          icon: "🧭",
+          icon: "1",
           body: rawText,
           isDay: false,
         },
@@ -85,14 +91,13 @@ export function TripRecommendation({
         dayCounter += 1;
       }
 
-      const leadingEmoji = extractLeadingEmoji(rawTitle);
       const cleanTitle = cleanTitleText(rawTitle) || rawTitle;
 
       return {
         id: `section-${idx}`,
         rawTitle,
         cleanTitle,
-        icon: isDay ? String(dayCounter) : leadingEmoji || "✨",
+        icon: isDay ? String(dayCounter) : "",
         body,
         isDay,
         dayNumber: isDay ? dayCounter : undefined,

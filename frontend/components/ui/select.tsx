@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ATOMIC PRIMITIVE: Custom Select Dropdown
@@ -137,7 +138,7 @@ export function CustomSelect({
                     <span>{option.label}</span>
                   </span>
                   {isSelected && (
-                    <span className="text-primary text-xs font-bold">✓</span>
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
                   )}
                 </button>
               );

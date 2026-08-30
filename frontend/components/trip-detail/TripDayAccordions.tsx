@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, ChevronDown, Sparkles } from "lucide-react";
+import { BookOpen, ChevronDown } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { Typography } from "@/components/ui/typography";
 import { ScrollableTrack } from "@/components/ui/scrollable-track";
@@ -149,13 +149,13 @@ export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold shadow-sm ${
                       section.isDay
                         ? "bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-blue-500/20"
-                        : "bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-orange-500/20"
+                        : "bg-blue-500/10 border border-blue-500/20 text-blue-300"
                     }`}
                   >
                     {section.isDay ? (
                       section.icon
                     ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                      <BookOpen className="w-3.5 h-3.5 text-blue-400" />
                     )}
                   </span>
                   <Typography variant="h3" className="tracking-tight text-sm sm:text-base">

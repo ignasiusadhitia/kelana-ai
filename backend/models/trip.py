@@ -1,25 +1,32 @@
 # ==============================================================================
-# 2. ORM MODELS (Database Table Definition via SQLAlchemy)
+# ORM MODEL: Trip Entity (Session 8 Ownership & Soft Delete)
 # ==============================================================================
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, BigInteger, Integer, String, Float, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
-# WHY: Models define the exact database schema and handle table persistence.
 class Trip(Base):
+    """
+    Trip database model representing travel itineraries saved by registered users.
+    Foreign key user_id strictly binds each trip to its creator.
+    Supports soft delete via deleted_at timestamp.
+    """
     __tablename__   = "trips"
-    id              = Column(Integer,   primary_key=True)
+    id              = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     destination     = Column(String,    nullable=False)
     days            = Column(Integer,   nullable=False)
     budget          = Column(Float,     nullable=False)
     category        = Column(String,    nullable=False)
     daily_budget    = Column(Float,     nullable=False)
     travel_style    = Column(String,    nullable=True, default="Solo")
-
-    # CONCEPT: server_default=func.now() tells database server (e.g. Postgres)
-    # to generate the timestamp upon INSERT, keeping it timezone-aware.    
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # NEW -- store the AI-generated recommendation
+    deleted_at      = Column(DateTime(timezone=True), nullable=True, default=None)
     ai_recommendation = Column(Text, nullable=True)
+
+    # Session 8: Foreign key binding trip to its owner
+    user_id         = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Relationship to User
+    user            = relationship("User", back_populates="trips")

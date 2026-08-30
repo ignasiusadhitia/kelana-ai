@@ -24,39 +24,45 @@ export function TripHeader({
   onPrint,
 }: TripHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Typography
-            as="span"
-            variant="kicker"
-            className="rounded-full bg-blue-500/20 px-2.5 py-0.5 text-[10px] text-blue-300 font-semibold"
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+      {/* Title & Metadata (Clean spacing & no cramped multi-line pill wrappers) */}
+      <div className="space-y-1.5">
+        {/* Top Badges */}
+        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+          <Badge
+            variant="secondary"
+            className="normal-case text-xs font-semibold px-3 py-1 inline-flex items-center gap-1.5 whitespace-nowrap bg-blue-500/10 border-blue-500/20 text-blue-300"
           >
-            ITINERARY DETAILS
-          </Typography>
-          <Typography variant="muted">Plan #{trip.id}</Typography>
-          <Badge variant="secondary" className="normal-case text-[10px] ml-1 inline-flex items-center gap-1.5">
-            {getTravelStyleIconComponent(trip.travel_style, { className: "w-3 h-3 text-blue-300" })}
+            {getTravelStyleIconComponent(trip.travel_style, { className: "w-3.5 h-3.5 text-blue-400" })}
             <span>{trip.travel_style || "Solo"}</span>
           </Badge>
+
+          <span className="text-xs text-zinc-500 font-mono">
+            Plan #{trip.id}
+          </span>
         </div>
-        <Typography variant="h2" className="text-white">
+
+        {/* Destination Headline */}
+        <Typography variant="h2" className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           {trip.destination}
         </Typography>
-        <Typography variant="lead" className="text-zinc-300 mt-1 block">
-          Custom {trip.days}-Day travel plan optimized for a total budget of{" "}
-          {formatBudget(trip.budget)}
-        </Typography>
+
+        {/* Clean, Human Summary Row */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm text-zinc-400">
+          <span className="font-medium text-zinc-300">{trip.days} Days</span>
+          <span className="text-zinc-600">•</span>
+          <span className="font-medium text-zinc-300">{formatBudget(trip.budget)} Total Budget</span>
+        </div>
       </div>
 
-      {/* Action Toolbar (Swipeable on mobile) */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1 sm:overflow-visible sm:flex-wrap">
+      {/* Action Toolbar (Comfortable touch targets with smooth hover states) */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1 sm:overflow-visible sm:flex-wrap shrink-0">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={onRegenerateAi}
-          className="gap-1.5 border-primary/40 bg-primary/10 text-blue-300 hover:bg-primary/20 hover:text-white active:scale-95"
+          className="gap-1.5 border-primary/40 bg-primary/10 text-blue-300 hover:bg-primary/20 hover:text-white active:scale-95 text-xs px-3.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Regenerate</span>
@@ -67,7 +73,7 @@ export function TripHeader({
           variant="secondary"
           size="sm"
           onClick={onCopy}
-          className="gap-1.5 active:scale-95"
+          className="gap-1.5 active:scale-95 text-xs px-3.5"
         >
           {copied ? (
             <>
@@ -87,7 +93,7 @@ export function TripHeader({
           variant="secondary"
           size="sm"
           onClick={onDownloadMarkdown}
-          className="gap-1.5 active:scale-95"
+          className="gap-1.5 active:scale-95 text-xs px-3.5"
         >
           <Download className="w-3.5 h-3.5 text-zinc-300" />
           <span>Export .md</span>
@@ -98,7 +104,7 @@ export function TripHeader({
           variant="secondary"
           size="sm"
           onClick={onPrint}
-          className="gap-1.5 active:scale-95"
+          className="gap-1.5 active:scale-95 text-xs px-3.5"
         >
           <Printer className="w-3.5 h-3.5 text-zinc-300" />
           <span>Print / PDF</span>
