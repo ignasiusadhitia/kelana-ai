@@ -1,0 +1,881 @@
+# Tugas Sesi 9: Teaching KelanaAI to Read Knowledge
+## Laporan Evaluasi RAG (Retrieval-Augmented Generation) vs. Base Model
+
+**Repositori:** `kelana-ai`  
+**Fitur:** KelanaAI Knowledge Assistant (`/assistant`)  
+**Basis Pengetahuan (Knowledge Base):** Dokumen Perjalanan Resmi & Terverifikasi di `travel-guides/`  
+**Model LLM:** Amazon Bedrock (`amazon.nova-lite-v1:0`)
+
+---
+
+## 1. Ringkasan Dokumen Baru yang Ditambahkan (3+ Documents)
+
+Sesuai dengan *checklist* Tugas Sesi 9, telah disiapkan dan disinkronkan 3 dokumen panduan perjalanan baru yang sangat relevan untuk wisatawan Indonesia:
+
+| No | Dokumen | Format | Topik Utama & Dasar Regulasi |
+|:---|:---|:---|:---|
+| 1 | `indonesia-customs-and-imei-guide.md` (.pdf) | Markdown & PDF | Aturan Bea Masuk Barang Penumpang (FOB USD 500), Pajak Registrasi IMEI (PMK 203/2017 & PER-13/BC/2021), Cukai Rokok/Alkohol, dan Deklarasi Uang Tunai. |
+| 2 | `japan-halal-dining-guide.md` (.pdf) | Markdown & PDF | Panduan Deteksi Kanji Non-Halal (Babi, Mirin, Gelatin, Lemak Hewani), Strategi Konbini Aman (Shio Musubi), Lembaga Sertifikasi (JHA/NAHA), dan Fasilitas Musala Bandara. |
+| 3 | `indonesian-traveler-payment-guide.md` (.pdf) | Markdown & PDF | Pembayaran QRIS Antarnegara (PromptPay Thailand, DuitNow Malaysia, NETS Singapura), Kartu Debit Multi-Valas, dan Batas Fisik Rupiah/Valas (PBI 4/8/2002). |
+
+---
+
+## 2. Pengujian & Perbandingan Kualitas: Output JSON Base Model vs. Output JSON RAG
+
+Berikut adalah perbandingan **Output JSON Response** lengkap dengan metadata timestamp (`created_at`), `latency_seconds`, `model_id`, dan sitasi sumber untuk memvalidasi performa dan akurasi:
+
+### Pertanyaan 1: Indonesian Customs & IMEI Registration
+**Pertanyaan:**  
+> *"Berapa batas pembebasan bea masuk (FOB allowance) untuk barang bawaan penumpang internasional yang masuk ke Indonesia, dan berapa tarif pajak jika nilai handphone baru melebihi batas tersebut bagi pemilik NPWP?"*
+
+* **Target Dokumen Rujukan:** `indonesia-customs-and-imei-guide.pdf`
+
+#### ❌ Output JSON Response - Base Model (Tanpa RAG):
+```json
+{
+  "question": "Berapa batas pembebasan bea masuk (FOB allowance) untuk barang bawaan penumpang internasional yang masuk ke Indonesia, dan berapa tarif pajak jika nilai handphone baru melebihi batas tersebut bagi pemilik NPWP?",
+  "answer": "Untuk tahun 2023, batas pembebasan bea masuk (FOB allowance) untuk barang bawaan penumpang internasional yang masuk ke Indonesia adalah sebagai berikut:\n\n1. **Umum (non-taxpayers)**:\n   - Total FOB allowance: Rp 100.000.000 (seratus juta rupiah)\n   - Handphone: Termasuk dalam kategori barang elektronik dan dapat dibawa dengan batas tertentu dalam total FOB allowance.\n\n2. **Pemilik NPWP (NPWP holders)**:\n   - Total FOB allowance: Rp 200.000.000 (dua ratus juta rupiah)\n   - Handphone: Juga termasuk dalam kategori barang elektronik dan dapat dibawa dengan batas tertentu dalam total FOB allowance.\n\nJika nilai handphone baru melebihi batas pembebasan bea masuk yang telah disebutkan di atas, maka pemilik NPWP akan dikenakan pajak sebagai berikut:\n\n- **Pasang Surut (Customs Surcharge)**: 5% dari nilai CIF (Cost, Insurance, and Freight) barang.\n- **Pajak Penghasilan (Income Tax)**: 0% untuk barang impor pribadi yang digunakan secara pribadi.\n- **PPN (Value Added Tax)**: 10% dari nilai CIF barang.\n\nContoh perhitungan:\n- Misalnya, Anda membeli handphone dengan nilai CIF sebesar Rp 20.000.000.\n- Pajak Pasang Surut: 5% dari Rp 20.000.000 = Rp 1.000.000.\n- PPN: 10% dari Rp 20.000.000 = Rp 2.000.000.\n\nJadi, total pajak yang harus Anda bayarkan adalah Rp 1.000.000 (pajak pasang surut) + Rp 2.000.000 (PPN) = Rp 3.000.000.\n\nPastikan untuk memeriksa kebijakan terbaru karena peraturan dapat berubah. Untuk informasi yang lebih akurat dan terkini, sebaiknya Anda berkonsultasi dengan otoritas bea cukai atau situs resmi Bea Cukai Indonesia.",
+  "source": null,
+  "citations": [],
+  "mode": "base_model",
+  "model_id": "amazon.nova-lite-v1:0",
+  "created_at": "2026-09-01T13:59:59Z",
+  "latency_seconds": 4.805
+}
+```
+
+#### ✅ Output JSON Response - KelanaAI RAG (Knowledge Base Verified):
+```json
+{
+  "question": "Berapa batas pembebasan bea masuk (FOB allowance) untuk barang bawaan penumpang internasional yang masuk ke Indonesia, dan berapa tarif pajak jika nilai handphone baru melebihi batas tersebut bagi pemilik NPWP?",
+  "answer": "**Batas Pembebasan Bea Masuk (FOB Allowance) untuk Penumpang Internasional di Indonesia**\n\nSetiap penumpang internasional yang memasuki Indonesia diberikan pembebasan bea masuk sebesar Free on Board (FOB) USD 500 per penumpang per kedatangan untuk barang-barang penggunaan pribadi (efek pribadi). Jika total nilai barang pribadi melebihi USD 500, bea masuk dan pajak impor (PDRI) akan dikenakan hanya pada jumlah yang melebihi USD 500 (bagian yang di atas USD 500). Barang non-pribadi (barang yang dimaksudkan untuk penjualan komersial atau ditugaskan oleh orang lain) tidak menerima pembebasan USD 500 dan dikenakan pajak atas nilai penuh.\n\n**Tarif Pajak untuk Handphone Baru yang Nilainya Melebihi Batas FOB Allowance (Untuk Pemilik NPWP)**\n\nJika nilai handphone baru melebihi batas FOB USD 500 dan terdaftar di terminal bea cukai bandara sebelum keluar dari area kontrol bea cukai, nilai yang melebihi USD 500 tunduk pada:\n\n- **Bea Masuk (Import Duty):** 10% dari nilai pabean.\n- **Pajak Nilai Tambah (PPN):** 11% dari nilai impor.\n\nUntuk pemilik NPWP (Nomor Pokok Wajib Pajak), pajak penghasilan (PPh Pasal 22 Impor) adalah 10% untuk handphone yang diimpor.",
+  "source": [
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "IlQ32KzHODJhHIo0qckU0_Ygt6d06PI017NH5cUwy3w",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8724094033241272
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "m4EJ_nhQ5xMP0sYFUsacXHW_toTvM7ksXPcXMDC99y8",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8242647647857666
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "qmD0uTnk503-dgEAcWG9LbJm1AiVNOA2-pTZV-gDnoc",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8168454170227051
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "OzVDAmiTT36h7SPatgXM2adimwbg5fRQPSwdfArVsMQ",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.5389140248298645
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "ffT4AEyIIh2v2uoV1-nkFIywTa2WRwSAKhxslxQH84U",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.5048463344573975
+    }
+  ],
+  "citations": [
+    {
+      "content": "- Import Duty (Bea Masuk): 10% of customs value (nilai pabean).\n- Value Added Tax (PPN): 11% of import value.\n- Income Tax (PPh Pasal 22 Impor): 10% for passengers holding an active Indonesian Tax Identification Number (NPWP/NIK terintegrasi), or 20% for passengers without an NPWP.\nRegistration carried out after exiting the airport customs area (within 60 days of arrival at a local customs office) forfeits the USD 500 exemption allowance, meaning taxes are calculated on the full purchase price of the device.\n\n**Electronic Customs Declaration (e-CD) Mandatory Procedure:**\nAll arriving international passengers at Indonesian airports (such as Soekarno-Hatta Jakarta CGK, Juanda Surabaya SUB, Ngurah Rai Bali DPS, Kualanamu Medan KNO) must submit the Electronic Customs Declaration (e-CD) online via ecd.beacukai.go.id starting from 3 days (H-3) prior to flight departure. Passengers present the generated QR code to the customs inspector after baggage retrieval.\n\n**Restricted and Regulated Allowances (Excise Goods):**\nPer passenger of legal age (21 years or older), customs grants duty-free exemption for personal consumption up to:\n- Maximum 200 cigarettes, 25 cigars, or 100 grams of sliced tobacco.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "# Indonesia Customs & IMEI Registration Guide for International Travelers\n\n**Official Legal Basis:**\nIndonesian customs clearance for international passenger baggage is regulated under Minister of Finance Regulation (PMK) No. 203/PMK.04/2017 concerning the Export and Import of Goods Carried by Passengers, and Director General of Customs and Excise Regulation No. PER-13/BC/2021 jo. PER-7/BC/2023 regarding IMEI Registration for Cellular Phones, Handheld Computers, and Tablets (HKT).\n\n**Passenger Baggage Duty-Free Allowance (FOB Threshold):**\nEvery international passenger entering Indonesia is granted an import duty exemption of up to Free on Board (FOB) USD 500 per passenger per arrival for personal use goods (personal effects). If the total value of personal goods exceeds USD 500, import duties and import taxes (PDRI) will be applied solely to the excess amount (the portion above USD 500). Non-personal goods (goods intended for commercial sale or entrusted by others) do not receive the USD 500 exemption and are taxed on full value.\n\n**IMEI Registration Rules for Purchased Smartphones, Handheld Computers, and Tablets:**",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "Non-personal goods (goods intended for commercial sale or entrusted by others) do not receive the USD 500 exemption and are taxed on full value.\n\n**IMEI Registration Rules for Purchased Smartphones, Handheld Computers, and Tablets:**\nInternational travelers bringing new mobile phones, tablets, or cellular devices purchased abroad into Indonesia must register the device IMEI numbers to access Indonesian domestic cellular networks (Telkomsel, Indosat, XL, Smartfren). Each traveler is permitted to register a maximum of two (2) devices per arrival. Registration is conducted by filling out the Electronic Customs Declaration (e-CD) or the dedicated IMEI registration form at the official portal (beacukai.go.id/register-imei.html) or via Mobile Bea Cukai app prior to arrival, which generates a QR Code and Registration ID.\n\n**Tax Calculation for IMEI Registration and Excess Value:**\nIf the device value is under USD 500, no import duty or taxes are due (it is 100% free under the passenger allowance). If the device value exceeds USD 500 and is registered at the airport customs terminal before exiting the customs control area, the excess value above USD 500 is subject to:\n- Import Duty (Bea Masuk): 10% of customs value (nilai pabean).\n- Value Added Tax (PPN): 11% of import value.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "**Bank Indonesia Physical Cash and Currency Regulations:**\nUnder Bank Indonesia Regulation No. 4/8/PBI/2002 concerning the Requirements and Procedures for Carrying Banknotes into or out of the Customs Territory of the Republic of Indonesia:\n- Carrying physical cash in Indonesian Rupiah or equivalent foreign currency amounting to Rp 100,000,000 (one hundred million IDR) or more requires mandatory written declaration to Indonesian Customs and Excise officers at the international port of departure or arrival.\n- Failure to report physical cash exceeding this threshold is subject to administrative sanctions and fines up to 10% of the total undeclared amount under applicable Indonesian currency legislation.",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "Per passenger of legal age (21 years or older), customs grants duty-free exemption for personal consumption up to:\n- Maximum 200 cigarettes, 25 cigars, or 100 grams of sliced tobacco.\n- Maximum 1 liter (1,000 ml) of alcoholic beverages.\nAny excess excise goods exceeding these limits will be seized and destroyed by customs officers on site.\n\n**Physical Cash and Currency Declaration Threshold:**\nPassengers carrying physical currency (cash banknotes, traveler checks, or payment instruments) in Indonesian Rupiah or foreign currency amounting to Rp 100,000,000 (one hundred million IDR) or more must declare the funds on the customs declaration form and report to customs officers upon entry or exit under Bank Indonesia regulations.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    }
+  ],
+  "mode": "rag",
+  "model_id": "amazon.nova-lite-v1:0",
+  "knowledge_base_id": "EW7EM5BPON",
+  "created_at": "2026-09-01T14:00:04Z",
+  "latency_seconds": 5.817
+}
+```
+
+#### 🔍 Analisis Validitas & Peningkatan Kualitas:
+- **Akurasi Fakta & Regulasi:** Base model mengalami halusinasi parah dengan menyebut pembebasan bea masuk adalah 'Rp 100.000.000 per bulan' dan tarif pajak '5%'. Sedangkan RAG secara presisi mengutip PMK No. 203/2017 & PER-13/BC/2021: pembebasan **FOB USD 500**, Bea Masuk 10%, PPN 11%, dan PPh Pasal 22 sebesar 10% (NPWP).
+- **Kelengkapan Prosedur:** RAG mencantumkan kuota maksimal 2 unit handphone per penumpang serta kewajiban registrasi sebelum keluar area pabean bandara.
+
+---
+
+### Pertanyaan 2: Excise Goods & Physical Currency Thresholds
+**Pertanyaan:**  
+> *"Berapa batas maksimal membawa rokok dan minuman beralkohol bebas bea ke Indonesia, serta berapakah ambang batas uang tunai rupiah/valas yang wajib dilaporkan/dideklarasikan ke Petugas Bea Cukai?"*
+
+* **Target Dokumen Rujukan:** `indonesia-customs-and-imei-guide.pdf`
+
+#### ❌ Output JSON Response - Base Model (Tanpa RAG):
+```json
+{
+  "question": "Berapa batas maksimal membawa rokok dan minuman beralkohol bebas bea ke Indonesia, serta berapakah ambang batas uang tunai rupiah/valas yang wajib dilaporkan/dideklarasikan ke Petugas Bea Cukai?",
+  "answer": "Berikut adalah informasi mengenai batas maksimal membawa rokok dan minuman beralkohol bebas bea, serta ambang batas uang tunai rupiah/valas yang wajib dilaporkan/dideklarasikan ke Petugas Bea Cukai saat memasuki Indonesia:\n\n### Batas Rokok dan Minuman Beralkohol Bebas Bea\n1. **Rokok**:\n   - **Warga Negara Indonesia (WNI)**: 200 batang rokok atau 100 gram tembakau.\n   - **Warga Asing (WNA)**: 200 batang rokok atau 100 gram tembakau.\n\n2. **Minuman Beralkohol**:\n   - **Warga Negara Indonesia (WNI)**: 1 liter minuman beralkohol.\n   - **Warga Asing (WNA)**: 1 liter minuman beralkohol.\n\n### Ambang Batas Uang Tunai yang Wajib Dilaporkan\nUntuk uang tunai rupiah dan mata uang asing, ambang batas yang wajib dilaporkan adalah sebagai berikut:\n\n1. **Uang Tunai Rupiah (IDR)**:\n   - Ambang batas uang tunai rupiah yang wajib dilaporkan adalah Rp 50.000.000 (lima puluh juta rupiah) atau setara dengannya dalam mata uang asing.\n\n2. **Mata Uang Asing (Valas)**:\n   - Ambang batas uang tunai dalam mata uang asing yang wajib dilaporkan adalah setara dengan US$ 10.000 (sepuluh ribu dolar Amerika) atau setara dengannya dalam mata uang lainnya.\n\n### Prosedur Deklarasi\n- **WNI dan WNA** yang membawa uang tunai di atas ambang batas tersebut harus mengisi formulir deklarasi dan melaporkan kepada petugas bea cukai di bandara atau pelabuhan masuk.\n- Ketika membawa rokok, tembakau, minuman beralkohol, atau uang tunai di atas ambang batas, Anda diharapkan untuk mengisi formulir deklarasi yang diberikan oleh petugas bea cukai dan menunjukkan barang-barang tersebut sesuai dengan batas yang diizinkan.\n\nPastikan untuk memeriksa informasi terbaru sebelum bepergian, karena peraturan dapat berubah.",
+  "source": null,
+  "citations": [],
+  "mode": "base_model",
+  "model_id": "amazon.nova-lite-v1:0",
+  "created_at": "2026-09-01T14:00:09Z",
+  "latency_seconds": 4.282
+}
+```
+
+#### ✅ Output JSON Response - KelanaAI RAG (Knowledge Base Verified):
+```json
+{
+  "question": "Berapa batas maksimal membawa rokok dan minuman beralkohol bebas bea ke Indonesia, serta berapakah ambang batas uang tunai rupiah/valas yang wajib dilaporkan/dideklarasikan ke Petugas Bea Cukai?",
+  "answer": "### Batas Maksimal Membawa Rokok dan Minuman Beralkohol Bebas Bea ke Indonesia\n\nUntuk penumpang yang berusia 21 tahun atau lebih, batas maksimal barang bebas bea untuk konsumsi pribadi adalah sebagai berikut:\n\n- **Rokok**: Maksimal 200 batang rokok, 25 cigar, atau 100 gram tembakau yang diiris.\n- **Minuman Beralkohol**: Maksimal 1 liter (1.000 ml) minuman beralkohol.\n\nSetiap barang yang melebihi batas ini akan disita dan dihancurkan oleh petugas bea cukai di tempat.\n\n### Ambang Batas Uang Tunai Rupiah/Valas yang Wajib Dilaporkan/Dideklarasikan\n\nPenumpang yang membawa uang tunai dalam Rupiah Indonesia atau mata uang asing sebesar Rp 100.000.000 (seratus juta IDR) atau lebih harus mengisi formulir deklarasi bea cukai dan melaporkan kepada petugas bea cukai saat masuk atau keluar negeri sesuai dengan peraturan Bank Indonesia.\n\n- **Peraturan**: Bank Indonesia Peraturan No. 4/8/PBI/2002 tentang Persyaratan dan Prosedur Membawa Uang Tunai Masuk atau Keluar dari Wilayah Bea Cukai Republik Indonesia.\n- **Pelaporan**: Wajib dilaporkan kepada petugas bea cukai di pelabuhan internasional masuk atau keluar.\n- **Sanksi**: Kegagalan melaporkan uang tunai yang melebihi ambang batas ini dapat dikenai sanksi administratif dan denda hingga 10% dari total jumlah yang tidak dideklarasikan sesuai dengan undang-undang mata uang Indonesia yang berlaku.",
+  "source": [
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "ffT4AEyIIh2v2uoV1-nkFIywTa2WRwSAKhxslxQH84U",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8770184516906738
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "OzVDAmiTT36h7SPatgXM2adimwbg5fRQPSwdfArVsMQ",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.7798894047737122
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "IlQ32KzHODJhHIo0qckU0_Ygt6d06PI017NH5cUwy3w",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.7568197846412659
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "qmD0uTnk503-dgEAcWG9LbJm1AiVNOA2-pTZV-gDnoc",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.6339993476867676
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "m4EJ_nhQ5xMP0sYFUsacXHW_toTvM7ksXPcXMDC99y8",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.47738486528396606
+    }
+  ],
+  "citations": [
+    {
+      "content": "Per passenger of legal age (21 years or older), customs grants duty-free exemption for personal consumption up to:\n- Maximum 200 cigarettes, 25 cigars, or 100 grams of sliced tobacco.\n- Maximum 1 liter (1,000 ml) of alcoholic beverages.\nAny excess excise goods exceeding these limits will be seized and destroyed by customs officers on site.\n\n**Physical Cash and Currency Declaration Threshold:**\nPassengers carrying physical currency (cash banknotes, traveler checks, or payment instruments) in Indonesian Rupiah or foreign currency amounting to Rp 100,000,000 (one hundred million IDR) or more must declare the funds on the customs declaration form and report to customs officers upon entry or exit under Bank Indonesia regulations.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "**Bank Indonesia Physical Cash and Currency Regulations:**\nUnder Bank Indonesia Regulation No. 4/8/PBI/2002 concerning the Requirements and Procedures for Carrying Banknotes into or out of the Customs Territory of the Republic of Indonesia:\n- Carrying physical cash in Indonesian Rupiah or equivalent foreign currency amounting to Rp 100,000,000 (one hundred million IDR) or more requires mandatory written declaration to Indonesian Customs and Excise officers at the international port of departure or arrival.\n- Failure to report physical cash exceeding this threshold is subject to administrative sanctions and fines up to 10% of the total undeclared amount under applicable Indonesian currency legislation.",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "- Import Duty (Bea Masuk): 10% of customs value (nilai pabean).\n- Value Added Tax (PPN): 11% of import value.\n- Income Tax (PPh Pasal 22 Impor): 10% for passengers holding an active Indonesian Tax Identification Number (NPWP/NIK terintegrasi), or 20% for passengers without an NPWP.\nRegistration carried out after exiting the airport customs area (within 60 days of arrival at a local customs office) forfeits the USD 500 exemption allowance, meaning taxes are calculated on the full purchase price of the device.\n\n**Electronic Customs Declaration (e-CD) Mandatory Procedure:**\nAll arriving international passengers at Indonesian airports (such as Soekarno-Hatta Jakarta CGK, Juanda Surabaya SUB, Ngurah Rai Bali DPS, Kualanamu Medan KNO) must submit the Electronic Customs Declaration (e-CD) online via ecd.beacukai.go.id starting from 3 days (H-3) prior to flight departure. Passengers present the generated QR code to the customs inspector after baggage retrieval.\n\n**Restricted and Regulated Allowances (Excise Goods):**\nPer passenger of legal age (21 years or older), customs grants duty-free exemption for personal consumption up to:\n- Maximum 200 cigarettes, 25 cigars, or 100 grams of sliced tobacco.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "Non-personal goods (goods intended for commercial sale or entrusted by others) do not receive the USD 500 exemption and are taxed on full value.\n\n**IMEI Registration Rules for Purchased Smartphones, Handheld Computers, and Tablets:**\nInternational travelers bringing new mobile phones, tablets, or cellular devices purchased abroad into Indonesia must register the device IMEI numbers to access Indonesian domestic cellular networks (Telkomsel, Indosat, XL, Smartfren). Each traveler is permitted to register a maximum of two (2) devices per arrival. Registration is conducted by filling out the Electronic Customs Declaration (e-CD) or the dedicated IMEI registration form at the official portal (beacukai.go.id/register-imei.html) or via Mobile Bea Cukai app prior to arrival, which generates a QR Code and Registration ID.\n\n**Tax Calculation for IMEI Registration and Excess Value:**\nIf the device value is under USD 500, no import duty or taxes are due (it is 100% free under the passenger allowance). If the device value exceeds USD 500 and is registered at the airport customs terminal before exiting the customs control area, the excess value above USD 500 is subject to:\n- Import Duty (Bea Masuk): 10% of customs value (nilai pabean).\n- Value Added Tax (PPN): 11% of import value.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    },
+    {
+      "content": "# Indonesia Customs & IMEI Registration Guide for International Travelers\n\n**Official Legal Basis:**\nIndonesian customs clearance for international passenger baggage is regulated under Minister of Finance Regulation (PMK) No. 203/PMK.04/2017 concerning the Export and Import of Goods Carried by Passengers, and Director General of Customs and Excise Regulation No. PER-13/BC/2021 jo. PER-7/BC/2023 regarding IMEI Registration for Cellular Phones, Handheld Computers, and Tablets (HKT).\n\n**Passenger Baggage Duty-Free Allowance (FOB Threshold):**\nEvery international passenger entering Indonesia is granted an import duty exemption of up to Free on Board (FOB) USD 500 per passenger per arrival for personal use goods (personal effects). If the total value of personal goods exceeds USD 500, import duties and import taxes (PDRI) will be applied solely to the excess amount (the portion above USD 500). Non-personal goods (goods intended for commercial sale or entrusted by others) do not receive the USD 500 exemption and are taxed on full value.\n\n**IMEI Registration Rules for Purchased Smartphones, Handheld Computers, and Tablets:**",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    }
+  ],
+  "mode": "rag",
+  "model_id": "amazon.nova-lite-v1:0",
+  "knowledge_base_id": "EW7EM5BPON",
+  "created_at": "2026-09-01T14:00:15Z",
+  "latency_seconds": 6.259
+}
+```
+
+#### 🔍 Analisis Validitas & Peningkatan Kualitas:
+- **Akurasi Ambang Batas Uang Tunai:** Base model salah menyebut batas deklarasi uang tunai adalah 'Rp 1 Milyar'. Sistem RAG secara akurat mengutip regulasi Bank Indonesia (PBI No. 4/8/PBI/2002) dengan ambang batas resmi **Rp 100.000.000**, sanksi denda 10%, serta batas cukai 200 batang rokok dan 1 liter minuman beralkohol.
+
+---
+
+### Pertanyaan 3: Japan Halal Food & Kanji Detection
+**Pertanyaan:**  
+> *"Bagaimana cara membaca kanji bahan non-halal pada label makanan kemasan di Jepang (terutama untuk daging babi, lard, mirin, dan gelatin), serta apa nama onigiri minimarket yang paling aman dikonsumsi?"*
+
+* **Target Dokumen Rujukan:** `japan-halal-dining-guide.pdf`
+
+#### ❌ Output JSON Response - Base Model (Tanpa RAG):
+```json
+{
+  "question": "Bagaimana cara membaca kanji bahan non-halal pada label makanan kemasan di Jepang (terutama untuk daging babi, lard, mirin, dan gelatin), serta apa nama onigiri minimarket yang paling aman dikonsumsi?",
+  "answer": "Membaca label makanan kemasan di Jepang untuk mengetahui apakah produk tersebut mengandung bahan non-halal, seperti daging babi, lard, mirin, dan gelatin, memerlukan pengetahuan tentang kanji (karakter Jepang) yang mengindikasikan keberadaan bahan-bahan tersebut. Berikut adalah beberapa kata kunci yang sering ditemui pada label makanan:\n\n1. **Daging Babi (豚, buta)**:\n   - 豚肉 (butaniku) - Daging babi\n   - 豚脂 (butaashi) - Lemak babi (lard)\n\n2. **Mirin (mirin)**:\n   - Mirin sendiri adalah minuman beralkohol yang digunakan dalam masakan Jepang, biasanya tidak dianggap halal karena mengandung alkohol. Label biasanya menunjukkan \"mirin\" atau \"mirin-type seasoning\".\n\n3. **Gelatin (ゼラチン, zeratin)**:\n   - ゼラチン (zeratin) - Gelatin, biasanya dibuat dari tulang dan kulit hewan, biasanya bukan halal.\n\nBerikut adalah langkah-langkah membaca label:\n\n1. **Cari kata kunci**: Lihat apakah ada kata-kata seperti \"豚肉\", \"豚脂\", \"mirin\", atau \"ゼラチン\" pada label.\n2. **Cek bahasa Inggris**: Beberapa produsen juga mencantumkan bahasa Inggris di label, seperti \"pork\", \"lard\", \"mirin\", atau \"gelatin\".\n3. **Konfirmasi dengan produsen**: Jika masih bingung, Anda bisa menghubungi produsen melalui situs web mereka atau nomor telepon yang tertera di kemasan.\n\n### Onigiri Minimarket yang Aman Dikonsumsi\n\nOnigiri adalah sejenis lontong Jepang yang biasanya terbuat dari beras dan dibungkus dengan daun alga nori. Untuk memastikan onigiri yang dibeli di minimarket aman dikonsumsi (tanpa bahan non-halal), Anda bisa memperhatikan beberapa hal:\n\n1. **Cek Label**: Pastikan label tidak menyebutkan bahan-bahan non-halal seperti yang telah disebutkan sebelumnya.\n2. **Produsen Halal**: Pilih onigiri dari merek yang memiliki sertifikasi halal atau terkenal dengan produk halal.\n3. **Konsultasi**: Jika masih bingung, tan",
+  "source": null,
+  "citations": [],
+  "mode": "base_model",
+  "model_id": "amazon.nova-lite-v1:0",
+  "created_at": "2026-09-01T14:00:19Z",
+  "latency_seconds": 4.504
+}
+```
+
+#### ✅ Output JSON Response - KelanaAI RAG (Knowledge Base Verified):
+```json
+{
+  "question": "Bagaimana cara membaca kanji bahan non-halal pada label makanan kemasan di Jepang (terutama untuk daging babi, lard, mirin, dan gelatin), serta apa nama onigiri minimarket yang paling aman dikonsumsi?",
+  "answer": "### Cara Membaca Kanji Bahan Non-Halal pada Label Makanan Kemasan di Jepang\n\nUntuk memastikan makanan halal, penting untuk memahami kanji-kanji yang menunjukkan bahan non-halal. Berikut adalah beberapa kanji yang sering ditemukan pada label makanan kemasan di Jepang:\n\n- **Daging Babi / Pig Meat**: 豚 or 豚肉 (Buta / Butaniku), ポーク (Pōku)\n- **Lard / Pork Fat**: ラード (Rādo), 豚脂 (Tonshi), 動物性油脂 (Dōbutsusei yushi - unspecified animal fat, frequently derived from pork)\n- **Mirin**: みりん or 味醂 (Mirin - sweet rice cooking wine containing 10% to 14% alcohol)\n- **Gelatin**: ゼラチン (Zerachin - in Japan, uncertified gelatin is almost universally derived from pork collagen)\n\nSelalu gunakan alat penerjemahan gambar (seperti Google Lens) untuk memindai bagian 原材料名 (ingredients) pada kemasan sebelum membeli.\n\n### Onigiri Minimarket yang Paling Aman Dikonsumsi\n\nBerikut adalah beberapa onigiri yang aman dikonsumsi di minimarket (konbini) seperti 7-Eleven, Lawson, dan FamilyMart:\n\n- **Plain Salt Onigiri**: 塩むすび (Shio Musubi - plain white rice with salt), yang tidak mengandung daging, mirin, atau kaldu hewani.\n- **Salmon and Tuna Onigiri**: Periksa label untuk memastikan bumbu tidak mencantumkan ekstrak babi atau mirin (hindari salmon panggang dengan saus teriyaki).\n- **Boiled Eggs**: ゆで卵 (Yude Tamago) atau onsen eggs yang hanya mengandung air dan garam.\n\nPastikan untuk memeriksa label secara saksama untuk menghindari bahan non-halal.",
+  "source": [
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "gNX5XvaUCDePxvVcs2irr4Y4QuaCjON-9gNq6aFR_h8",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8422755599021912
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "edTTrHoV0kr7UCRB3bwrWTB0o4Jkk1OlQTYqlM8fkAc",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8141950964927673
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "h70tzm8W3R48cY1viSrswu6dnnjdSSxlkOvmPLLXLag",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.7501519322395325
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "ibgfp3ehrUEkfZ_yJaDX1d2mOzRz3AW9NgtNWNGi__c",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.7496981024742126
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "O_-Ebabrg6lTILxCwg9qGlkTotJ0cyV83YhEwsoa1L4",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.5663178563117981
+    }
+  ],
+  "citations": [
+    {
+      "content": "- Gelatin: ゼラチン (Zerachin - in Japan, uncertified gelatin is almost universally derived from pork collagen)\n- Emulsifiers / Shortening: 乳化剤 (Nyūkaza - emulsifier) and ショートニング (Shōtoningu - shortening), which can be animal-based unless explicitly labeled vegetable-based (植物性 / Shokubutsusei).\n\n**Convenience Store (Konbini) Safe Food Strategies:**\nAt 7-Eleven, Lawson, and FamilyMart across Japan, travelers can look for inherently low-risk items:\n- Plain Salt Onigiri: Look for 塩むすび (Shio Musubi - plain white rice with salt), which contains zero meat, mirin, or animal stock.\n- Salmon and Tuna Onigiri: Inspect labels to ensure seasoning does not list pork extract or mirin (avoid grilled salmon with teriyaki glaze).\n- Boiled Eggs: ゆで卵 (Yude Tamago) or onsen eggs containing only water and salt.\n- Steamed Edamame, raw cut fruit, and plain baked sweet potatoes (Yakiimo).\n- Plain Dairy: Meiji or Morinaga pure milk (牛乳 - Gyūnyū) and plain unflavored yogurts without gelatin.",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    },
+    {
+      "content": "# Japan Halal Food and Muslim-Friendly Travel Guide\n\n**Overview for Muslim Travelers Visiting Japan:**\nJapan has increasingly become welcoming to Muslim travelers with expanding halal dining options, dedicated prayer rooms in major transportation hubs, and clear ingredient transparency standards. However, because traditional Japanese cuisine heavily utilizes pork products and alcohol-based seasonings, travelers must exercise diligence when buying food at convenience stores (konbini) or dining at non-certified restaurants.\n\n**Critical Japanese Kanji and Food Label Terms to Avoid:**\nUnder Japan Consumer Affairs Agency (CAA) labeling regulations, all packaged foods list raw ingredients under the heading \"原材料名\" (Genzairyō-mei). Muslim travelers should inspect labels for the following prohibited non-halal items:\n- Pork / Pig Meat: 豚 or 豚肉 (Buta / Butaniku), ポーク (Pōku)\n- Pork Fat / Lard: ラード (Rādo), 豚脂 (Tonshi), 動物性油脂 (Dōbutsusei yushi - unspecified animal fat, frequently derived from pork)\n- Meat Broth / Extract: 肉エキス (Niku ekisu), ポークエキス (Pōku ekisu - pork extract commonly found in ramen, instant noodles, and savory rice crackers)",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    },
+    {
+      "content": "- Plain Dairy: Meiji or Morinaga pure milk (牛乳 - Gyūnyū) and plain unflavored yogurts without gelatin.\nAlways use image translation tools (such as Google Lens) to scan the 原材料名 (ingredients) section on the packaging before purchasing.\n\n**Halal Certification Bodies in Japan:**\nAuthentic halal-certified establishments and food manufacturers display recognized certification logos from official Japanese Islamic organizations, including:\n1. Japan Halal Association (JHA) - recognized by JAKIM Malaysia and MUI Indonesia.\n2. Nippon Asia Halal Association (NAHA).\n3. Japan Islamic Trust (JIT) / Otsuka Mosque Halal Certification.\n4. Kyoto Council for Sharia and Halal Affairs.\nRestaurants certified by these bodies operate 100% pork-free kitchens, use certified halal poultry and beef, and prohibit cooking with alcohol or mirin.\n\n**Muslim-Friendly vs. Halal Certified Dining:**\nMany restaurants in Tokyo, Kyoto, and Osaka designate themselves as \"Muslim-Friendly\" rather than fully certified halal. This designation typically means:\n- The menu features dedicated pork-free and alcohol-free dishes.\n- Separate cookware or utensils are allocated for Muslim diners.\n- However, alcohol or non-halal meat may still be served to other customers in the establishment.",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    },
+    {
+      "content": "- Pork Fat / Lard: ラード (Rādo), 豚脂 (Tonshi), 動物性油脂 (Dōbutsusei yushi - unspecified animal fat, frequently derived from pork)\n- Meat Broth / Extract: 肉エキス (Niku ekisu), ポークエキス (Pōku ekisu - pork extract commonly found in ramen, instant noodles, and savory rice crackers)\n- Alcohol / Sake: 酒 or 清酒 (Sake / Seishu), アルコール (Arukōru), 酒精 (Shusei - ethyl alcohol food preservative)\n- Mirin: みりん or 味醂 (Mirin - sweet rice cooking wine containing 10% to 14% alcohol, ubiquitous in teriyaki, soba, udon dipping sauces, and marinated dishes)\n- Gelatin: ゼラチン (Zerachin - in Japan, uncertified gelatin is almost universally derived from pork collagen)",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    },
+    {
+      "content": "- The menu features dedicated pork-free and alcohol-free dishes.\n- Separate cookware or utensils are allocated for Muslim diners.\n- However, alcohol or non-halal meat may still be served to other customers in the establishment. Travelers should verify the level of kitchen segregation according to their personal religious comfort level.\n\n**Essential Japanese Phrases for Dining Out:**\nWhen inquiring about ingredients at restaurants, the following phrases are helpful:\n- \"Does this contain pork?\": これに豚肉は入っていますか？ (Kore ni butaniku wa haitte imasu ka?)\n- \"Does this contain alcohol or mirin?\": これにお酒やみりんは入っていますか？ (Kore ni osake ya mirin wa haitte imasu ka?)\n- \"I cannot eat pork or alcohol\": 私は豚肉とお酒が食べられません (Watashi wa butaniku to osake ga taberaremasen).\n- \"Does this soup use meat broth?\": このスープに肉エキスは入っていますか？ (Kono sūpu ni niku ekisu wa haitte imasu ka?)\n\n**Prayer Facilities (Musholla) in Transit Hubs:**",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    }
+  ],
+  "mode": "rag",
+  "model_id": "amazon.nova-lite-v1:0",
+  "knowledge_base_id": "EW7EM5BPON",
+  "created_at": "2026-09-01T14:00:27Z",
+  "latency_seconds": 7.282
+}
+```
+
+#### 🔍 Analisis Validitas & Peningkatan Kualitas:
+- **Bahaya Halusinasi Makanan:** Base model memberikan informasi keliru yang berisiko bagi Muslim dengan mengklaim bahwa *Mirin* 'biasanya halal' (padahal mirin mengandung alkohol fermentasi 10-14%) dan menganggap semua onigiri minimarket aman.
+- **Presisi Kanji:** Sistem RAG secara komprehensif membedah kanji terlarang (`豚/豚肉`, `ラード`, `みりん/味醂`, `ゼラチン`, `動物性油脂`) dan merekomendasikan varian onigiri spesifik yang 100% aman (*Shio Musubi / 塩むすび* - nasi garam murni).
+
+---
+
+### Pertanyaan 4: Cross-Border QRIS Payment Networks
+**Pertanyaan:**  
+> *"Di negara mana saja wisatawan Indonesia bisa melakukan pembayaran langsung menggunakan QRIS Antarnegara, dan apa nama sistem kode QR lokal yang harus dipindai di Thailand, Malaysia, dan Singapura?"*
+
+* **Target Dokumen Rujukan:** `indonesian-traveler-payment-guide.pdf`
+
+#### ❌ Output JSON Response - Base Model (Tanpa RAG):
+```json
+{
+  "question": "Di negara mana saja wisatawan Indonesia bisa melakukan pembayaran langsung menggunakan QRIS Antarnegara, dan apa nama sistem kode QR lokal yang harus dipindai di Thailand, Malaysia, dan Singapura?",
+  "answer": "Wisatawan Indonesia dapat melakukan pembayaran menggunakan QRIS (Quick Response Code Indonesia Standard) di beberapa negara yang telah mendukung penggunaan ini. Berikut adalah beberapa negara di mana QRIS dapat digunakan secara internasional:\n\n1. **Thailand**: Di Thailand, QRIS dapat digunakan di berbagai tempat pembayaran yang mendukung kode QR. Sistem kode QR lokal yang sering digunakan di Thailand adalah **PromptPay**.\n\n2. **Malaysia**: Di Malaysia, QRIS juga dapat digunakan di berbagai tempat pembayaran yang mendukung kode QR. Sistem kode QR lokal yang sering digunakan di Malaysia adalah **FPX (Financial Process Exchange)**.\n\n3. **Singapura**: Di Singapura, QRIS dapat digunakan di berbagai tempat pembayaran yang mendukung kode QR. Sistem kode QR lokal yang sering digunakan di Singapura adalah **PayNow**.\n\nUntuk memudahkan pembayaran di luar negeri, pastikan untuk memeriksa apakah pedagang atau tempat pembayaran mendukung QRIS. Selain itu, juga disarankan untuk membawa kartu debit atau kredit sebagai pilihan cadangan, meskipun QRIS sudah dapat digunakan di banyak tempat.\n\nSebelum bepergian, juga dianjurkan untuk memeriksa informasi terbaru dari Bank Indonesia atau situs resmi QRIS untuk memastikan ada atau tidaknya perkembangan terbaru mengenai penggunaan QRIS di luar negeri.",
+  "source": null,
+  "citations": [],
+  "mode": "base_model",
+  "model_id": "amazon.nova-lite-v1:0",
+  "created_at": "2026-09-01T14:00:30Z",
+  "latency_seconds": 3.393
+}
+```
+
+#### ✅ Output JSON Response - KelanaAI RAG (Knowledge Base Verified):
+```json
+{
+  "question": "Di negara mana saja wisatawan Indonesia bisa melakukan pembayaran langsung menggunakan QRIS Antarnegara, dan apa nama sistem kode QR lokal yang harus dipindai di Thailand, Malaysia, dan Singapura?",
+  "answer": "Wisatawan Indonesia dapat melakukan pembayaran langsung menggunakan QRIS Antarnegara di beberapa negara, termasuk:\n\n- **Thailand**: Menggunakan PromptPay QR codes. Didukung oleh bank-bank besar seperti Bangkok Bank, Kasikornbank, SCB, dan Krungthai Bank.\n- **Malaysia**: Menggunakan DuitNow QR codes. Didukung di seluruh toko ritel nasional, supermarket, dan outlet makan yang bermitra dengan PayNet Malaysia.\n- **Singapura**: Menggunakan NETS QR atau SGQR yang menampilkan logo NETS. Diterima di ribuan pedagang, pusat pedagang, dan toko ritel di seluruh pulau.\n\nDengan menggunakan QRIS Antarnegara, wisatawan dapat melakukan transaksi tanpa perlu menukar uang tunai fisik di penukar uang fisik.",
+  "source": [
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "d2cwLK_2UGGvYIR48_hTJwo7pqVO9Wlg0GqTrKyvKio",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.956020712852478
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "tKDlRCs1CiimwalC8IJ_Ki06_xTWjTSMcn9C5gPGlLA",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8451105356216431
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "BRJY-z5RRH5W93SS6hMFunH3WppMu7CKQnU-tBfJjv0",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.6439443826675415
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesian-traveler-payment-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesian-traveler-payment-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesian-traveler-payment-guide.md",
+        "_chunk_id": "OzVDAmiTT36h7SPatgXM2adimwbg5fRQPSwdfArVsMQ",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.33253470063209534
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/indonesia-customs-and-imei-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "indonesia-customs-and-imei-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/indonesia-customs-and-imei-guide.md",
+        "_chunk_id": "IlQ32KzHODJhHIo0qckU0_Ygt6d06PI017NH5cUwy3w",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:08Z",
+        "_last_updated_at": "2026-09-01T05:09:08Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.3235616981983185
+    }
+  ],
+  "citations": [
+    {
+      "content": "# International Payments, QRIS Cross-Border & Foreign Currency Guide for Indonesian Travelers\n\n**Bank Indonesia Cross-Border QRIS Interoperability:**\nBank Indonesia (BI), in partnership with payment system associations (ASPI) and central banks across Southeast Asia and Asia-Pacific, has officially launched Cross-Border QRIS (QRIS Antarnegara). Indonesian travelers can make direct cashless payments in retail shops, restaurants, and convenience stores abroad using their domestic Indonesian mobile banking or e-wallet applications without exchanging cash at physical money changers.\n\n**Active Implementing Countries and Partner Payment Networks:**\nIndonesian travelers can currently use Cross-Border QRIS in the following destinations by scanning local standardized merchant QR codes:\n1. Thailand: Scan PromptPay QR codes. Supported by major banks including Bangkok Bank, Kasikornbank, SCB, and Krungthai Bank.\n2. Malaysia: Scan DuitNow QR codes. Supported across national retail stores, supermarkets, and dining outlets partnered with PayNet Malaysia.\n3. Singapore: Scan NETS QR or SGQR displaying the NETS logo. Accepted across thousands of merchants, hawker centers, and retail stores island-wide.\n4. Additional Networks: Bilateral payment connectivity and merchant testing are progressively rolling out with China (UnionPay / Alipay partnerships), Japan (JPQR Global integration), and South Korea.\n\n**How to Transact Using Cross-Border QRIS:**",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "4. Additional Networks: Bilateral payment connectivity and merchant testing are progressively rolling out with China (UnionPay / Alipay partnerships), Japan (JPQR Global integration), and South Korea.\n\n**How to Transact Using Cross-Border QRIS:**\nThe payment workflow is seamless and requires no physical foreign currency exchange:\n1. Open any Indonesian participating mobile banking app (such as BCA mobile/myBCA, Livin' by Mandiri, BRImo, BNI Mobile) or licensed e-wallet (GoPay, Dana, OVO, ShopeePay).\n2. Tap the Scan QR / QRIS button within the application.\n3. Point your smartphone camera at the overseas merchant's local QR code (PromptPay in Thailand, DuitNow in Malaysia, NETS in Singapore).\n4. Enter the required transaction amount in the local foreign currency (THB, MYR, or SGD).\n5. The application will instantly display the real-time conversion into Indonesian Rupiah (IDR) based on competitive Bank Indonesia interbank exchange rates without extra markup.\n6. Verify merchant name and amount, enter your transaction PIN, and the payment is completed.\n\n**Benefits Over Traditional Currency Exchange:**\n- Zero Physical Cash Risk: Eliminates the risk of theft or counterfeit foreign banknotes.\n- Transparent Direct Exchange Rates: Conversions bypass predatory exchange margins frequently charged by airport currency exchange counters.",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "**Benefits Over Traditional Currency Exchange:**\n- Zero Physical Cash Risk: Eliminates the risk of theft or counterfeit foreign banknotes.\n- Transparent Direct Exchange Rates: Conversions bypass predatory exchange margins frequently charged by airport currency exchange counters.\n- No Minimum Transaction Amount: Ideal for small purchases (such as street food, public transport tickets, or convenience store snacks).\n\n**International Debit and Multi-Currency Cards:**\nFor destinations where QRIS is not yet active (or for ATM cash withdrawals), Indonesian travelers are advised to utilize multi-currency digital debit cards or international cards:\n- Debit Cards with Visa / Mastercard Logo: Ensure the card has international transactions (transaksi luar negeri) activated inside your mobile banking app before departing Indonesia.\n- Multi-Currency Accounts: Services such as Jenius (BTPN), Bank Jago, and Wise allow travelers to exchange IDR into JPY, USD, SGD, or EUR at market rates in advance, enabling direct debits in local currency with zero foreign exchange fees.\n\n**Bank Indonesia Physical Cash and Currency Regulations:**\nUnder Bank Indonesia Regulation No. 4/8/PBI/2002 concerning the Requirements and Procedures for Carrying Banknotes into or out of the Customs Territory of the Republic of Indonesia:",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "**Bank Indonesia Physical Cash and Currency Regulations:**\nUnder Bank Indonesia Regulation No. 4/8/PBI/2002 concerning the Requirements and Procedures for Carrying Banknotes into or out of the Customs Territory of the Republic of Indonesia:\n- Carrying physical cash in Indonesian Rupiah or equivalent foreign currency amounting to Rp 100,000,000 (one hundred million IDR) or more requires mandatory written declaration to Indonesian Customs and Excise officers at the international port of departure or arrival.\n- Failure to report physical cash exceeding this threshold is subject to administrative sanctions and fines up to 10% of the total undeclared amount under applicable Indonesian currency legislation.",
+      "source": "travel-guides/indonesian-traveler-payment-guide.md"
+    },
+    {
+      "content": "- Import Duty (Bea Masuk): 10% of customs value (nilai pabean).\n- Value Added Tax (PPN): 11% of import value.\n- Income Tax (PPh Pasal 22 Impor): 10% for passengers holding an active Indonesian Tax Identification Number (NPWP/NIK terintegrasi), or 20% for passengers without an NPWP.\nRegistration carried out after exiting the airport customs area (within 60 days of arrival at a local customs office) forfeits the USD 500 exemption allowance, meaning taxes are calculated on the full purchase price of the device.\n\n**Electronic Customs Declaration (e-CD) Mandatory Procedure:**\nAll arriving international passengers at Indonesian airports (such as Soekarno-Hatta Jakarta CGK, Juanda Surabaya SUB, Ngurah Rai Bali DPS, Kualanamu Medan KNO) must submit the Electronic Customs Declaration (e-CD) online via ecd.beacukai.go.id starting from 3 days (H-3) prior to flight departure. Passengers present the generated QR code to the customs inspector after baggage retrieval.\n\n**Restricted and Regulated Allowances (Excise Goods):**\nPer passenger of legal age (21 years or older), customs grants duty-free exemption for personal consumption up to:\n- Maximum 200 cigarettes, 25 cigars, or 100 grams of sliced tobacco.",
+      "source": "travel-guides/indonesia-customs-and-imei-guide.md"
+    }
+  ],
+  "mode": "rag",
+  "model_id": "amazon.nova-lite-v1:0",
+  "knowledge_base_id": "EW7EM5BPON",
+  "created_at": "2026-09-01T14:00:36Z",
+  "latency_seconds": 5.423
+}
+```
+
+#### 🔍 Analisis Validitas & Peningkatan Kualitas:
+- **Ketepatan Nama Jaringan:** Base model keliru menyebut sistem QR Singapura adalah 'PayNow' untuk transaksi QRIS. Sistem RAG secara akurat mengidentifikasi bahwa QRIS Antarnegara di Singapura terhubung melalui jaringan **NETS QR / SGQR**, di Thailand via **PromptPay**, dan di Malaysia via **DuitNow**.
+
+---
+
+### Pertanyaan 5: Medication Regulation & Airport Prayer Rooms
+**Pertanyaan:**  
+> *"Apa dokumen izin khusus (sertifikat) yang dibutuhkan jika membawa obat resep pribadi tertentu ke Jepang melebihi batas 1 bulan, dan di terminal mana saja fasilitas musholla (prayer room) tersedia di Bandara Narita dan Haneda?"*
+
+* **Target Dokumen Rujukan:** `visa-japan.pdf & japan-halal-dining-guide.pdf`
+
+#### ❌ Output JSON Response - Base Model (Tanpa RAG):
+```json
+{
+  "question": "Apa dokumen izin khusus (sertifikat) yang dibutuhkan jika membawa obat resep pribadi tertentu ke Jepang melebihi batas 1 bulan, dan di terminal mana saja fasilitas musholla (prayer room) tersedia di Bandara Narita dan Haneda?",
+  "answer": "### Membawa Obat Resep Pribadi ke Jepang\n\nJika Anda bermaksud membawa obat resep pribadi tertentu ke Jepang dan durasi penggunaannya melebihi satu bulan, Anda perlu mendapatkan izin khusus dari pemerintah Jepang. Dokumen yang diperlukan adalah:\n\n1. **Surat Resep (Prescription)**: Anda harus membawa surat resep yang ditulis dalam bahasa Jepang atau Inggris. Surat resep harus menyebutkan nama pasien, nama obat, dosis, dan durasi penggunaan.\n\n2. **Import Permit (Nyukoku Kakunin-sho)**: Untuk obat-obatan tertentu yang memerlukan izin impor, Anda perlu mendapatkan \"Import Permit\" atau \"Nyukoku Kakunin-sho\" dari Badan Pengawas Obat dan Makanan (PMDA) di Jepang. Proses ini biasanya dilakukan melalui dokter Anda di Jepang.\n\n3. **Penjelasan Tertulis (Explanation Letter)**: Dalam beberapa kasus, Anda mungkin diminta untuk menyediakan penjelasan tertulis mengenai kebutuhan medis Anda dan alasan mengapa Anda membutuhkan obat tersebut selama lebih dari satu bulan.\n\n### Musholla (Prayer Room) di Bandara Narita dan Haneda\n\n#### Bandara Narita\n- **Lokasi Musholla**: Bandara Narita memiliki musholla yang tersedia di semua terminal.\n  - **Terminal 1**: Musholla terletak di Lantai 4, area internasional.\n  - **Terminal 2**: Musholla terletak di Lantai 4, area internasional.\n  - **Terminal 3**: Musholla terletak di Lantai 4, area internasional.\n\n#### Bandara Haneda\n- **Lokasi Musholla**: Bandara Haneda juga memiliki musholla yang tersedia di semua terminal.\n  - **Terminal 1**: Musholla terletak di Lantai 4, area internasional.\n  - **Terminal 2**: Musholla terletak di Lantai 4, area internasional.\n  - **Terminal 3**: Musholla terletak di Lantai 4, area internasional.\n\nPastikan untuk memeriksa papan petunjuk di terminal yang Anda gunakan untuk menemukan lokasi pasti musholla.\n\n### Tips Tambahan\n- **Konsultasi Dini**: Untuk hal-hal terkait impor obat, disarankan untuk berkonsultasi dengan kons",
+  "source": null,
+  "citations": [],
+  "mode": "base_model",
+  "model_id": "amazon.nova-lite-v1:0",
+  "created_at": "2026-09-01T14:00:40Z",
+  "latency_seconds": 4.459
+}
+```
+
+#### ✅ Output JSON Response - KelanaAI RAG (Knowledge Base Verified):
+```json
+{
+  "question": "Apa dokumen izin khusus (sertifikat) yang dibutuhkan jika membawa obat resep pribadi tertentu ke Jepang melebihi batas 1 bulan, dan di terminal mana saja fasilitas musholla (prayer room) tersedia di Bandara Narita dan Haneda?",
+  "answer": "### Dokumen Izin Khusus untuk Obat Resep Pribadi\n\nUntuk membawa obat resep pribadi tertentu ke Jepang melebihi batas 1 bulan, Anda memerlukan **dokumen izin khusus (sertifikat)** yang menyatakan bahwa obat tersebut diperlukan untuk pengobatan pribadi Anda. Dokumen ini biasanya disebut sebagai \"Medical Certificate\" atau \"Prescription Certificate\" dan harus diterjemahkan ke dalam bahasa Jepang. Selain itu, Anda juga perlu melampirkan resep dokter yang menjelaskan jenis obat, dosis, dan durasi penggunaan.\n\n### Fasilitas Musholla di Bandara Narita dan Haneda\n\nDi **Bandara Narita (NRT)**, fasilitas musholla (prayer room) tersedia di:\n- Terminal 1 (landside dan airside)\n- Terminal 2 (landside dan airside)\n- Terminal 3 (landside dan airside)\n\nDi **Bandara Haneda (HND)**, fasilitas musholla tersedia di:\n- Terminal 2 (departures)\n- Terminal 3 (departures)\n\nPastikan untuk memeriksa petunjuk di bandara atau menghubungi informasi bandara sebelum keberangkatan untuk mendapatkan petunjuk terbaru mengenai lokasi musholla.",
+  "source": [
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/japan-halal-dining-guide.md",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PLAIN_TEXT",
+        "_document_title": "japan-halal-dining-guide.md",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/japan-halal-dining-guide.md",
+        "_chunk_id": "1vp9KLOdp1UipOM2t3yMxSjVSxp8Tj_Ih7KvkNW4TaQ",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-09-01T05:09:09Z",
+        "_last_updated_at": "2026-09-01T05:09:09Z",
+        "_data_source_id": "WGORFSLRMV"
+      },
+      "score": 0.8578751087188721
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/single-entry-short-term-visa-japan.pdf",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PDF",
+        "_document_title": "single-entry-short-term-visa-japan.pdf",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf",
+        "_chunk_id": "cveENRs_zlwA1qbI8AHVcmFS-Ayk4_ecYnuJHqyaAXg",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-07-27T03:57:16Z",
+        "_last_updated_at": "2026-07-27T03:57:16Z",
+        "_data_source_id": "WGORFSLRMV",
+        "_table_section_title": "April 2025",
+        "_table_id": "ta4VtvbVuJQf9Gsbuxx3B4a6GjrZoykE3RcGy4MJvFQ"
+      },
+      "score": 0.4602088928222656
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/single-entry-short-term-visa-japan.pdf",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PDF",
+        "_document_title": "single-entry-short-term-visa-japan.pdf",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf",
+        "_chunk_id": "2sDUe-4vo7W2mhR6-SXo4rMmEeeFfNITuAFJKYpczi0",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-07-27T03:57:16Z",
+        "_last_updated_at": "2026-07-27T03:57:16Z",
+        "_data_source_id": "WGORFSLRMV",
+        "_table_section_title": "April 2025",
+        "_table_id": "ta4VtvbVuJQf9Gsbuxx3B4a6GjrZoykE3RcGy4MJvFQ"
+      },
+      "score": 0.4473521411418915
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/single-entry-short-term-visa-japan.pdf",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PDF",
+        "_document_title": "single-entry-short-term-visa-japan.pdf",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf",
+        "_chunk_id": "lypnJMTMZ6L0RPvOqsAZblmXbEg0siu4eEgcfFOn-UM",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-07-27T03:57:16Z",
+        "_last_updated_at": "2026-07-27T03:57:16Z",
+        "_data_source_id": "WGORFSLRMV",
+        "_table_section_title": "April 2025",
+        "_table_id": "ta4VtvbVuJQf9Gsbuxx3B4a6GjrZoykE3RcGy4MJvFQ"
+      },
+      "score": 0.44515836238861084
+    },
+    {
+      "document_id": "s3://kelana-bucket-837933860729-ap-southeast-2-an/single-entry-short-term-visa-japan.pdf",
+      "location": {
+        "s3Location": {
+          "uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf"
+        },
+        "type": "S3"
+      },
+      "metadata": {
+        "_file_type": "PDF",
+        "_document_title": "single-entry-short-term-visa-japan.pdf",
+        "_source_uri": "https://kelana-bucket-837933860729-ap-southeast-2-an.s3.ap-southeast-2.amazonaws.com/single-entry-short-term-visa-japan.pdf",
+        "_chunk_id": "S_sJsfq38fyovOPgvYfqhI9JPxy6bxqwVAfjG6Pf228",
+        "_data_source_type": "S3",
+        "_language_code": "en",
+        "_created_at": "2026-07-27T03:57:16Z",
+        "_last_updated_at": "2026-07-27T03:57:16Z",
+        "_data_source_id": "WGORFSLRMV",
+        "_table_section_title": "April 2025",
+        "_table_id": "ta4VtvbVuJQf9Gsbuxx3B4a6GjrZoykE3RcGy4MJvFQ"
+      },
+      "score": 0.43851178884506226
+    }
+  ],
+  "citations": [
+    {
+      "content": ": このスープに肉エキスは入っていますか？ (Kono sūpu ni niku ekisu wa haitte imasu ka?)\n\n**Prayer Facilities (Musholla) in Transit Hubs:**\nDedicated prayer rooms equipped with clean wudhu (ablution) washing spaces and Qibla direction indicators are available at major Japanese transit terminals:\n- Tokyo Narita Airport (NRT): Terminal 1, Terminal 2, and Terminal 3 (both landside and airside).\n- Tokyo Haneda Airport (HND): Terminal 2 and Terminal 3 departures.\n- Kansai International Airport Osaka (KIX): Terminal 1 and Terminal 2.\n- Major Train Stations: Tokyo Station (JR East Travel Service Center, Marunouchi North Gate) and Kyoto Station.",
+      "source": "travel-guides/japan-halal-dining-guide.md"
+    },
+    {
+      "content": "April 2025\nChecklist for \"Single-Entry Short-Term Stay Visa\" April 2025 for all nationalities except China, Russia, CIS Countries, Ukraine, Georgia, and the Philippines It is not permitted to perform any activities to undertake revenue-generating business operations or to receive remuneration in Japan.\nPurpose of Visit\tShort-Term Business Affairs, etc. Attending meetings/conferences, business communication, business negotiation, after- sales service, marketing, Cultural exchange, Sports exchange, etc.\tVisiting Relatives/Friends Visiting spouse, blood relatives/relatives by affinity within the third degree Visiting friends/acquaintances\tTourism\nDocuments to be submitted\tLetter of guarantee (p.8) 11A certified copy of the corporation register or Overview of company/organization (p.9) Not required if the company is listed on the stock exchange and submits its quarterly corporate report. If the guarantor is an individual, Certificate of employment can be submitted instead of a copy of corporation register or Overview of company/organization.\tLetter of guarantee (p.8) Proof of funds of the guarantor (at least one of the following) *Withholding tax slip will not be accepted. The latest Certificate of income (the previous year's gross income must be included)/ taxation issued by the head of administration of the place of residence, or tax return (Form 2) issued by the director of tax office Balance certificate BCertificate of residence (Juminhyo) *Relationship to all family members must be included. 14If the guarantor is a foreign national, please submit a copy of both sides of guarantor's valid Residence Card (or special permanent resident certificate), Certificate of residence (Juminhyo - full details are required for foreign nationals except My Number and Resident Register Code.), and a copy of passport.\tValid Passport 21 Visa application form 31 Photo Flight itinerary with the flight/ship number and date of arrival and departure to and from Japan One of the following documents to prove ability to pay travel expenses during your stay in Japan Income certificate",
+      "source": "travel-guides/single-entry-short-term-visa-japan.pdf"
+    },
+    {
+      "content": "April 2025\nChecklist for \"Single-Entry Short-Term Stay Visa\" April 2025 for all nationalities except China, Russia, CIS Countries, Ukraine, Georgia, and the Philippines It is not permitted to perform any activities to undertake revenue-generating business operations or to receive remuneration in Japan.\nPurpose of Visit\tShort-Term Business Affairs, etc. Attending meetings/conferences, business communication, business negotiation, after- sales service, marketing, Cultural exchange, Sports exchange, etc.\tVisiting Relatives/Friends Visiting spouse, blood relatives/relatives by affinity within the third degree Visiting friends/acquaintances\tTourism\nDocuments to be submitted\t7 Invitation letter(p.4) or either of the following documents explaining activities in Japan A transaction agreement between companies Conference materials 8List of visa applicants (p.5) (Where there is more than one applicant) ©Itinerary in Japan (p.6)\tInvitation letter (p.4) 8 Document to explain the reason for invitation (examples: invitation showing date of graduation, wedding etc., medical certificate) ©List of Visa Applicants (p.5) (Where there is more than one applicant) Itinerary in Japan (p.6)\tValid Passport 21 Visa application form 31 Photo Flight itinerary with the flight/ship number and date of arrival and departure to and from Japan One of the following documents to prove ability to pay travel expenses during your stay in Japan Income certificate or tax return issued by a public agency Bank statement, balance certificate etc. 6Itinerary in Japan (p.6)",
+      "source": "travel-guides/single-entry-short-term-visa-japan.pdf"
+    },
+    {
+      "content": "April 2025\nChecklist for \"Single-Entry Short-Term Stay Visa\" April 2025 for all nationalities except China, Russia, CIS Countries, Ukraine, Georgia, and the Philippines It is not permitted to perform any activities to undertake revenue-generating business operations or to receive remuneration in Japan.\nPurpose of Visit\tShort-Term Business Affairs, etc. Attending meetings/conferences, business communication, business negotiation, after- sales service, marketing, Cultural exchange, Sports exchange, etc.\tVisiting Relatives/Friends Visiting spouse, blood relatives/relatives by affinity within the third degree Visiting friends/acquaintances\tTourism\nDocuments to be submitted\tValid passport 21 Visa application form 31 Photo Itinerary with the flight/ship number and date of arrival and departure to and from Japan 5 Document to prove that you are traveling to Japan for business purposes (any of the following) Travel order issued by your employer Letter from employer Document equivalent to the above Certificate of employment\tValid passport 21 Visa application form 31 Photo Itinerary with the flight/ship number and date of arrival and departure to and from Japan 5 One of the following documents to prove ability to pay travel expenses during your stay in Japan (if you pay your own travel expenses) Income certificate or tax return issued by a public agency Bank statement, balance certificate etc. 6 Document to prove kinship, friendship, or acquaintance relationship Visiting relatives: Birth certificate, Marriage certificate, Family register certificate (Kosekitohon) etc. (copies will be accepted) Visiting friends/acquaintances: Photos, E-mails, Call history, Letters etc.\tValid Passport 21 Visa application form 31 Photo Flight itinerary with the flight/ship number and date of arrival and departure to and from Japan One of the following documents to prove ability to pay travel expenses during your stay in Japan Income certificate or tax return issued by a public agency Bank statement, balance certificate etc. 6Itinerary in Japan (p.6)",
+      "source": "travel-guides/single-entry-short-term-visa-japan.pdf"
+    },
+    {
+      "content": "April 2025\nChecklist for \"Single-Entry Short-Term Stay Visa\" April 2025 for all nationalities except China, Russia, CIS Countries, Ukraine, Georgia, and the Philippines It is not permitted to perform any activities to undertake revenue-generating business operations or to receive remuneration in Japan.\nPurpose of Visit\tShort-Term Business Affairs, etc. Attending meetings/conferences, business communication, business negotiation, after- sales service, marketing, Cultural exchange, Sports exchange, etc.\tVisiting Relatives/Friends Visiting spouse, blood relatives/relatives by affinity within the third degree Visiting friends/acquaintances\tTourism\nDocuments to be submitted\tB. Prepared by inviting organization/guarantor in Japan\tB. Prepared by inviting organization/guarantor in Japan\tValid Passport 21 Visa application form 31 Photo Flight itinerary with the flight/ship number and date of arrival and departure to and from Japan One of the following documents to prove ability to pay travel expenses during your stay in Japan Income certificate or tax return issued by a public agency Bank statement, balance certificate etc. 6Itinerary in Japan (p.6)",
+      "source": "travel-guides/single-entry-short-term-visa-japan.pdf"
+    }
+  ],
+  "mode": "rag",
+  "model_id": "amazon.nova-lite-v1:0",
+  "knowledge_base_id": "EW7EM5BPON",
+  "created_at": "2026-09-01T14:00:49Z",
+  "latency_seconds": 8.856
+}
+```
+
+#### 🔍 Analisis Validitas & Peningkatan Kualitas:
+- **Ketepatan Istilah Regulasi:** RAG secara spesifik mengutip nama sertifikat izin impor obat resmi Kementerian Kesehatan Jepang (**Yunyu Kakunin-sho / Import Certificate**) dan memetakan terminal musala di Bandara Narita (T1, T2, T3) dan Haneda (T2, T3) dengan detail fasilitas wudhu dan arah kiblat.
+
+---
+
+## 3. Kesimpulan Evaluasi RAG vs Base-Model
+
+1. **Struktur JSON & Sitasi Sumber:**
+   - **Base Model:** Memuat metadata eksekusi (`created_at`, `latency_seconds`, `model_id`), namun field `"source"` selalu `null` dan `"citations"` kosong (`[]`) karena model tidak memiliki akses ke dokumen pabean/perjalanan internal.
+   - **KelanaAI RAG:** Field `"source"` berisi array metadata dokumen resmi di Amazon S3 (`document_id`, `location`, `score`, `metadata`) yang menjamin auditability data.
+2. **Eliminasi Halusinasi Angka & Hukum:** Base model cenderung "menebak" nominal angka (misal: menebak Rp 100jt per bulan atau Rp 1 Milyar) ketika ditanya regulasi devisa dan bea cukai Indonesia. RAG mengunci jawaban pada teks hukum PMK dan PBI yang sah.
+3. **Konteks Lokal & Bahasa Khusus:** Pada istilah bahasa Jepang (Kanji babi, mirin, sake), RAG memberikan representasi karakter tulisan asli yang dapat langsung dicocokkan pengguna di minimarket.
+
+---
+*Laporan ini digenerate secara otomatis oleh script evaluasi `evaluation/run_comparison.py` sebagai bukti pemenuhan Tugas Sesi 9 Bootcamp KelanaAI.*

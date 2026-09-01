@@ -94,6 +94,17 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
             My Trips
           </Link>
 
+          <Link
+            href="/assistant"
+            className={`text-xs font-medium transition-colors ${
+              pathname === "/assistant"
+                ? "text-white font-semibold"
+                : "text-muted-foreground hover:text-white"
+            }`}
+          >
+            Travel Assistant
+          </Link>
+
           {isAuthenticated ? (
             <div className="flex items-center gap-2.5 pl-2 border-l border-border">
               {/* Profile Link */}

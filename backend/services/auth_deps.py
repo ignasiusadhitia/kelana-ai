@@ -57,3 +57,26 @@ def get_current_user(
         )
 
     return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """
+    FastAPI Dependency for endpoints accessible by both guests and authenticated users.
+    Returns User if a valid Bearer token is provided, otherwise returns None without raising 401.
+    """
+    if credentials is None or not credentials.credentials:
+        return None
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+        user_id_raw = payload.get("sub")
+        if user_id_raw is None:
+            return None
+        user_id = int(user_id_raw)
+        return db.query(User).filter(User.id == user_id).first()
+    except Exception:
+        return None
+

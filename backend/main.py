@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from views.auth_views import router as auth_router
 from views.trip_views import router as trip_router
+from views.assistant_views import router as assistant_router
 
 app = FastAPI(
     title="KelanaAI API",
@@ -35,6 +36,7 @@ init_db()
 # Mount Modular API Routers
 app.include_router(auth_router)
 app.include_router(trip_router)
+app.include_router(assistant_router)
 
 
 @app.get("/")
