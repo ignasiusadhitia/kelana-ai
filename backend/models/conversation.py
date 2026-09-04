@@ -1,0 +1,42 @@
+# ==============================================================================
+# 5. MODELS: Conversation & Message Entities (Multi-Turn Conversational Memory)
+# ==============================================================================
+
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from database import Base
+
+class Conversation(Base):
+    """
+    Conversation database model representing a multi-turn chat session with KelanaAI.
+    Belongs to a User and contains many Messages.
+    """
+    __tablename__ = "conversations"
+
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False, default="New Conversation")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    context_summary = Column(Text, nullable=True, default=None)
+
+    # Relationships - strictly ordered by message ID ascending for deterministic chronology
+    user = relationship("User", back_populates="conversations")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", passive_deletes=True, order_by="Message.id.asc()")
+
+
+class Message(Base):
+    """
+    Message database model representing individual user/assistant turns in a conversation.
+    """
+    __tablename__ = "messages"
+
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    conversation_id = Column(BigInteger, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(16), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    conversation = relationship("Conversation", back_populates="messages")

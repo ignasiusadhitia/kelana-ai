@@ -9,6 +9,10 @@ import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 import { Portal } from "@/components/ui/portal";
 
+/**
+ * COMPONENT: TripDetailModal
+ * Modal dialog displaying comprehensive trip recommendations with interactive budget editing.
+ */
 interface TripDetailModalProps {
   trip: TripResponse | null;
   isOpen: boolean;

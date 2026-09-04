@@ -1,11 +1,11 @@
+/**
+ * SERVICE LAYER: Centralized HTTP Service for Trip Data Operations.
+ * Manages trip generation, retrieval, updates, and soft/hard deletion flows.
+ */
+
 import { TripRequest, TripResponse } from "@/types/trip";
 import { API_ENDPOINTS } from "@/constants/trip";
 import { getAuthToken } from "./authService";
-
-/**
- * SERVICE LAYER: Centralized HTTP Service for trip data operations (Session 8 Auth Protected & Soft Delete).
- * Automatically attaches Bearer token header to all requests.
- */
 
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {

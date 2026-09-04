@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PROVIDER: Centralized Authentication & User Session Context
+ * Supplies user profile, authentication state, and session mutation methods.
+ */
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { UserProfile, LoginCredentials, RegisterCredentials } from "@/types/auth";

@@ -1,16 +1,21 @@
 # ==============================================================================
-# KNOWLEDGE BASE SERVICE (Amazon Bedrock Agent Runtime & Grounded RAG Orchestrator)
+# 4. SERVICES: Knowledge Base Service (Amazon Bedrock RAG & Semantic Retrieval)
 # ==============================================================================
 
 import os
 import glob
 import re
-from typing import Any
+from typing import Any, Optional
 import boto3
 from dotenv import load_dotenv
 from utils.security import sanitize_user_input
 
 load_dotenv()
+
+
+# ------------------------------------------------------------------------------
+# Part A: AWS Client Initialization & Configuration
+# ------------------------------------------------------------------------------
 
 def get_kb_client():
     """Create and return a configured Bedrock Agent Runtime boto3 client using AWS credentials."""
@@ -29,6 +34,60 @@ def get_bedrock_runtime_client():
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
+
+
+# ------------------------------------------------------------------------------
+# Part B: Raw Passage Retrieval from Amazon Bedrock Knowledge Base
+# ------------------------------------------------------------------------------
+
+def retrieve_passages(
+    question: str,
+    top_k: int = 5,
+    min_score: Optional[float] = None
+) -> list[dict[str, Any]]:
+    """
+    Retrieve raw document passages from S3 Knowledge Base without internal LLM synthesis.
+    Filters passages by semantic vector threshold (default 0.70 via RAG_SEMANTIC_THRESHOLD).
+    Implements circuit-breaker resilience: returns [] on AWS timeout so callers gracefully fail-open.
+    """
+    sanitized_q, is_suspicious = sanitize_user_input(question)
+    if is_suspicious or not sanitized_q.strip():
+        return []
+
+    kb_id = os.getenv("KNOWLEDGE_BASE_ID", "").strip()
+    if not kb_id:
+        return []
+
+    if min_score is None:
+        try:
+            min_score = float(os.getenv("RAG_SEMANTIC_THRESHOLD", "0.735"))
+        except ValueError:
+            min_score = 0.735
+
+    client = get_kb_client()
+    try:
+        response = client.retrieve(
+            knowledgeBaseId=kb_id,
+            retrievalQuery={"text": sanitized_q},
+        )
+        results = []
+        for r in response.get("retrievalResults", []):
+            score = float(r.get("score", 0.0))
+            if score < min_score:
+                continue
+            uri = r.get("location", {}).get("s3Location", {}).get("uri", "")
+            fname = os.path.basename(uri) if uri else ""
+            content = r.get("content", {}).get("text", "").strip()
+            if fname and content:
+                results.append({
+                    "source": fname,      # Pure verified S3 filename
+                    "content": content,   # Raw document excerpt
+                    "score": score,
+                })
+        return results[:top_k]
+    except Exception as e:
+        print(f"[KB retrieve_passages Warning] S3 Knowledge Base retrieval failed: {e}. Gracefully returning empty passages.")
+        return []
 
 def _retrieve_local_passages(question: str) -> list[dict[str, str]]:
     """
@@ -59,7 +118,7 @@ def _retrieve_local_passages(question: str) -> list[dict[str, str]]:
                 candidates.append({
                     "score": score,
                     "content": para,
-                    "source": f"travel-guides/{pdf_name}"
+                    "source": pdf_name
                 })
 
     # Sort descending by relevance score
@@ -151,6 +210,10 @@ def _generate_grounded_answer(sanitized_question: str, retrieved_docs: list[dict
             "citations": [{"content": top_doc["content"], "source": top_doc["source"]}]
         }
 
+# ------------------------------------------------------------------------------
+# Part C: Base Model Comparative Inference (Zero-Shot)
+# ------------------------------------------------------------------------------
+
 def ask_base_model(question: str) -> dict[str, Any]:
     """
     Query Base LLM Model (Zero-Shot) without any Knowledge Base document retrieval.
@@ -179,6 +242,11 @@ def ask_base_model(question: str) -> dict[str, Any]:
             "citations": [],
             "mode": "base_model"
         }
+
+
+# ------------------------------------------------------------------------------
+# Part D: Grounded RAG Orchestration & Security Directives
+# ------------------------------------------------------------------------------
 
 def ask_knowledge_base(question: str) -> dict[str, Any]:
     """
@@ -229,11 +297,11 @@ def ask_knowledge_base(question: str) -> dict[str, Any]:
                     
                     source_name = s3_uri.split("/")[-1] if s3_uri else "Knowledge Base Document"
                     if not primary_source and source_name:
-                        primary_source = f"travel-guides/{source_name}"
+                        primary_source = source_name
                     
                     citations_list.append({
                         "content": text_snippet,
-                        "source": f"travel-guides/{source_name}" if source_name else None
+                        "source": source_name if source_name else None
                     })
 
             return {
@@ -263,7 +331,7 @@ def ask_knowledge_base(question: str) -> dict[str, Any]:
                         file_name = s3_loc.split("/")[-1] if s3_loc else "AWS Knowledge Base Document"
                         aws_docs.append({
                             "content": r.get("content", {}).get("text", ""),
-                            "source": f"travel-guides/{file_name}" if file_name else "AWS Knowledge Base Document"
+                            "source": file_name if file_name else "AWS Knowledge Base Document"
                         })
                         # Format matching mentor specification
                         mentor_sources.append({

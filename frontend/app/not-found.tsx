@@ -44,18 +44,18 @@ export default function NotFound() {
 
             {/* Main Headline */}
             <Typography variant="h1" className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Lost in Transit
+              Route Not Found
             </Typography>
 
             {/* Subtitle Message */}
-            <Typography variant="muted" as="p" className="mt-3 text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed">
-              The destination or travel route you are looking for has moved, expired, or doesn&apos;t exist.
+            <Typography variant="muted" as="p" className="mt-3 text-xs sm:text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed">
+              The page or travel route you are looking for does not exist, has expired, or the link entered is incorrect.
             </Typography>
 
             {/* Action Buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <Link href="/" className="w-full sm:w-auto">
-                <Button variant="default" size="default" className="w-full sm:w-auto gap-2 px-5 active:scale-95">
+                <Button variant="default" size="default" className="w-full sm:w-auto gap-2 px-5 active:scale-95 shadow-md font-semibold">
                   <Home className="w-4 h-4" />
                   <span>Trip Planner</span>
                 </Button>
@@ -64,8 +64,14 @@ export default function NotFound() {
               <Link href="/trips" className="w-full sm:w-auto">
                 <Button variant="outline" size="default" className="w-full sm:w-auto gap-2 px-5 active:scale-95">
                   <Map className="w-4 h-4" />
-                  <span>My Saved Trips</span>
+                  <span>Trip History</span>
                   <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+
+              <Link href="/chat" className="w-full sm:w-auto">
+                <Button variant="ghost" size="default" className="w-full sm:w-auto gap-2 px-4 text-zinc-400 hover:text-white active:scale-95">
+                  <span>Ask AI</span>
                 </Button>
               </Link>
             </div>

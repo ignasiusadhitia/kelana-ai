@@ -85,9 +85,9 @@ export async function PUT(request: Request, context: RouteParams) {
     }
 
     const body = await request.json().catch(() => null);
-    if (!body || typeof body.budget !== "number" || body.budget <= 0) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { detail: "Valid positive numeric budget is required" },
+        { detail: "Valid JSON request body is required" },
         { status: 400 }
       );
     }
@@ -95,7 +95,7 @@ export async function PUT(request: Request, context: RouteParams) {
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "PUT",
       headers: getForwardHeaders(request),
-      body: JSON.stringify({ budget: body.budget }),
+      body: JSON.stringify(body),
     });
 
     const data = await parseBackendResponse(response);

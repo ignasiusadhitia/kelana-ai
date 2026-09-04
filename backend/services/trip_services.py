@@ -1,5 +1,5 @@
 # ==============================================================================
-# 4. SERVICES (Business Logic Calculations & Database CRUD Operations - Session 8)
+# 4. SERVICES: Trip Services (Business Logic & Database CRUD Operations)
 # ==============================================================================
 
 from constants.categories import TRIP_CATEGORIES, DEFAULT_CATEGORY
@@ -27,24 +27,16 @@ def get_trip_category(budget: float) -> str:
             return category
     return DEFAULT_CATEGORY
     
-def get_trip_transportation_recommendation(trip_category: str) -> str | ValueError:
+def get_trip_transportation_recommendation(trip_category: str) -> str | None:
     """Look up recommended transportation based on trip category."""
-    transportation = RECOMMENDED_TRANSPORTATION.get(trip_category)
-    if transportation is None:
-        return ValueError(f"No transportation recommendation for category '{trip_category}'.")
-    return transportation
+    return RECOMMENDED_TRANSPORTATION.get(trip_category)
 
-def get_recommended_places(destinations: list[str]) -> dict[str, list | ValueError]:
+def get_recommended_places(destinations: list[str]) -> dict[str, list[str]]:
     """Look up recommended places for each destination and return a result dict."""
     result = {}
     for destination in destinations:
         places = RECOMMENDED_PLACES.get(destination)
-        if places is None:
-            result[destination] = ValueError(f"Destination '{destination}' not found.")
-        elif not places:
-            result[destination] = ValueError(f"No recommended places listed for '{destination}'.")
-        else:
-            result[destination] = places
+        result[destination] = places if places else []
     return result
 
 def get_travel_season(travel_month: str) -> str:
@@ -139,11 +131,26 @@ def get_user_analytics_db(db: Session, user_id: int) -> dict:
         "destinations": destinations,
     }
 
-def update_trip_db(db: Session, trip: Trip, new_budget: float) -> Trip:
-    """Update trip budget and automatically recalculate derived budget metrics."""
-    trip.budget         = new_budget
-    trip.category       = get_trip_category(new_budget)
-    trip.daily_budget   = calculate_daily_budget(new_budget, trip.days)
+def update_trip_db(
+    db: Session,
+    trip: Trip,
+    new_budget: float | None = None,
+    new_destination: str | None = None,
+    new_days: int | None = None,
+    new_travel_style: str | None = None,
+) -> Trip:
+    """Update trip fields and automatically recalculate derived budget metrics."""
+    if new_destination is not None:
+        trip.destination = new_destination.strip()
+    if new_days is not None:
+        trip.days = new_days
+    if new_travel_style is not None:
+        trip.travel_style = new_travel_style.strip()
+    if new_budget is not None:
+        trip.budget = new_budget
+
+    trip.category = get_trip_category(trip.budget)
+    trip.daily_budget = calculate_daily_budget(trip.budget, trip.days)
 
     db.commit()
     db.refresh(trip)
@@ -182,20 +189,28 @@ def create_trip_with_ai_db(db: Session, request: TripRequest, user_id: int) -> T
     daily_budget = calculate_daily_budget(request.budget, request.days)
     category = get_trip_category(request.budget)
     
-    prompt = build_trip_prompt(
-        destination=request.destination,
-        days=request.days,
-        budget=request.budget,
-        category=category,
-        daily_budget=daily_budget,
-        travel_style=request.travel_style
-    )
-    
     ai_recommendation = None
-    try:
-        ai_recommendation = generate_trip_recommendation(prompt)
-    except Exception as e:
-        print(f"Warning: AI generation failed on create: {e}")
+    if getattr(request, "ai_recommendation", None) and request.ai_recommendation.strip():
+        print(f"[TripService] Persisting pre-generated chat itinerary for '{request.destination}' ({len(request.ai_recommendation)} chars) - skipping AI re-generation.")
+        ai_recommendation = request.ai_recommendation.strip()
+    else:
+        print(f"[TripService] Generating new Bedrock itinerary for '{request.destination}' ({request.days} days, budget={request.budget})...")
+        prompt = build_trip_prompt(
+            destination=request.destination,
+            days=request.days,
+            budget=request.budget,
+            category=category,
+            daily_budget=daily_budget,
+            travel_style=request.travel_style
+        )
+        try:
+            ai_recommendation = generate_trip_recommendation(prompt)
+        except Exception as e:
+            print(f"[TripService] Warning: AI generation failed on create for '{request.destination}': {e}")
+            ai_recommendation = (
+                "_Itinerary generation is temporarily unavailable. "
+                "Please open this trip and click **Regenerate** to create your custom itinerary._"
+            )
 
     trip = Trip(
         destination       = request.destination,

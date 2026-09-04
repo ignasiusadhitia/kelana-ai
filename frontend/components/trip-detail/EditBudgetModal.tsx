@@ -9,6 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Portal } from "@/components/ui/portal";
 import { formatBudget, roundToTwoDecimals } from "@/lib/utils";
 
+/**
+ * COMPONENT: EditBudgetModal
+ * Modal dialog for adjusting trip budget and optionally triggering AI itinerary regeneration.
+ */
 interface EditBudgetModalProps {
   isOpen: boolean;
   trip: TripResponse;

@@ -1,5 +1,5 @@
 # ==============================================================================
-# 4. BEDROCK SERVICE (Amazon Bedrock Converse API Orchestrator)
+# 4. SERVICES: Bedrock Service (Amazon Bedrock Converse API Orchestrator)
 # ==============================================================================
 
 import os

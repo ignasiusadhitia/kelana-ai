@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PROVIDER: TanStack Query & Toast Notification Context
+ * Configures global React Query client defaults and wraps application in ToastProvider.
+ */
+
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "@/components/ui/toast";

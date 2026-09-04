@@ -4,6 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 
+/**
+ * COMPONENT: UnauthenticatedTripsPrompt
+ * Call-to-action card prompting unauthenticated visitors to sign in or register to view their trips.
+ */
 export function UnauthenticatedTripsPrompt() {
   return (
     <Card className="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-card/50 p-8 sm:p-12 text-center backdrop-blur-xl animate-in fade-in duration-300">

@@ -1,10 +1,14 @@
+# ==============================================================================
+# 3. SCHEMAS: Assistant DTOs (Data Transfer Objects & Validation via Pydantic)
+# ==============================================================================
+
 from typing import Any
 from pydantic import BaseModel, Field
 
 class QuestionRequest(BaseModel):
     """Request schema for asking travel assistant questions."""
     question: str = Field(min_length=3, max_length=1000, description="The travel question to ask the Knowledge Base")
-    session_id: str | None = Field(default=None, description="Client session identifier for conversational memory (Session 10 ready)")
+    session_id: str | None = Field(default=None, description="Client session identifier for conversational context")
     use_rag: bool = Field(default=True, description="Toggle between Grounded RAG (True) and Base Model Zero-Shot (False)")
 
 class Citation(BaseModel):

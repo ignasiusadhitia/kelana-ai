@@ -1,3 +1,7 @@
+# ==============================================================================
+# 1. DATABASE MIGRATION (Schema Evolution & Column Management)
+# ==============================================================================
+
 """
 migrate.py — minimal SQL migration runner.
 
@@ -22,6 +26,7 @@ MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "migrations")
 
 
 def get_connection():
+    """Establish and return a psycopg2 database connection."""
     return psycopg2.connect(DATABASE_URL)
 
 
@@ -45,6 +50,7 @@ def applied_versions(conn) -> set:
 
 
 def run_migrations():
+    """Execute all pending SQL migrations in sequential filename order."""
     conn = get_connection()
     try:
         ensure_migrations_table(conn)

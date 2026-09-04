@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
+/**
+ * POST /api/v1/assistant
+ * Proxy endpoint to query Amazon Bedrock Knowledge Base assistant on FastAPI backend.
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);

@@ -1,5 +1,5 @@
 # ==============================================================================
-# ORM MODEL: Trip Entity (Session 8 Ownership & Soft Delete)
+# 5. MODELS: Trip Entity (Itinerary Ownership & Soft Delete)
 # ==============================================================================
 
 from sqlalchemy import Column, BigInteger, Integer, String, Float, DateTime, Text, ForeignKey
@@ -25,7 +25,7 @@ class Trip(Base):
     deleted_at      = Column(DateTime(timezone=True), nullable=True, default=None)
     ai_recommendation = Column(Text, nullable=True)
 
-    # Session 8: Foreign key binding trip to its owner
+    # Foreign key binding trip to its owner
     user_id         = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Relationship to User

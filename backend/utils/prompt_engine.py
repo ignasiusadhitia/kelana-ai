@@ -1,5 +1,5 @@
 # ==============================================================================
-# 1. CORE PROMPT ENGINE
+# 6. UTILITIES: Core CLI Prompt Engine (Interactive Terminal Input)
 # ==============================================================================
 
 from typing import Callable, Any

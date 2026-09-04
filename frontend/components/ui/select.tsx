@@ -81,7 +81,7 @@ export function CustomSelect({
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
         className={cn(
-          "cursor-pointer flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/90 px-3.5 py-2 text-xs font-medium text-foreground backdrop-blur-md transition-all duration-200 hover:border-primary/50 hover:bg-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 active:scale-[0.98]",
+          "cursor-pointer flex w-full items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/90 px-3.5 py-2 text-xs font-medium text-foreground backdrop-blur-md transition-all duration-200 hover:border-primary/50 hover:bg-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 active:scale-[0.98]",
           isOpen && "border-primary ring-2 ring-primary/20 bg-secondary"
         )}
       >
@@ -111,7 +111,7 @@ export function CustomSelect({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute right-0 z-50 mt-1.5 min-w-[200px] w-max overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 p-1.5 text-xs text-foreground shadow-2xl shadow-black ring-1 ring-white/10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 z-50 mt-1.5 min-w-[200px] w-max max-h-60 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 p-1.5 text-xs text-foreground shadow-2xl shadow-black ring-1 ring-white/10 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100"
         >
           <div className="space-y-0.5">
             {options.map((option) => {

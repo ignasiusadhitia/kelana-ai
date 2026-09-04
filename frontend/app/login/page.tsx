@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PAGE: /login (User Authentication)
+ * Sign-in portal with email and password credential validation and redirect routing.
+ */
+
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

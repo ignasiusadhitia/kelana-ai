@@ -15,8 +15,10 @@ import { Typography } from "@/components/ui/typography";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// COMPONENT: TravelAnalyticsGrid
-// Displays rich aggregated travel metrics (Planned Budget, Days Explored, Destination Chips) (Session 8)
+/**
+ * COMPONENT: TravelAnalyticsGrid
+ * Displays rich aggregated travel metrics (Planned Budget, Days Explored, Destination Chips).
+ */
 
 interface TravelAnalyticsGridProps {
   user: UserProfile;

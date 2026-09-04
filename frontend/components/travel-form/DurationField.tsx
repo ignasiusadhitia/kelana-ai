@@ -5,6 +5,10 @@ import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 import { ScrollableTrack } from "@/components/ui/scrollable-track";
 
+/**
+ * COMPONENT: DurationField
+ * Duration selector with quick-select trip duration pills up to 14 days.
+ */
 interface DurationFieldProps {
   register: UseFormRegister<TripFormValues>;
   setValue: UseFormSetValue<TripFormValues>;

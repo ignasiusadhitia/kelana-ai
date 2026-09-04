@@ -1,5 +1,5 @@
 # ==============================================================================
-# ORM MODEL: User Entity (Session 8 Authentication & Preferences)
+# 5. MODELS: User Entity (Traveler Profiles & Relationships)
 # ==============================================================================
 
 from sqlalchemy import Column, BigInteger, String, DateTime
@@ -21,5 +21,6 @@ class User(Base):
     default_travel_style = Column(String(50), nullable=True, default="Family")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    # 1 User -> Many Trips relationship
+    # Relationships
     trips = relationship("Trip", back_populates="user", cascade="all, delete-orphan")
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")

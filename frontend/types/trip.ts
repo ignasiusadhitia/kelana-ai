@@ -11,6 +11,7 @@ export interface TripRequest {
   days: number;
   budget: number;
   travel_style: string;
+  ai_recommendation?: string;
 }
 
 /**

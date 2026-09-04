@@ -21,8 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 
-// COMPONENT: TravelerPreferencesCard
-// Interactive selector for default travel style preference with auto-fill sync (Session 8)
+/**
+ * COMPONENT: TravelerPreferencesCard
+ * Interactive selector for default travel style preference with auto-fill synchronization.
+ */
 
 function renderStyleIcon(iconKey: string, isSelected: boolean) {
   const baseClasses = "w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110";
@@ -115,7 +117,7 @@ export function TravelerPreferencesCard() {
               <Typography as="span" variant="body" className="font-semibold text-xs text-white">
                 {style.label}
               </Typography>
-              <Typography as="span" variant="caption" className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+              <Typography as="span" variant="caption" className="text-[10px] text-zinc-400 mt-0.5 leading-tight line-clamp-2 min-h-[22px] flex items-center justify-center">
                 {style.description}
               </Typography>
             </button>

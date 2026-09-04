@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PAGE: /trips (Trip Dashboard & History)
+ * Comprehensive trip dashboard displaying user's saved travel plans with filters, search, and trash management.
+ */
+
 import { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";

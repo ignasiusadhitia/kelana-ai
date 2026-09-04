@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+// PATTERN: Schema-First Validation using Zod
 /**
  * AUTH SCHEMAS: Declarative Form Validation Contracts (Zod-Powered)
  * Eliminates browser-native HTML5 popups in favor of unified, accessible inline UI errors.

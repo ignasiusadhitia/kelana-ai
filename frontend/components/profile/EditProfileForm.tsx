@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
-// COMPONENT: EditProfileForm
-// Handles display name updates with Zod schema validation & optimistic sync (Session 8 Profile Enhancement)
+/**
+ * COMPONENT: EditProfileForm
+ * Handles display name updates with Zod schema validation & optimistic state synchronization.
+ */
 
 export function EditProfileForm() {
   const { user, updateProfile } = useAuth();

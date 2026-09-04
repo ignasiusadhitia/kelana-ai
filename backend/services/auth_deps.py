@@ -1,5 +1,5 @@
 # ==============================================================================
-# AUTH DEPENDENCY: Current User Extraction & Route Guard (Session 8)
+# 4. SERVICES: Auth Dependencies (JWT Bearer Token Extraction & Route Guards)
 # ==============================================================================
 
 from fastapi import Depends, HTTPException, status

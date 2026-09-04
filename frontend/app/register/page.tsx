@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PAGE: /register (New Account Registration)
+ * New user registration page with form validation and redirect support.
+ */
+
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

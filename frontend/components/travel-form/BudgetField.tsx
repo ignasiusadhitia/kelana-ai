@@ -5,6 +5,10 @@ import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 import { ScrollableTrack } from "@/components/ui/scrollable-track";
 
+/**
+ * COMPONENT: BudgetField
+ * Budget input field with quick-select currency preset pills.
+ */
 interface BudgetFieldProps {
   register: UseFormRegister<TripFormValues>;
   setValue: UseFormSetValue<TripFormValues>;

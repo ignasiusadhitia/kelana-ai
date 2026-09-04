@@ -12,6 +12,7 @@ import { TripHeader } from "./trip-detail/TripHeader";
 import { TripMetricsGrid } from "./trip-detail/TripMetricsGrid";
 import { TripDayAccordions, SectionItem } from "./trip-detail/TripDayAccordions";
 import { EditBudgetModal } from "./trip-detail/EditBudgetModal";
+import { generateTripIcs } from "@/lib/calendar";
 
 /**
  * COMPONENT: TripRecommendation
@@ -56,10 +57,20 @@ export function TripRecommendation({
   const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  // Parses markdown sections by top-level "## " headings for tabbed/accordion view
+  // Parses markdown sections by top-level "## " headings or conversational Day/Hari markers
   const parseSections = (rawText: string): SectionItem[] => {
-    const sectionDelimiter = /(?:^|\n)(?=##\s+)/g;
-    const rawParts = rawText.split(sectionDelimiter).filter((s) => s.trim().length > 0);
+    // 1. Primary: split by top-level "## " headings (standard Bedrock format)
+    const hasH2 = /(?:^|\n)##\s+/.test(rawText);
+    let rawParts: string[] = [];
+
+    if (hasH2) {
+      const sectionDelimiter = /(?:^|\n)(?=##\s+)/g;
+      rawParts = rawText.split(sectionDelimiter).filter((s) => s.trim().length > 0);
+    } else {
+      // 2. Fallback for conversational itineraries: split by Day/Hari or guide sections
+      const conversationalDelimiter = /(?:^|\n)(?=(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+|(?:#{2,4}\s+)(?:\*\*)?(?:Tips|Informasi|Rencana|Catatan|Notes|Practical))/gi;
+      rawParts = rawText.split(conversationalDelimiter).filter((s) => s.trim().length > 0);
+    }
 
     if (rawParts.length <= 1) {
       return [
@@ -78,27 +89,32 @@ export function TripRecommendation({
     return rawParts.map((part, idx) => {
       const lines = part.trim().split("\n");
       const firstLine = lines[0].trim();
-      const isHeading = firstLine.startsWith("## ");
-      const rawTitle = isHeading
-        ? firstLine.replace(/^##\s+/, "")
-        : idx === 0
-        ? "Overview"
-        : `Section ${idx + 1}`;
-      const body = isHeading ? lines.slice(1).join("\n").trim() : part.trim();
+      const isHeading = firstLine.startsWith("#");
+      const isBoldTitle = /^\*\*(?:Day|Hari)\s+\d+/i.test(firstLine);
 
-      const isDay = /^Day\s+\d+/i.test(rawTitle);
+      let rawTitle = firstLine
+        .replace(/^#+\s*/, "")
+        .replace(/^\*\*(.*?)\*\*:?.*$/, "$1")
+        .replace(/^_(.*?)_:?.*$/, "$1")
+        .trim();
+
+      if (!rawTitle) {
+        rawTitle = idx === 0 ? "Overview" : `Section ${idx + 1}`;
+      }
+
+      const body = (isHeading || isBoldTitle) ? lines.slice(1).join("\n").trim() : part.trim();
+      const cleanTitle = cleanTitleText(rawTitle) || rawTitle;
+      const isDay = /^(?:Day|Hari)\s+\d+/i.test(cleanTitle);
       if (isDay) {
         dayCounter += 1;
       }
-
-      const cleanTitle = cleanTitleText(rawTitle) || rawTitle;
 
       return {
         id: `section-${idx}`,
         rawTitle,
         cleanTitle,
         icon: isDay ? String(dayCounter) : "",
-        body,
+        body: body || part.trim(),
         isDay,
         dayNumber: isDay ? dayCounter : undefined,
       };
@@ -139,6 +155,14 @@ export function TripRecommendation({
   // Trigger browser native print dialog for PDF saving
   const handlePrint = () => {
     window.print();
+  };
+
+  // Export structured itinerary to .ics for Google / Apple Calendar
+  const handleExportCalendar = () => {
+    generateTripIcs(trip);
+    toast.success("iCalendar (.ics) downloaded! Open to add to your calendar app.", {
+      title: "Calendar Exported",
+    });
   };
 
   // Handle Edit Budget submission with optional AI regeneration
@@ -220,6 +244,7 @@ export function TripRecommendation({
           onCopy={handleCopy}
           onDownloadMarkdown={handleDownloadMarkdown}
           onPrint={handlePrint}
+          onExportCalendar={handleExportCalendar}
         />
 
         <TripMetricsGrid

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PAGE: /profile (Traveler Profile & Settings)
+ * Account management dashboard for traveler preferences, profile details, password updates, and travel analytics.
+ */
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";

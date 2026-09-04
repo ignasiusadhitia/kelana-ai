@@ -1,5 +1,5 @@
 # ==============================================================================
-# AUTH SERVICE: Password Hashing & JWT Token Generation (Session 8)
+# 4. SERVICES: Authentication Service (Password Hashing & JWT Security)
 # ==============================================================================
 
 import os
@@ -8,8 +8,17 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "kelana-ai-super-secret-jwt-key-for-session-8-auth-2026")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "FATAL: JWT_SECRET_KEY environment variable is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")) # 24 Hours default
 

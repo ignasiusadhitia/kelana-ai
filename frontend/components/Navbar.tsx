@@ -8,7 +8,7 @@ import { Logo } from "@/components/Logo";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * COMPONENT: Navbar (Session 8 Personalized Multi-User Navigation)
+ * COMPONENT: Navbar (Personalized Multi-User Navigation)
  * Adaptive navigation bar showing personalized welcome greeting, user profile, and auth actions.
  */
 
@@ -56,7 +56,7 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
           </div>
         </Link>
 
-        {/* Center: Personalized Welcome Greeting (Session 8 Bonus Challenge) */}
+        {/* Center: Personalized Welcome Greeting */}
         {isAuthenticated && user && (
           <div className="hidden md:flex items-center gap-2 rounded-full border border-white/5 bg-zinc-900/60 px-3.5 py-1 backdrop-blur-md">
             <span className="relative flex h-2 w-2">
@@ -95,15 +95,17 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
           </Link>
 
           <Link
-            href="/assistant"
+            href="/chat"
             className={`text-xs font-medium transition-colors ${
-              pathname === "/assistant"
+              pathname === "/chat"
                 ? "text-white font-semibold"
                 : "text-muted-foreground hover:text-white"
             }`}
           >
-            Travel Assistant
+            Chat
           </Link>
+
+
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2.5 pl-2 border-l border-border">

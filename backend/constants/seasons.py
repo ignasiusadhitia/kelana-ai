@@ -1,5 +1,5 @@
 # ==============================================================================
-# CONSTANTS: TRAVEL SEASONS
+# CONSTANTS: Travel Seasons (Seasonal Classification & Peak Months)
 # ==============================================================================
 
 # Static lookup table mapping travel months to their season classification.

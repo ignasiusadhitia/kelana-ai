@@ -5,6 +5,10 @@ import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 import { ScrollableTrack } from "@/components/ui/scrollable-track";
 
+/**
+ * COMPONENT: DestinationField
+ * Destination input field with popular global travel destination chips.
+ */
 interface DestinationFieldProps {
   register: UseFormRegister<TripFormValues>;
   setValue: UseFormSetValue<TripFormValues>;

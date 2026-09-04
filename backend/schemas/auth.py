@@ -1,5 +1,5 @@
 # ==============================================================================
-# SCHEMAS: Authentication & User Serialization Contracts (Session 8)
+# 3. SCHEMAS: Authentication & User DTOs (Validation via Pydantic)
 # ==============================================================================
 
 from datetime import datetime

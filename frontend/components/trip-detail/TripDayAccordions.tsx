@@ -14,6 +14,10 @@ export interface SectionItem {
   dayNumber?: number;
 }
 
+/**
+ * COMPONENT: TripDayAccordions
+ * Day-by-day filterable accordion view breaking down itinerary days and general recommendations.
+ */
 interface TripDayAccordionsProps {
   sections: SectionItem[];
 }

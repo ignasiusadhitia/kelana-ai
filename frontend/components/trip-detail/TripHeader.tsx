@@ -1,4 +1,4 @@
-import { RefreshCw, Copy, Check, Download, Printer } from "lucide-react";
+import { RefreshCw, Copy, Check, Download, Printer, Calendar } from "lucide-react";
 import { TripResponse } from "@/types/trip";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { formatBudget } from "@/lib/utils";
 import { getTravelStyleIconComponent } from "@/lib/icons";
 
+/**
+ * COMPONENT: TripHeader
+ * Header toolbar for trip detail view displaying destination title, metadata tags, and action buttons.
+ */
 interface TripHeaderProps {
   trip: TripResponse;
   copied: boolean;
@@ -13,6 +17,7 @@ interface TripHeaderProps {
   onCopy: () => void;
   onDownloadMarkdown: () => void;
   onPrint: () => void;
+  onExportCalendar?: () => void;
 }
 
 export function TripHeader({
@@ -22,6 +27,7 @@ export function TripHeader({
   onCopy,
   onDownloadMarkdown,
   onPrint,
+  onExportCalendar,
 }: TripHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
@@ -98,6 +104,20 @@ export function TripHeader({
           <Download className="w-3.5 h-3.5 text-zinc-300" />
           <span>Export .md</span>
         </Button>
+
+        {onExportCalendar && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onExportCalendar}
+            className="gap-1.5 active:scale-95 text-xs px-3.5"
+            title="Export itinerary to Google or Apple Calendar"
+          >
+            <Calendar className="w-3.5 h-3.5 text-zinc-300" />
+            <span>Export .ics</span>
+          </Button>
+        )}
 
         <Button
           type="button"

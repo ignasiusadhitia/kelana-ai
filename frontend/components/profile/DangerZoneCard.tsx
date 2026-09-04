@@ -9,8 +9,10 @@ import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 
-// COMPONENT: DangerZoneCard
-// Account deletion trigger with ConfirmDialog integration (Session 8 GDPR / Privacy)
+/**
+ * COMPONENT: DangerZoneCard
+ * Account deletion trigger with ConfirmDialog integration (GDPR / Privacy compliance).
+ */
 
 export function DangerZoneCard() {
   const { deleteAccount, user } = useAuth();

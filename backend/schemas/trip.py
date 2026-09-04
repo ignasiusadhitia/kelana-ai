@@ -1,5 +1,5 @@
 # ==============================================================================
-# 3. SCHEMAS (Data Transfer Objects & Validation via Pydantic)
+# 3. SCHEMAS: Trip DTOs (Data Transfer Objects & Validation via Pydantic)
 # ==============================================================================
 
 from datetime import datetime
@@ -15,6 +15,7 @@ class TripRequest(BaseModel):
     days            : int   = Field(ge=1, le=14, description="Trip duration in days (1-14)")
     budget          : float = Field(gt=0, le=1_000_000, description="Total trip budget in selected currency")
     travel_style    : str   = Field(min_length=2, max_length=50, description="Travel style preference (e.g. Family)")
+    ai_recommendation: str | None = Field(default=None, description="Pre-generated AI itinerary text from chat")
 
 class TripResponse(BaseModel):
     """Response schema returned to the client."""
@@ -36,8 +37,11 @@ class TripResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 class UpdateTripRequest(BaseModel):
-    """Request schema for updating a trip budget."""
-    budget: float = Field(gt=0, le=1_000_000, description="Updated budget value")
+    """Request schema for updating trip details (supports partial updates)."""
+    budget          : float | None = Field(default=None, gt=0, le=1_000_000, description="Updated budget value")
+    destination     : str | None   = Field(default=None, min_length=2, max_length=100, description="Updated destination")
+    days            : int | None   = Field(default=None, ge=1, le=14, description="Updated duration in days")
+    travel_style    : str | None   = Field(default=None, min_length=2, max_length=50, description="Updated travel style")
 
 class GenerateTripResponse(BaseModel):
     """Response schema specifically returned after generating AI itinerary."""

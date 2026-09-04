@@ -6,6 +6,10 @@ import { getTravelStyleIconComponent } from "@/lib/icons";
 import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 
+/**
+ * COMPONENT: TravelStyleField
+ * Persona selector grid supporting curated travel styles and custom text inputs.
+ */
 interface TravelStyleFieldProps {
   setValue: UseFormSetValue<TripFormValues>;
   watchedStyle: string;
@@ -90,7 +94,7 @@ export function TravelStyleField({
               <Typography as="span" variant="body" className="font-semibold text-xs text-white">
                 {style.label}
               </Typography>
-              <Typography as="span" variant="caption" className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+              <Typography as="span" variant="caption" className="text-[10px] text-zinc-400 mt-0.5 leading-tight line-clamp-2 min-h-[22px] flex items-center justify-center">
                 {style.description}
               </Typography>
             </button>

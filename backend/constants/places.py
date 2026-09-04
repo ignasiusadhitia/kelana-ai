@@ -1,5 +1,5 @@
 # ==============================================================================
-# CONSTANTS: RECOMMENDED PLACES
+# CONSTANTS: Recommended Places (Destination Landmark Lookups)
 # ==============================================================================
 
 # Static lookup table mapping destination names to their recommended places.

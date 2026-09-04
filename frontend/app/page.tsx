@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * PAGE: / (Landing Page & Trip Generator)
+ * Public homepage featuring AI trip blueprint generator and quick-start travel planner.
+ */
+
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";

@@ -1,5 +1,6 @@
 /**
- * AUTH TYPES: Contract Definitions for User Authentication & Profile (Session 8)
+ * SEPARATION OF CONCERNS: Authentication & Traveler Profile Type Definitions
+ * Typed contracts matching backend user authentication and profile DTOs.
  */
 
 export interface User {

@@ -2,6 +2,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 
+/**
+ * COMPONENT: TripPagination
+ * Pagination controls displaying current page index, total count, and next/prev buttons.
+ */
 interface TripPaginationProps {
   currentPage: number;
   totalPages: number;

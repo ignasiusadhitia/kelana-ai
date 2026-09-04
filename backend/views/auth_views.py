@@ -1,8 +1,10 @@
 # ==============================================================================
-# AUTH VIEWS: Registration, Login, Profile & Security Endpoints (Session 8)
+# 2. VIEWS: Authentication Controller (Traveler Profiles & JWT Authentication)
 # ==============================================================================
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from database import get_db
 from models.user import User
@@ -18,6 +20,32 @@ from schemas.auth import (
 from services.auth_service import hash_password, verify_password, create_access_token
 from services.auth_deps import get_current_user
 from services.trip_services import get_user_analytics_db
+
+# Rate Limiting Configuration (Defense against credential stuffing & brute-force)
+_failed_login_attempts: dict[str, list[datetime]] = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 10
+
+def _check_login_rate_limit(client_identifier: str):
+    """Enforce rate limiting: blocks client after 5 failed attempts within 10 minutes."""
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+    _failed_login_attempts[client_identifier] = [
+        t for t in _failed_login_attempts[client_identifier] if t > window_start
+    ]
+    if len(_failed_login_attempts[client_identifier]) >= MAX_LOGIN_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed login attempts. Please wait {LOGIN_LOCKOUT_MINUTES} minutes before trying again.",
+        )
+
+def _record_login_failure(client_identifier: str):
+    """Record a failed login attempt timestamp for the specified client identifier."""
+    _failed_login_attempts[client_identifier].append(datetime.now(timezone.utc))
+
+def _reset_login_failures(client_identifier: str):
+    """Reset failed login attempt history upon successful authentication."""
+    _failed_login_attempts.pop(client_identifier, None)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
@@ -62,21 +90,32 @@ def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/login", response_model=TokenResponse)
-def login_user(request: UserLoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login_user(
+    request: UserLoginRequest,
+    req: Request,
+    db: Session = Depends(get_db)
+) -> TokenResponse:
     """
     Authenticate traveler with email and password:
+    - Enforces IP-based brute force protection.
     - Verifies user exists.
     - Compares password against stored bcrypt hash.
     - Returns JWT access token upon success.
     """
+    client_ip = req.client.host if req.client and req.client.host else "unknown"
+    _check_login_rate_limit(client_ip)
+
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
     
     if not user or not verify_password(request.password, user.password_hash):
+        _record_login_failure(client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password. Please verify your credentials.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    _reset_login_failures(client_ip)
 
     access_token = create_access_token({
         "sub": str(user.id),

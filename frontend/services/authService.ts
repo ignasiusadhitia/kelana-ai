@@ -1,3 +1,9 @@
+/**
+ * SERVICE LAYER: Centralized Client Authentication & Session Management.
+ * Manages JWT storage (localStorage + Http/Lax cookies), user registration,
+ * credential verification, profile updates, and logout flows.
+ */
+
 import { AuthResponse, LoginCredentials, RegisterCredentials, UserProfile, User } from "@/types/auth";
 
 const TOKEN_KEY = "kelana_auth_token";
@@ -74,7 +80,7 @@ export async function registerUser(credentials: RegisterCredentials): Promise<Au
 }
 
 /**
- * Fetches current authenticated user profile and activity statistics (/profile challenge).
+ * Fetches current authenticated user profile and travel activity analytics.
  */
 export async function getCurrentUser(): Promise<UserProfile> {
   const token = getAuthToken();

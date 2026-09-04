@@ -4,6 +4,10 @@ import { Typography } from "@/components/ui/typography";
 import { formatBudget } from "@/lib/utils";
 import { getTravelStyleIconComponent } from "@/lib/icons";
 
+/**
+ * COMPONENT: TripMetricsGrid
+ * Overview statistics grid displaying duration, budget, daily allowance, style, and travel category.
+ */
 interface TripMetricsGridProps {
   trip: TripResponse;
   onOpenEditBudget: () => void;
@@ -73,9 +77,9 @@ export function TripMetricsGrid({ trip, onOpenEditBudget }: TripMetricsGridProps
         <Typography variant="kicker" className="block text-[10px] sm:text-xs text-indigo-300">
           Travel Style
         </Typography>
-        <Typography variant="h4" className="mt-0.5 flex items-center gap-1.5 text-sm sm:text-base text-indigo-300 font-extrabold truncate">
+        <Typography variant="h4" title={trip.travel_style || "Solo"} className="mt-0.5 flex items-center gap-1.5 text-xs sm:text-sm md:text-base text-indigo-300 font-extrabold truncate">
           {getTravelStyleIconComponent(trip.travel_style, { className: "w-4 h-4 text-indigo-300 shrink-0" })}
-          <span className="truncate">{trip.travel_style || "Solo"}</span>
+          <span className="truncate" title={trip.travel_style || "Solo"}>{trip.travel_style || "Solo"}</span>
         </Typography>
       </div>
     </div>

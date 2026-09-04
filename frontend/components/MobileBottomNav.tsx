@@ -6,10 +6,9 @@ import { Compass, Map, MessageSquare, User, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * COMPONENT: MobileBottomNav (Session 8 Redesigned Floating Dock)
+ * COMPONENT: MobileBottomNav (Floating Dock Navigation for Mobile)
  * Premium floating pill bottom navigation bar for mobile viewports (< 640px).
- * Features balanced 3-column grid, active glow indicators, haptic active feedback,
- * frosted glass blur, and full thumb accessibility.
+ * Automatically hidden on /chat so the chat input and virtual keyboard have 100% unobstructed screen space.
  */
 
 interface MobileBottomNavProps {
@@ -22,9 +21,14 @@ export function MobileBottomNav({ onPlanTrip }: MobileBottomNavProps) {
   const { isAuthenticated, user } = useAuth();
 
   const isHome = pathname === "/";
+  const isChat = pathname.startsWith("/chat");
   const isTrips = pathname.startsWith("/trips");
-  const isAssistant = pathname.startsWith("/assistant");
-  const isProfile = pathname === "/profile" || pathname === "/login" || pathname === "/register";
+    const isProfile = pathname === "/profile" || pathname === "/login" || pathname === "/register";
+
+  // Hide floating dock on chat page to ensure clean full-screen typing experience
+  if (isChat) {
+    return null;
+  }
 
   const handlePlanClick = (e: React.MouseEvent) => {
     if (isHome) {
@@ -48,13 +52,13 @@ export function MobileBottomNav({ onPlanTrip }: MobileBottomNavProps) {
       onClick: handlePlanClick,
     },
     {
-      label: "Assistant",
-      href: "/assistant",
+      label: "Chat",
+      href: "/chat",
       icon: MessageSquare,
-      isActive: isAssistant,
+      isActive: isChat,
     },
     {
-      label: "My Trips",
+      label: "Trips",
       href: "/trips",
       icon: Map,
       isActive: isTrips,
@@ -68,9 +72,9 @@ export function MobileBottomNav({ onPlanTrip }: MobileBottomNavProps) {
   ];
 
   return (
-    <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-4 pb-3 pt-1 pointer-events-none pb-safe">
-      <nav className="pointer-events-auto mx-auto max-w-sm rounded-2xl border border-white/10 bg-zinc-950/85 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
-        <div className="grid grid-cols-4 gap-1">
+    <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-3 pt-1 pointer-events-none pb-safe">
+      <nav className="pointer-events-auto mx-auto max-w-md rounded-2xl border border-white/10 bg-zinc-950/85 p-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+        <div className="grid grid-cols-4 gap-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

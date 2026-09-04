@@ -1,5 +1,5 @@
 # ==============================================================================
-# TRIP VIEWS (FastAPI Router for Trip Management & AI Generation)
+# 2. VIEWS: Trip Controller (FastAPI Endpoints for Itinerary Management)
 # ==============================================================================
 
 from fastapi import APIRouter, HTTPException, Depends, status
@@ -25,8 +25,13 @@ from services.bedrock_service import (
     generate_trip_recommendation,
 )
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+from utils.rate_limiter import check_ai_rate_limit
+
 from services.auth_deps import get_current_user
 from models.user import User
+from models.trip import Trip
 from schemas.trip import TripRequest, TripResponse, UpdateTripRequest, GenerateTripResponse
 from database import get_db
 
@@ -40,6 +45,7 @@ router = APIRouter(tags=["trips"])
 @router.post("/api/v1/trips", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
 def create_trip(
     request: TripRequest,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TripResponse:
@@ -47,6 +53,8 @@ def create_trip(
     Create a new trip associated automatically with the authenticated user.
     Backend assigns user_id from verified JWT — frontend never sends user_id.
     """
+    if not request.ai_recommendation:
+        check_ai_rate_limit(http_request, current_user.id)
     return create_trip_with_ai_db(db, request, current_user.id)
 
 
@@ -65,6 +73,27 @@ def list_trips(
     return get_all_trips_db(db, current_user.id, trash_only=trash_only)
 
 
+def _get_trip_with_ownership_or_raise(
+    db: Session,
+    trip_id: int,
+    user_id: int,
+    action: str = "view this itinerary."
+) -> Trip:
+    """Fetch trip by ID and enforce strict user ownership across all operations."""
+    trip = get_trip_by_id_db(db, trip_id)
+    if trip is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trip with id {trip_id} not found",
+        )
+    if trip.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Forbidden: You do not have permission to {action}",
+        )
+    return trip
+
+
 @router.get("/api/v1/trips/{trip_id}", response_model=TripResponse)
 def get_trip(
     trip_id: int,
@@ -75,20 +104,7 @@ def get_trip(
     Retrieve details of a specific trip by ID.
     Enforces authorization: returns 403 Forbidden if trip belongs to another user.
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to view this itinerary.",
-        )
-
-    return trip
+    return _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "view this itinerary.")
 
 
 @router.put("/api/v1/trips/{trip_id}", response_model=TripResponse)
@@ -99,25 +115,20 @@ def update_trip(
     db: Session = Depends(get_db),
 ) -> TripResponse:
     """
-    Update trip budget:
+    Update trip details (budget, destination, duration, travel style):
     - Verifies trip existence (404).
     - Verifies ownership (403).
     - Recalculates daily budget and category tier.
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to modify this itinerary.",
-        )
-
-    return update_trip_db(db, trip, request.budget)
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "modify this itinerary.")
+    return update_trip_db(
+        db,
+        trip,
+        new_budget=request.budget,
+        new_destination=request.destination,
+        new_days=request.days,
+        new_travel_style=request.travel_style,
+    )
 
 
 @router.delete("/api/v1/trips/{trip_id}")
@@ -130,19 +141,7 @@ def delete_trip(
     Soft-delete a specific trip by ID (moves to Trash bin).
     Enforces ownership (403 if attempting to delete another user's trip).
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to delete this itinerary.",
-        )
-
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "delete this itinerary.")
     soft_delete_trip_db(db, trip)
     return {"message": f"Trip #{trip_id} moved to trash successfully.", "id": trip_id}
 
@@ -157,19 +156,7 @@ def restore_trip(
     Restore a soft-deleted trip back to the active dashboard.
     Enforces ownership (403 if attempting to restore another user's trip).
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to restore this itinerary.",
-        )
-
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "restore this itinerary.")
     return restore_trip_db(db, trip)
 
 
@@ -183,19 +170,7 @@ def permanent_delete_trip(
     Permanently delete a trip from the database (Irreversible Hard Delete).
     Enforces ownership (403).
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to permanently delete this itinerary.",
-        )
-
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "permanently delete this itinerary.")
     hard_delete_trip_db(db, trip)
     return {"message": f"Trip #{trip_id} permanently deleted.", "id": trip_id}
 
@@ -203,6 +178,7 @@ def permanent_delete_trip(
 @router.post("/api/v1/trips/{trip_id}/generate", response_model=GenerateTripResponse)
 def generate_ai_itinerary(
     trip_id: int,
+    http_request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> GenerateTripResponse:
@@ -212,18 +188,8 @@ def generate_ai_itinerary(
     - Invokes Amazon Bedrock Converse API.
     - Saves recommendation to database.
     """
-    trip = get_trip_by_id_db(db, trip_id)
-    if trip is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip with id {trip_id} not found",
-        )
-    
-    if trip.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: You do not have permission to regenerate this itinerary.",
-        )
+    check_ai_rate_limit(http_request, current_user.id)
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "regenerate this itinerary.")
     
     prompt = build_trip_prompt(
         destination=trip.destination,

@@ -55,36 +55,42 @@ export default function ErrorPage({ error, reset }: ErrorProps) {
 
             {/* Main Headline */}
             <Typography variant="h1" className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Something Went Wrong
+              Internal Server Error
             </Typography>
 
             {/* Subtitle Message */}
-            <Typography variant="muted" as="p" className="mt-3 text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed">
-              An unexpected error occurred while loading this page. Please try reloading or returning to the trip planner.
+            <Typography variant="muted" as="p" className="mt-3 text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
+              An unexpected server error occurred while processing this request. Please try reloading the page or return to the homepage.
             </Typography>
 
             {error?.digest && (
               <div className="mt-4 rounded-xl border border-white/5 bg-zinc-950/70 px-3 py-1.5 text-[11px] font-mono text-zinc-500 max-w-xs mx-auto truncate">
-                Error Reference: {error.digest}
+                Digest: {error.digest}
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <Button
                 variant="default"
                 size="default"
                 onClick={() => reset()}
-                className="w-full sm:w-auto gap-2 px-5 active:scale-95"
+                className="w-full sm:w-auto gap-2 px-5 active:scale-95 shadow-md font-semibold"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Try Again</span>
               </Button>
 
-              <Link href="/" className="w-full sm:w-auto">
+              <Link href="/trips" className="w-full sm:w-auto">
                 <Button variant="outline" size="default" className="w-full sm:w-auto gap-2 px-5 active:scale-95">
+                  <span>View Trip History</span>
+                </Button>
+              </Link>
+
+              <Link href="/" className="w-full sm:w-auto">
+                <Button variant="ghost" size="default" className="w-full sm:w-auto gap-2 px-4 text-zinc-400 hover:text-white active:scale-95">
                   <Home className="w-4 h-4" />
-                  <span>Return to Planner</span>
+                  <span>Homepage</span>
                 </Button>
               </Link>
             </div>

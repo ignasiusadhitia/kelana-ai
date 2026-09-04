@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { formatBudget } from "@/lib/utils";
 import { getTravelStyleIconComponent, getDestinationVectorBadge } from "@/lib/icons";
 
+/**
+ * COMPONENT: TripCard
+ * Interactive preview card for generated travel itineraries, supporting active and trash lifecycle operations.
+ */
 interface TripCardProps {
   trip: TripResponse;
   mode?: "active" | "trash";

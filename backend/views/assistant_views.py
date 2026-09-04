@@ -1,5 +1,5 @@
 # ==============================================================================
-# ASSISTANT VIEWS (FastAPI Router for RAG Travel Assistant & Knowledge Base)
+# 2. VIEWS: RAG Assistant Controller (FastAPI Endpoints for Bedrock Knowledge Base)
 # ==============================================================================
 
 from fastapi import APIRouter, HTTPException, Depends, status

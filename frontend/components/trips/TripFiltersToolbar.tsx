@@ -15,6 +15,10 @@ export const SORT_OPTIONS: SelectOption[] = [
   { value: "lowest-budget", label: "Lowest Budget", icon: <Tag className="w-3.5 h-3.5 text-amber-400" /> },
 ];
 
+/**
+ * COMPONENT: TripFiltersToolbar
+ * Filter toolbar providing search input, travel style pills, and multi-mode sorting dropdown.
+ */
 interface TripFiltersToolbarProps {
   searchQuery: string;
   onSearchChange: (val: string) => void;

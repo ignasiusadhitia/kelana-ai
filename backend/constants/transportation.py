@@ -1,5 +1,5 @@
 # ==============================================================================
-# CONSTANTS: RECOMMENDED TRANSPORTATION
+# CONSTANTS: Recommended Transportation (Category-Based Transit Options)
 # ==============================================================================
 
 # Static lookup table mapping trip categories to their recommended transportation.

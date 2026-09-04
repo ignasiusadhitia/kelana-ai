@@ -1,5 +1,5 @@
 # ==============================================================================
-# 2. VALIDATION RULES (small and independent function)
+# 6. UTILITIES: Validators (Data Validation Rules & Input Sanitizers)
 # ==============================================================================
 
 def val_string(val: str) -> str:

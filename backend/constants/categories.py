@@ -1,5 +1,5 @@
 # ==============================================================================
-# CONSTANTS: TRIP CATEGORIES
+# CONSTANTS: Trip Categories (Budget Thresholds & Category Classification)
 # ==============================================================================
 
 # Static lookup table mapping budget thresholds to their trip category.

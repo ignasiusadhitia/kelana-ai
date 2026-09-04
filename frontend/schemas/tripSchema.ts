@@ -20,6 +20,7 @@ export const tripFormSchema = z.object({
     .string()
     .min(2, "Please select or type a travel style")
     .max(50, "Travel style must be less than 50 characters"),
+  ai_recommendation: z.string().optional(),
 });
 
 // TypeScript type inferred directly from the validation schema

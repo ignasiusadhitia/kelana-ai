@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
-// COMPONENT: ChangePasswordForm
-// Secure password change form with current password verification & eye visibility toggles (Session 8)
+/**
+ * COMPONENT: ChangePasswordForm
+ * Secure password change form with current password verification & eye visibility toggles.
+ */
 
 export function ChangePasswordForm() {
   const { changePassword } = useAuth();

@@ -1,3 +1,9 @@
+/**
+ * SERVICE LAYER: RAG Travel Assistant Knowledge Base Client.
+ * Communicates with backend Amazon Bedrock Agent Runtime proxy to retrieve
+ * grounded travel knowledge and official document citations.
+ */
+
 import { getAuthToken } from "./authService";
 
 export interface SourceObject {

@@ -1,3 +1,8 @@
+/**
+ * UTILITY: Vector Icon Mapping & Theming Helpers
+ * Maps dynamic travel styles and global destinations to corresponding Lucide vector icons.
+ */
+
 import React from "react";
 import {
   Backpack,
