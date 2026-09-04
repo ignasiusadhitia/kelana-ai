@@ -6,15 +6,18 @@ from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from utils.nanoid_gen import generate_id
 
 class Conversation(Base):
     """
     Conversation database model representing a multi-turn chat session with KelanaAI.
     Belongs to a User and contains many Messages.
+    Exposes secure public_id (conv_...) for client references.
     """
     __tablename__ = "conversations"
 
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    public_id = Column(String(32), unique=True, index=True, nullable=False, default=lambda: generate_id("conv"))
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False, default="New Conversation")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -29,10 +32,12 @@ class Conversation(Base):
 class Message(Base):
     """
     Message database model representing individual user/assistant turns in a conversation.
+    Exposes secure public_id (msg_...) for client references.
     """
     __tablename__ = "messages"
 
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    public_id = Column(String(32), unique=True, index=True, nullable=False, default=lambda: generate_id("msg"))
     conversation_id = Column(BigInteger, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(16), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)

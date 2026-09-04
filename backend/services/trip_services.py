@@ -88,13 +88,20 @@ def get_all_trips_db(db: Session, user_id: int, trash_only: bool = False) -> lis
         query = query.filter(Trip.deleted_at.is_(None))
     return query.order_by(Trip.created_at.desc()).all()
 
-def get_trip_by_id_db(db: Session, trip_id: int) -> Trip | None:
-    """Fetch a single trip record by its primary key ID."""
-    return db.query(Trip).filter(Trip.id == trip_id).first()
+def get_trip_by_id_db(db: Session, trip_id: str | int) -> Trip | None:
+    """Fetch a single trip record by its public_id or primary key ID."""
+    trip_id_str = str(trip_id).strip()
+    if trip_id_str.isdigit():
+        return db.query(Trip).filter((Trip.public_id == trip_id_str) | (Trip.id == int(trip_id_str))).first()
+    return db.query(Trip).filter(Trip.public_id == trip_id_str).first()
 
-def get_user_trip_by_id_db(db: Session, trip_id: int, user_id: int, include_deleted: bool = False) -> Trip | None:
-    """Fetch a single trip record by its ID verifying strict ownership by user_id."""
-    query = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user_id)
+def get_user_trip_by_id_db(db: Session, trip_id: str | int, user_id: int, include_deleted: bool = False) -> Trip | None:
+    """Fetch a single trip record by its public_id or integer ID verifying strict ownership by user_id."""
+    trip_id_str = str(trip_id).strip()
+    if trip_id_str.isdigit():
+        query = db.query(Trip).filter((Trip.public_id == trip_id_str) | (Trip.id == int(trip_id_str)), Trip.user_id == user_id)
+    else:
+        query = db.query(Trip).filter(Trip.public_id == trip_id_str, Trip.user_id == user_id)
     if not include_deleted:
         query = query.filter(Trip.deleted_at.is_(None))
     return query.first()

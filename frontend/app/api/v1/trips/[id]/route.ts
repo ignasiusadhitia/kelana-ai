@@ -25,16 +25,15 @@ async function parseBackendResponse(response: Response) {
 export async function GET(request: Request, context: RouteParams) {
   try {
     const { id } = await context.params;
-    const tripId = parseInt(id, 10);
 
-    if (isNaN(tripId) || tripId <= 0) {
+    if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
       return NextResponse.json(
         { detail: "Invalid trip ID parameter" },
         { status: 400 }
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${id}`, {
       method: "GET",
       headers: getBffAuthHeaders(request),
       cache: "no-store",
@@ -44,7 +43,7 @@ export async function GET(request: Request, context: RouteParams) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { detail: data.detail || `Trip with id ${tripId} not found` },
+        { detail: data.detail || `Trip with id ${id} not found` },
         { status: response.status }
       );
     }
@@ -68,9 +67,8 @@ export async function GET(request: Request, context: RouteParams) {
 export async function PUT(request: Request, context: RouteParams) {
   try {
     const { id } = await context.params;
-    const tripId = parseInt(id, 10);
 
-    if (isNaN(tripId) || tripId <= 0) {
+    if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
       return NextResponse.json(
         { detail: "Invalid trip ID parameter" },
         { status: 400 }
@@ -85,7 +83,7 @@ export async function PUT(request: Request, context: RouteParams) {
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${id}`, {
       method: "PUT",
       headers: getBffAuthHeaders(request),
       body: JSON.stringify(body),
@@ -119,16 +117,15 @@ export async function PUT(request: Request, context: RouteParams) {
 export async function DELETE(request: Request, context: RouteParams) {
   try {
     const { id } = await context.params;
-    const tripId = parseInt(id, 10);
 
-    if (isNaN(tripId) || tripId <= 0) {
+    if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
       return NextResponse.json(
         { detail: "Invalid trip ID parameter" },
         { status: 400 }
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/trips/${id}`, {
       method: "DELETE",
       headers: getBffAuthHeaders(request),
     });

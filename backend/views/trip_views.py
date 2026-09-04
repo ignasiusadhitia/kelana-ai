@@ -75,11 +75,11 @@ def list_trips(
 
 def _get_trip_with_ownership_or_raise(
     db: Session,
-    trip_id: int,
+    trip_id: str | int,
     user_id: int,
     action: str = "view this itinerary."
 ) -> Trip:
-    """Fetch trip by ID and enforce strict user ownership across all operations."""
+    """Fetch trip by public_id or ID and enforce strict user ownership across all operations."""
     trip = get_trip_by_id_db(db, trip_id)
     if trip is None:
         raise HTTPException(
@@ -96,7 +96,7 @@ def _get_trip_with_ownership_or_raise(
 
 @router.get("/api/v1/trips/{trip_id}", response_model=TripResponse)
 def get_trip(
-    trip_id: int,
+    trip_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TripResponse:
@@ -109,7 +109,7 @@ def get_trip(
 
 @router.put("/api/v1/trips/{trip_id}", response_model=TripResponse)
 def update_trip(
-    trip_id: int,
+    trip_id: str,
     request: UpdateTripRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -133,22 +133,22 @@ def update_trip(
 
 @router.delete("/api/v1/trips/{trip_id}")
 def delete_trip(
-    trip_id: int,
+    trip_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict[str, str | int]:
+) -> dict[str, str]:
     """
     Soft-delete a specific trip by ID (moves to Trash bin).
     Enforces ownership (403 if attempting to delete another user's trip).
     """
     trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "delete this itinerary.")
     soft_delete_trip_db(db, trip)
-    return {"message": f"Trip #{trip_id} moved to trash successfully.", "id": trip_id}
+    return {"message": f"Trip #{trip.public_id} moved to trash successfully.", "id": trip.public_id}
 
 
 @router.post("/api/v1/trips/{trip_id}/restore", response_model=TripResponse)
 def restore_trip(
-    trip_id: int,
+    trip_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TripResponse:
@@ -162,22 +162,22 @@ def restore_trip(
 
 @router.delete("/api/v1/trips/{trip_id}/permanent")
 def permanent_delete_trip(
-    trip_id: int,
+    trip_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict[str, str | int]:
+) -> dict[str, str]:
     """
     Permanently delete a trip from the database (Irreversible Hard Delete).
     Enforces ownership (403).
     """
     trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "permanently delete this itinerary.")
     hard_delete_trip_db(db, trip)
-    return {"message": f"Trip #{trip_id} permanently deleted.", "id": trip_id}
+    return {"message": f"Trip #{trip.public_id} permanently deleted.", "id": trip.public_id}
 
 
 @router.post("/api/v1/trips/{trip_id}/generate", response_model=GenerateTripResponse)
 def generate_ai_itinerary(
-    trip_id: int,
+    trip_id: str,
     http_request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -211,7 +211,7 @@ def generate_ai_itinerary(
     updated_trip = save_trip_ai_recommendation_db(db, trip, ai_recommendation)
 
     return GenerateTripResponse(
-        trip_id=updated_trip.id,
+        trip_id=updated_trip.public_id,
         destination=updated_trip.destination,
         recommendation=updated_trip.ai_recommendation,
     )

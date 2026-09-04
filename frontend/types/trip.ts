@@ -18,7 +18,7 @@ export interface TripRequest {
  * Full trip data entity returned by the backend API and PostgreSQL.
  */
 export interface TripResponse {
-  id: number;
+  id: string;
   destination: string;
   days: number;
   budget: number;

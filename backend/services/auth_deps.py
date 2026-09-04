@@ -32,23 +32,19 @@ def get_current_user(
     payload = decode_access_token(token)
     
     user_id_raw = payload.get("sub")
-    if user_id_raw is None:
+    if not user_id_raw:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload: missing subject identifier.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        user_id = int(user_id_raw)
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user identifier in token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user_id_str = str(user_id_raw).strip()
+    if user_id_str.isdigit():
+        user = db.query(User).filter((User.public_id == user_id_str) | (User.id == int(user_id_str))).first()
+    else:
+        user = db.query(User).filter(User.public_id == user_id_str).first()
 
-    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,10 +69,12 @@ def get_optional_current_user(
     try:
         payload = decode_access_token(credentials.credentials)
         user_id_raw = payload.get("sub")
-        if user_id_raw is None:
+        if not user_id_raw:
             return None
-        user_id = int(user_id_raw)
-        return db.query(User).filter(User.id == user_id).first()
+        user_id_str = str(user_id_raw).strip()
+        if user_id_str.isdigit():
+            return db.query(User).filter((User.public_id == user_id_str) | (User.id == int(user_id_str))).first()
+        return db.query(User).filter(User.public_id == user_id_str).first()
     except Exception:
         return None
 

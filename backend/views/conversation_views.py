@@ -48,7 +48,7 @@ def create_conversation_endpoint(
     """Start a new conversation session for the authenticated user."""
     conv = create_conversation(db, current_user.id, payload.title)
     return {
-        "id": conv.id,
+        "id": conv.public_id,
         "title": conv.title,
         "created_at": conv.created_at,
         "updated_at": conv.updated_at,
@@ -67,7 +67,7 @@ def list_conversations_endpoint(
 
 @router.get("/{id}", response_model=ConversationDetailResponse)
 def get_conversation_endpoint(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -78,7 +78,7 @@ def get_conversation_endpoint(
 
 @router.patch("/{id}", response_model=ConversationResponse)
 def update_conversation_title_endpoint(
-    id: int,
+    id: str,
     payload: ConversationUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -87,7 +87,7 @@ def update_conversation_title_endpoint(
     conv = update_conversation_title(db, id, current_user.id, payload.title)
     msg_count = len(conv.messages) if conv.messages else 0
     return {
-        "id": conv.id,
+        "id": conv.public_id,
         "title": conv.title,
         "created_at": conv.created_at,
         "updated_at": conv.updated_at,
@@ -97,7 +97,7 @@ def update_conversation_title_endpoint(
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_conversation_endpoint(
-    id: int,
+    id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -108,7 +108,7 @@ def delete_conversation_endpoint(
 
 @router.post("/{id}/messages")
 def send_message_endpoint(
-    id: int,
+    id: str,
     payload: MessageCreate,
     request: Request,
     stream: bool = False,
@@ -130,7 +130,7 @@ def send_message_endpoint(
 
     ai_message = send_message_and_get_response(db, id, current_user.id, payload.content)
     return {
-        "id": ai_message.id,
+        "id": ai_message.public_id,
         "conversation_id": ai_message.conversation_id,
         "role": ai_message.role,
         "content": ai_message.content,
@@ -140,8 +140,8 @@ def send_message_endpoint(
 
 @router.post("/{id}/messages/{message_id}/edit", response_model=ConversationDetailResponse)
 def edit_message_endpoint(
-    id: int,
-    message_id: int,
+    id: str,
+    message_id: str,
     payload: MessageCreate,
     request: Request,
     db: Session = Depends(get_db),
@@ -164,7 +164,7 @@ def edit_message_endpoint(
 
 @router.post("/{id}/regenerate", response_model=ConversationDetailResponse)
 def regenerate_response_endpoint(
-    id: int,
+    id: str,
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

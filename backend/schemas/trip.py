@@ -19,7 +19,7 @@ class TripRequest(BaseModel):
 
 class TripResponse(BaseModel):
     """Response schema returned to the client."""
-    id                  : int
+    id                  : str = Field(validation_alias="public_id")
     destination         : str
     days                : int
     budget              : float
@@ -28,13 +28,13 @@ class TripResponse(BaseModel):
     travel_style        : str | None = "Solo"
     created_at          : datetime
     deleted_at          : datetime | None = None
-    user_id             : int
+    user_id             : str = Field(validation_alias="user_public_id")
 
     ai_recommendation   : str | None = None
 
     # CONCEPT: from_attributes=True allows Pydantic to read data directly
     # from SQLAlchemy ORM model attributes (ORM mode in Pydantic v2).
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 class UpdateTripRequest(BaseModel):
     """Request schema for updating trip details (supports partial updates)."""
@@ -45,8 +45,8 @@ class UpdateTripRequest(BaseModel):
 
 class GenerateTripResponse(BaseModel):
     """Response schema specifically returned after generating AI itinerary."""
-    trip_id         : int
+    trip_id         : str
     destination     : str
     recommendation  : str
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}

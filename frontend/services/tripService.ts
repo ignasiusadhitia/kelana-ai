@@ -43,7 +43,7 @@ export async function getTrips(
 /**
  * Retrieves a single trip with full itinerary details by ID with ownership verification.
  */
-export async function getTrip(id: number): Promise<TripResponse> {
+export async function getTrip(id: string | number): Promise<TripResponse> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
     method: "GET",
     headers: getAuthHeaders(),
@@ -84,7 +84,7 @@ export async function createTripService(
  * Updates the total budget for an existing trip with ownership validation.
  */
 export async function updateTripBudget(
-  id: number,
+  id: string | number,
   budget: number
 ): Promise<TripResponse> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
@@ -107,8 +107,8 @@ export async function updateTripBudget(
  * Regenerates AI itinerary for an existing trip with ownership validation.
  */
 export async function regenerateTripAi(
-  id: number
-): Promise<{ trip_id: number; destination: string; recommendation: string }> {
+  id: string | number
+): Promise<{ trip_id: string; destination: string; recommendation: string }> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/generate`, {
     method: "POST",
     headers: getAuthHeaders(),
@@ -127,7 +127,7 @@ export async function regenerateTripAi(
 /**
  * Soft-deletes a trip by ID (moves to trash bin).
  */
-export async function deleteTripService(id: number): Promise<void> {
+export async function deleteTripService(id: string | number): Promise<void> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
@@ -144,7 +144,7 @@ export async function deleteTripService(id: number): Promise<void> {
 /**
  * Restores a soft-deleted trip back to the active dashboard.
  */
-export async function restoreTripService(id: number): Promise<TripResponse> {
+export async function restoreTripService(id: string | number): Promise<TripResponse> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/restore`, {
     method: "POST",
     headers: getAuthHeaders(),
@@ -163,7 +163,7 @@ export async function restoreTripService(id: number): Promise<TripResponse> {
 /**
  * Permanently deletes a trip from the database (irreversible hard delete).
  */
-export async function permanentDeleteTripService(id: number): Promise<void> {
+export async function permanentDeleteTripService(id: string | number): Promise<void> {
   const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/permanent`, {
     method: "DELETE",
     headers: getAuthHeaders(),

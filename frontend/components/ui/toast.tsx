@@ -74,7 +74,7 @@ export const toast = {
 };
 
 function dispatchGlobalToast(message: string, variant: ToastVariant, options?: ToastOptions): string {
-  const id = Math.random().toString(36).substring(2, 9);
+  const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
   const newToast: ToastItem = {
     id,
     message,

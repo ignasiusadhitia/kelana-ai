@@ -49,14 +49,11 @@ export default function TripDetailPage({ params }: PageProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   const rawId = resolvedParams?.id ? String(resolvedParams.id).trim() : "";
-  const parsedId = parseInt(rawId, 10);
-  // Valid numeric trip ID must be a strictly positive integer, safe within Number.MAX_SAFE_INTEGER, and exactly match the raw string
+  // Valid trip ID: supports prefixed public_id (trp_...) or legacy numeric string
   const isValidTripId =
-    !isNaN(parsedId) &&
-    parsedId > 0 &&
-    parsedId <= Number.MAX_SAFE_INTEGER &&
-    String(parsedId) === rawId;
-  const tripId = isValidTripId ? parsedId : 0;
+    rawId.length > 0 &&
+    /^[A-Za-z0-9_-]{1,64}$/.test(rawId);
+  const tripId = isValidTripId ? rawId : "";
 
   // Route Protection: If it's a valid trip ID format and user is unauthenticated, redirect to login
   useEffect(() => {

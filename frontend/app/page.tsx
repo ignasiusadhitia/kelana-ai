@@ -75,7 +75,7 @@ export default function Home() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteTripService(id),
+    mutationFn: (id: string | number) => deleteTripService(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.all });
       toast.info("Itinerary removed from your dashboard.", { title: "Deleted" });

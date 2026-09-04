@@ -77,7 +77,7 @@ def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)) -
     db.refresh(new_user)
 
     access_token = create_access_token({
-        "sub": str(new_user.id),
+        "sub": str(new_user.public_id),
         "email": new_user.email,
         "name": new_user.name,
     })
@@ -118,7 +118,7 @@ def login_user(
     _reset_login_failures(client_ip)
 
     access_token = create_access_token({
-        "sub": str(user.id),
+        "sub": str(user.public_id),
         "email": user.email,
         "name": user.name,
     })
@@ -142,7 +142,7 @@ def get_current_user_profile(
     analytics = get_user_analytics_db(db, current_user.id)
 
     return UserProfileResponse(
-        id=current_user.id,
+        id=current_user.public_id,
         name=current_user.name,
         email=current_user.email,
         default_travel_style=current_user.default_travel_style or "Family",

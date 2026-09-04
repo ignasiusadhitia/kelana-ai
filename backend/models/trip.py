@@ -6,15 +6,18 @@ from sqlalchemy import Column, BigInteger, Integer, String, Float, DateTime, Tex
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from utils.nanoid_gen import generate_id
 
 class Trip(Base):
     """
     Trip database model representing travel itineraries saved by registered users.
     Foreign key user_id strictly binds each trip to its creator.
     Supports soft delete via deleted_at timestamp.
+    Exposes secure public_id (trp_...) for client references.
     """
     __tablename__   = "trips"
     id              = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    public_id       = Column(String(32), unique=True, index=True, nullable=False, default=lambda: generate_id("trp"))
     destination     = Column(String,    nullable=False)
     days            = Column(Integer,   nullable=False)
     budget          = Column(Float,     nullable=False)
@@ -30,3 +33,7 @@ class Trip(Base):
 
     # Relationship to User
     user            = relationship("User", back_populates="trips")
+
+    @property
+    def user_public_id(self) -> str:
+        return self.user.public_id if self.user else ""

@@ -56,7 +56,7 @@ function TripsContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const highlightParam = searchParams.get("highlight");
-  const initialHighlightId = highlightParam ? Number(highlightParam) : null;
+  const initialHighlightId = highlightParam || null;
 
   const [viewTab, setViewTab] = useState<"active" | "trash">("active");
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,9 +65,9 @@ function TripsContent() {
   const [sortMode, setSortMode] = useState<SortOption>("latest");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [tripToSoftDelete, setTripToSoftDelete] = useState<number | null>(null);
-  const [tripToPermanentDelete, setTripToPermanentDelete] = useState<number | null>(null);
-  const [activeHighlightId, setActiveHighlightId] = useState<number | null>(initialHighlightId);
+  const [tripToSoftDelete, setTripToSoftDelete] = useState<string | number | null>(null);
+  const [tripToPermanentDelete, setTripToPermanentDelete] = useState<string | number | null>(null);
+  const [activeHighlightId, setActiveHighlightId] = useState<string | number | null>(initialHighlightId);
 
   // Auto fade-out target highlight effect after 4.5 seconds and clean URL
   useEffect(() => {
@@ -128,8 +128,8 @@ function TripsContent() {
 
   // Soft Delete Mutation (Move to Trash)
   const softDeleteMutation = useMutation({
-    mutationFn: (id: number) => deleteTripService(id),
-    onMutate: async (id: number) => {
+    mutationFn: (id: string | number) => deleteTripService(id),
+    onMutate: async (id: string | number) => {
       await queryClient.cancelQueries({ queryKey: tripKeys.lists() });
       const previousActive = queryClient.getQueryData<TripResponse[]>(tripKeys.lists()) || [];
 
@@ -161,7 +161,7 @@ function TripsContent() {
 
   // Restore Trip Mutation
   const restoreMutation = useMutation({
-    mutationFn: (id: number) => restoreTripService(id),
+    mutationFn: (id: string | number) => restoreTripService(id),
     onError: (err) => {
       toast.error(
         err instanceof Error ? err.message : "Failed to restore trip.",
@@ -181,7 +181,7 @@ function TripsContent() {
 
   // Permanent Delete Mutation (Hard Delete)
   const permanentDeleteMutation = useMutation({
-    mutationFn: (id: number) => permanentDeleteTripService(id),
+    mutationFn: (id: string | number) => permanentDeleteTripService(id),
     onError: (err) => {
       toast.error(
         err instanceof Error ? err.message : "Failed to permanently delete trip.",
@@ -243,8 +243,16 @@ function TripsContent() {
     }
 
     result.sort((a, b) => {
-      if (sortMode === "latest") return b.id - a.id;
-      if (sortMode === "oldest") return a.id - b.id;
+      if (sortMode === "latest") {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeB - timeA || String(b.id).localeCompare(String(a.id));
+      }
+      if (sortMode === "oldest") {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeA - timeB || String(a.id).localeCompare(String(b.id));
+      }
       if (sortMode === "highest-budget") return Number(b.budget) - Number(a.budget);
       if (sortMode === "lowest-budget") return Number(a.budget) - Number(b.budget);
       return 0;

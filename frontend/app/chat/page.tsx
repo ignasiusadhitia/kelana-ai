@@ -124,7 +124,7 @@ export default function ChatPage() {
 
   // State for conversation list and active chat
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -135,16 +135,16 @@ export default function ChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Renaming state
-  const [editingConvId, setEditingConvId] = useState<number | null>(null);
+  const [editingConvId, setEditingConvId] = useState<string | number | null>(null);
   const [editTitleInput, setEditTitleInput] = useState("");
 
   // Deletion confirmation modal state
-  const [convToDelete, setConvToDelete] = useState<number | null>(null);
+  const [convToDelete, setConvToDelete] = useState<string | number | null>(null);
   const [isDeletingConv, setIsDeletingConv] = useState(false);
 
   // Message interaction states (Copy, Edit, Regenerate)
-  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | number | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | number | null>(null);
   const [editMessageInput, setEditMessageInput] = useState("");
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -155,8 +155,8 @@ export default function ChatPage() {
   // Save chat as trip modal states
   const [saveTripModalOpen, setSaveTripModalOpen] = useState(false);
   const [tripToSaveText, setTripToSaveText] = useState("");
-  const [tripToSaveMessageId, setTripToSaveMessageId] = useState<number | null>(null);
-  const [savedMessageIds, setSavedMessageIds] = useState<Set<number>>(() => {
+  const [tripToSaveMessageId, setTripToSaveMessageId] = useState<string | number | null>(null);
+  const [savedMessageIds, setSavedMessageIds] = useState<Set<string | number>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
       const stored = localStorage.getItem("kelana_saved_trip_msg_ids");
@@ -177,7 +177,7 @@ export default function ChatPage() {
   // Scroll management: Anti-scroll hijacking & instant snap on conversation load
   const [isAtBottom, setIsAtBottom] = useState(true);
   const isFirstLoadRef = useRef(true);
-  const prevConvIdRef = useRef<number | null>(null);
+  const prevConvIdRef = useRef<string | number | null>(null);
 
   const scrollToBottom = (behavior: "auto" | "smooth" = "smooth") => {
     if (chatContainerRef.current) {
@@ -282,7 +282,7 @@ export default function ChatPage() {
     }
   };
 
-  const selectConversation = async (convId: number) => {
+  const selectConversation = async (convId: string | number) => {
     if (isSending) return;
 
     // On mobile, close sidebar drawer when a chat is selected
@@ -333,7 +333,7 @@ export default function ChatPage() {
     setEditTitleInput(conv.title);
   };
 
-  const handleSaveRename = async (convId: number, e: React.MouseEvent) => {
+  const handleSaveRename = async (convId: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!editTitleInput.trim()) {
       setEditingConvId(null);
@@ -362,7 +362,7 @@ export default function ChatPage() {
     setEditingConvId(null);
   };
 
-  const handleOpenDeleteDialog = (convId: number, e: React.MouseEvent) => {
+  const handleOpenDeleteDialog = (convId: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (isSending) return;
     setConvToDelete(convId);
@@ -398,7 +398,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleCopyMessage = async (id: number, text: string) => {
+  const handleCopyMessage = async (id: string | number, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(id);
@@ -422,7 +422,7 @@ export default function ChatPage() {
     setEditMessageInput("");
   };
 
-  const handleSaveEditMessage = async (msgId: number) => {
+  const handleSaveEditMessage = async (msgId: string | number) => {
     if (!activeConversationId || isSending || isSubmittingEdit) return;
     const text = editMessageInput.trim();
     if (!text) return;
@@ -432,8 +432,11 @@ export default function ChatPage() {
     try {
       let targetMsgId = msgId;
 
-      // Robust ID resolution: if msgId is a temporary client-side timestamp, reconcile with DB first
-      if (targetMsgId > 1_000_000_000_000) {
+      // Robust ID resolution: if msgId is a temporary client-side ID, reconcile with DB first
+      const isTempId =
+        String(targetMsgId).startsWith("temp_") ||
+        (typeof targetMsgId === "number" && targetMsgId > 1_000_000_000_000);
+      if (isTempId) {
         try {
           const fresh = await getConversation(activeConversationId);
           if (fresh && fresh.messages) {
@@ -510,7 +513,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleOpenSaveTrip = (rawItinerary: string, messageId: number) => {
+  const handleOpenSaveTrip = (rawItinerary: string, messageId: string | number) => {
     if (!isAuthenticated) {
       toast.info("Please sign in to save itineraries to your dashboard.", {
         title: "Sign In Required",
@@ -555,15 +558,23 @@ export default function ChatPage() {
       }
     }
 
+    const tempUserMsgId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? `temp_${crypto.randomUUID()}`
+        : `temp_${Date.now()}`;
+    const tempAiMsgId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? `temp_${crypto.randomUUID()}`
+        : `temp_${Date.now() + 1}`;
+
     const tempUserMsg: ChatMessage = {
-      id: Date.now(),
+      id: tempUserMsgId,
       conversation_id: targetConvId,
       role: "user",
       content: text,
       created_at: new Date().toISOString(),
     };
 
-    const tempAiMsgId = Date.now() + 1;
     const tempAiMsg: ChatMessage = {
       id: tempAiMsgId,
       conversation_id: targetConvId,

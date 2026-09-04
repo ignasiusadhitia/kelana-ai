@@ -4,15 +4,15 @@
  */
 
 export interface ChatMessage {
-  id: number;
-  conversation_id: number;
+  id: string | number;
+  conversation_id: string | number;
   role: "user" | "assistant";
   content: string;
   created_at: string;
 }
 
 export interface Conversation {
-  id: number;
+  id: string | number;
   title: string;
   created_at: string;
   updated_at: string;
@@ -20,7 +20,7 @@ export interface Conversation {
 }
 
 export interface ConversationDetail {
-  id: number;
+  id: string | number;
   title: string;
   created_at: string;
   updated_at: string;
@@ -76,7 +76,7 @@ export async function createConversation(title?: string): Promise<Conversation> 
  * @param id The unique conversation ID.
  * @returns Promise resolving to the ConversationDetail including messages.
  */
-export async function getConversation(id: number): Promise<ConversationDetail> {
+export async function getConversation(id: string | number): Promise<ConversationDetail> {
   const response = await fetch(`/api/v1/conversations/${id}`, {
     method: "GET",
     headers: getHeaders(),
@@ -96,7 +96,7 @@ export async function getConversation(id: number): Promise<ConversationDetail> {
  * @param title The new title for the conversation.
  * @returns Promise resolving to the updated Conversation.
  */
-export async function updateConversationTitle(id: number, title: string): Promise<Conversation> {
+export async function updateConversationTitle(id: string | number, title: string): Promise<Conversation> {
   const response = await fetch(`/api/v1/conversations/${id}`, {
     method: "PATCH",
     headers: getHeaders(),
@@ -115,7 +115,7 @@ export async function updateConversationTitle(id: number, title: string): Promis
  * Delete a conversation thread and all cascaded messages.
  * @param id The unique conversation ID.
  */
-export async function deleteConversation(id: number): Promise<void> {
+export async function deleteConversation(id: string | number): Promise<void> {
   const response = await fetch(`/api/v1/conversations/${id}`, {
     method: "DELETE",
     headers: getHeaders(),
@@ -133,7 +133,7 @@ export async function deleteConversation(id: number): Promise<void> {
  * @param content The user message text.
  * @returns Promise resolving to the assistant ChatMessage.
  */
-export async function sendMessage(conversationId: number, content: string): Promise<ChatMessage> {
+export async function sendMessage(conversationId: string | number, content: string): Promise<ChatMessage> {
   const response = await fetch(`/api/v1/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: getHeaders(),
@@ -153,10 +153,10 @@ export async function sendMessage(conversationId: number, content: string): Prom
  * Calls onChunk(chunk) as deltas arrive, and onDone(messageId, title) when stream ends.
  */
 export async function sendMessageStream(
-  conversationId: number,
+  conversationId: string | number,
   content: string,
   onChunk: (chunk: string) => void,
-  onDone: (data: { message_id: number; user_message_id?: number; title?: string }) => void
+  onDone: (data: { message_id: string | number; user_message_id?: string | number; title?: string }) => void
 ): Promise<void> {
   const response = await fetch(`/api/v1/conversations/${conversationId}/messages?stream=true`, {
     method: "POST",
@@ -247,8 +247,8 @@ export async function sendMessageStream(
  * @returns Promise resolving to updated ConversationDetail.
  */
 export async function editMessageAndRegenerate(
-  conversationId: number,
-  messageId: number,
+  conversationId: string | number,
+  messageId: string | number,
   content: string
 ): Promise<ConversationDetail> {
   const response = await fetch(
@@ -273,7 +273,7 @@ export async function editMessageAndRegenerate(
  * @param conversationId The conversation ID.
  * @returns Promise resolving to updated ConversationDetail.
  */
-export async function regenerateResponse(conversationId: number): Promise<ConversationDetail> {
+export async function regenerateResponse(conversationId: string | number): Promise<ConversationDetail> {
   const response = await fetch(`/api/v1/conversations/${conversationId}/regenerate`, {
     method: "POST",
     headers: getHeaders(),

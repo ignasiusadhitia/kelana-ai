@@ -16,9 +16,8 @@ interface RouteParams {
 export async function POST(request: Request, context: RouteParams) {
   try {
     const { id } = await context.params;
-    const tripId = parseInt(id, 10);
 
-    if (isNaN(tripId) || tripId <= 0) {
+    if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
       return NextResponse.json(
         { detail: "Invalid trip ID parameter" },
         { status: 400 }
@@ -26,7 +25,7 @@ export async function POST(request: Request, context: RouteParams) {
     }
 
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/trips/${tripId}/generate`,
+      `${BACKEND_URL}/api/v1/trips/${id}/generate`,
       {
         method: "POST",
         headers: getBffAuthHeaders(request),

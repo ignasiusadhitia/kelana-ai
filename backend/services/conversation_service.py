@@ -139,7 +139,7 @@ def list_conversations(db: Session, user_id: int) -> List[Dict[str, Any]]:
     
     return [
         {
-            "id": c.id,
+            "id": c.public_id,
             "title": c.title,
             "created_at": c.created_at,
             "updated_at": last_act or c.updated_at,
@@ -149,13 +149,21 @@ def list_conversations(db: Session, user_id: int) -> List[Dict[str, Any]]:
     ]
 
 
-def get_conversation_with_messages(db: Session, conversation_id: int, user_id: int) -> Conversation:
+def get_conversation_with_messages(db: Session, conversation_id: str | int, user_id: int) -> Conversation:
     """Fetch conversation and its full message history, strictly ordered by ID."""
-    conversation = (
-        db.query(Conversation)
-        .filter(Conversation.id == conversation_id, Conversation.user_id == user_id)
-        .first()
-    )
+    conv_str = str(conversation_id).strip()
+    if conv_str.isdigit():
+        conversation = (
+            db.query(Conversation)
+            .filter((Conversation.public_id == conv_str) | (Conversation.id == int(conv_str)), Conversation.user_id == user_id)
+            .first()
+        )
+    else:
+        conversation = (
+            db.query(Conversation)
+            .filter(Conversation.public_id == conv_str, Conversation.user_id == user_id)
+            .first()
+        )
     if not conversation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -164,7 +172,7 @@ def get_conversation_with_messages(db: Session, conversation_id: int, user_id: i
     return conversation
 
 
-def update_conversation_title(db: Session, conversation_id: int, user_id: int, new_title: str) -> Conversation:
+def update_conversation_title(db: Session, conversation_id: str | int, user_id: int, new_title: str) -> Conversation:
     """Rename an existing conversation title with sanitization and length bounds."""
     conversation = get_conversation_with_messages(db, conversation_id, user_id)
     clean_title = re.sub(r"[<>]", "", new_title).strip()[:100]
@@ -174,7 +182,7 @@ def update_conversation_title(db: Session, conversation_id: int, user_id: int, n
     return conversation
 
 
-def delete_conversation(db: Session, conversation_id: int, user_id: int) -> bool:
+def delete_conversation(db: Session, conversation_id: str | int, user_id: int) -> bool:
     """Delete a conversation and all cascaded messages."""
     conversation = get_conversation_with_messages(db, conversation_id, user_id)
     db.delete(conversation)
@@ -459,7 +467,7 @@ def _generate_ai_response_text(
 
 def send_message_and_get_response(
     db: Session,
-    conversation_id: int,
+    conversation_id: str | int,
     user_id: int,
     user_text: str
 ) -> Message:
@@ -473,7 +481,7 @@ def send_message_and_get_response(
 
     # Step 2: Persist incoming user message to database
     user_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="user",
         content=sanitized_text
     )
@@ -484,7 +492,7 @@ def send_message_and_get_response(
     # Step 3: Load conversation history strictly ordered by ID
     history_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation_id)
+        .filter(Message.conversation_id == conversation.id)
         .order_by(Message.id.asc())
         .all()
     )
@@ -500,7 +508,7 @@ def send_message_and_get_response(
 
     # Step 5: Persist assistant message to database
     ai_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="assistant",
         content=ai_text
     )
@@ -510,7 +518,7 @@ def send_message_and_get_response(
     if conversation.title in ("New Conversation", "Untitled", ""):
         first_user_msg = (
             db.query(Message)
-            .filter(Message.conversation_id == conversation_id, Message.role == "user")
+            .filter(Message.conversation_id == conversation.id, Message.role == "user")
             .order_by(Message.id.asc())
             .first()
         )
@@ -526,7 +534,7 @@ def send_message_and_get_response(
 
 def stream_message_and_get_response(
     db: Session,
-    conversation_id: int,
+    conversation_id: str | int,
     user_id: int,
     user_text: str
 ):
@@ -541,7 +549,7 @@ def stream_message_and_get_response(
 
     # Step 2: Persist incoming user message to database
     user_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="user",
         content=sanitized_text
     )
@@ -696,7 +704,7 @@ def stream_message_and_get_response(
 
     # Step 5: Persist assistant message to database
     ai_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="assistant",
         content=full_text
     )
@@ -706,7 +714,7 @@ def stream_message_and_get_response(
     if conversation.title in ("New Conversation", "Untitled", ""):
         first_user_msg = (
             db.query(Message)
-            .filter(Message.conversation_id == conversation_id, Message.role == "user")
+            .filter(Message.conversation_id == conversation.id, Message.role == "user")
             .order_by(Message.id.asc())
             .first()
         )
@@ -718,13 +726,13 @@ def stream_message_and_get_response(
     db.commit()
     db.refresh(ai_msg)
 
-    yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.id, 'user_message_id': user_msg.id, 'title': conversation.title})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
 
 
 def edit_user_message_and_regenerate(
     db: Session,
-    conversation_id: int,
-    message_id: int,
+    conversation_id: str | int,
+    message_id: str | int,
     user_id: int,
     new_text: str
 ) -> Conversation:
@@ -734,16 +742,25 @@ def edit_user_message_and_regenerate(
     """
     conversation = get_conversation_with_messages(db, conversation_id, user_id)
 
-    target_msg = (
-        db.query(Message)
-        .filter(Message.id == message_id, Message.conversation_id == conversation_id)
-        .first()
-    )
-    # Robust fallback: if client passed a Date.now() millisecond timestamp, match the latest user message
-    if not target_msg and message_id > 1_000_000_000_000:
+    msg_str = str(message_id).strip()
+    if msg_str.isdigit():
         target_msg = (
             db.query(Message)
-            .filter(Message.conversation_id == conversation_id, Message.role == "user")
+            .filter((Message.public_id == msg_str) | (Message.id == int(msg_str)), Message.conversation_id == conversation.id)
+            .first()
+        )
+    else:
+        target_msg = (
+            db.query(Message)
+            .filter(Message.public_id == msg_str, Message.conversation_id == conversation.id)
+            .first()
+        )
+
+    # Robust fallback: if client passed a Date.now() millisecond timestamp, match the latest user message
+    if not target_msg and msg_str.isdigit() and int(msg_str) > 1_000_000_000_000:
+        target_msg = (
+            db.query(Message)
+            .filter(Message.conversation_id == conversation.id, Message.role == "user")
             .order_by(Message.id.desc())
             .first()
         )
@@ -758,7 +775,7 @@ def edit_user_message_and_regenerate(
     # Load prior message history up to this message
     prior_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation_id, Message.id < message_id)
+        .filter(Message.conversation_id == conversation.id, Message.id < target_msg.id)
         .order_by(Message.id.asc())
         .all()
     )
@@ -786,8 +803,8 @@ def edit_user_message_and_regenerate(
     #     the session identity map consistent and avoid ObjectDeletedError on
     #     subsequent serialization of conversation.messages.
     db.query(Message).filter(
-        Message.conversation_id == conversation_id,
-        Message.id > message_id
+        Message.conversation_id == conversation.id,
+        Message.id > target_msg.id
     ).delete(synchronize_session="fetch")
 
     # (2) Update target message and conversation metadata
@@ -800,7 +817,7 @@ def edit_user_message_and_regenerate(
 
     # (4) Append fresh assistant reply
     ai_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="assistant",
         content=ai_text
     )
@@ -819,7 +836,7 @@ def edit_user_message_and_regenerate(
 
 def regenerate_latest_response(
     db: Session,
-    conversation_id: int,
+    conversation_id: str | int,
     user_id: int
 ) -> Conversation:
     """
@@ -829,7 +846,7 @@ def regenerate_latest_response(
 
     history_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation_id)
+        .filter(Message.conversation_id == conversation.id)
         .order_by(Message.id.asc())
         .all()
     )
@@ -868,7 +885,7 @@ def regenerate_latest_response(
     # Atomic replace: remove old assistant turn, insert fresh one
     db.delete(latest_msg)
     new_ai_msg = Message(
-        conversation_id=conversation_id,
+        conversation_id=conversation.id,
         role="assistant",
         content=ai_text
     )

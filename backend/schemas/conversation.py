@@ -20,33 +20,30 @@ class MessageCreate(BaseModel):
 
 class MessageResponse(BaseModel):
     """Response schema representing a single persisted message turn."""
-    id: int
+    id: str = Field(validation_alias="public_id")
     conversation_id: int
     role: str
     content: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 class ConversationResponse(BaseModel):
     """Summary response schema for conversation list queries."""
-    id: int
+    id: str = Field(validation_alias="public_id")
     title: str
     created_at: datetime
     updated_at: datetime
     message_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 class ConversationDetailResponse(BaseModel):
     """Detailed response schema including complete message history for a conversation."""
-    id: int
+    id: str = Field(validation_alias="public_id")
     title: str
     created_at: datetime
     updated_at: datetime
     messages: List[MessageResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "populate_by_name": True}

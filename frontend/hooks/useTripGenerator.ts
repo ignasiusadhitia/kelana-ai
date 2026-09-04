@@ -80,7 +80,7 @@ export function useTripGenerator() {
   /**
    * Removes a saved trip from history and localStorage.
    */
-  const deleteSavedTrip = (id: number) => {
+  const deleteSavedTrip = (id: string | number) => {
     setSavedTrips((prev) => {
       const updated = prev.filter((t) => t.id !== id);
       try {

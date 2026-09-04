@@ -17,9 +17,9 @@ import { getTravelStyleIconComponent, getDestinationVectorBadge } from "@/lib/ic
 interface TripCardProps {
   trip: TripResponse;
   mode?: "active" | "trash";
-  onDelete?: (id: number) => void;
-  onRestore?: (id: number) => void;
-  onPermanentDelete?: (id: number) => void;
+  onDelete?: (id: string | number) => void;
+  onRestore?: (id: string | number) => void;
+  onPermanentDelete?: (id: string | number) => void;
   isHighlighted?: boolean;
 }
 

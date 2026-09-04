@@ -28,13 +28,13 @@ class ChangePasswordRequest(BaseModel):
 
 class UserResponse(BaseModel):
     """Safe user representation returned in API responses (excludes password_hash)."""
-    id: int
+    id: str = Field(validation_alias="public_id")
     name: str
     email: EmailStr
     default_travel_style: str | None = "Family"
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class TokenResponse(BaseModel):
     """JWT Token payload returned upon successful login/registration."""
@@ -44,7 +44,7 @@ class TokenResponse(BaseModel):
 
 class UserProfileResponse(BaseModel):
     """Extended user profile representation for /profile with travel analytics."""
-    id: int
+    id: str = Field(validation_alias="public_id")
     name: str
     email: EmailStr
     default_travel_style: str | None = "Family"
@@ -54,4 +54,4 @@ class UserProfileResponse(BaseModel):
     total_days: int = 0
     destinations: list[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
