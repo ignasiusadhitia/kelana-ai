@@ -9,7 +9,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **KelanaAI** is an enterprise-grade, cloud-deployed travel planning application built with **Next.js 16 (App Router & Turbopack)**, **Python FastAPI**, **Amazon Bedrock (Amazon Nova Lite)**, and **Neon Serverless PostgreSQL**. Developed as the final capstone project for the **Alkademi AI Native Software Engineer Bootcamp (Session 11: Launching KelanaAI to the World & Session 12: Demo Day)**.
+> **KelanaAI** is an enterprise-grade, cloud-deployed travel planning application built with **Next.js 16 (App Router & Turbopack)**, **Python FastAPI**, **Amazon Bedrock (Amazon Nova Lite)**, and **Neon Serverless PostgreSQL**. Developed as the final capstone project for the **Alkademi AI Native Software Engineer Bootcamp**.
 
 ---
 
@@ -282,7 +282,7 @@ Expected output:
 ## 🎓 Acknowledgements
 
 * **Bootcamp:** [Alkademi](https://alkademi.id) — AI Native Software Engineer Bootcamp
-* **Curriculum:** Week 4, Session 11: *Launching KelanaAI to the World* & Session 12: *Demo Day Capstone Showcase*
+* **Curriculum:** Alkademi AI Native Software Engineer Bootcamp — Capstone Project Showcase
 * **LLM Foundation:** Amazon Bedrock (Amazon Nova Lite) & Amazon Bedrock Knowledge Bases
 
 ---

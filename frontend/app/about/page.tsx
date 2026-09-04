@@ -151,10 +151,10 @@ export default function AboutPage() {
 
         {/* Hero Section */}
         <section className="relative px-4 pt-12 pb-14 sm:px-6 sm:pt-16 sm:pb-20 lg:px-8 text-center max-w-4xl mx-auto">
-          {/* Milestone Badge */}
+          {/* Architecture Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/50 px-3.5 py-1 text-xs font-semibold text-blue-300 shadow-sm backdrop-blur-md mb-6">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />
-            <span>Session 12 Milestone • Demo Day Showcase</span>
+            <span>Cloud-Native Architecture • Production Release</span>
           </div>
 
           {/* Logo & Headline */}
@@ -287,10 +287,10 @@ export default function AboutPage() {
                   Alkademi AI Native Software Engineer Bootcamp
                 </span>
                 <Typography variant="h2" className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Capstone Project — Sessions 11 & 12
+                  Capstone Project Showcase
                 </Typography>
                 <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                  KelanaAI represents the culmination of an intensive 12-stage engineering sprint at the Alkademi AI Native Software Engineer Bootcamp. Engineered as a production-grade SaaS, it demonstrates end-to-end cloud architecture: PostgreSQL relational modeling, high-throughput FastAPI microservices, Amazon Bedrock foundation model orchestration, Next.js edge routing, and enterprise security hardening.
+                  KelanaAI was built as the capstone project for the Alkademi AI Native Software Engineer Bootcamp. Engineered as a production-grade SaaS, it demonstrates end-to-end cloud architecture: PostgreSQL relational modeling, high-throughput FastAPI microservices, Amazon Bedrock foundation model orchestration, Next.js edge routing, and enterprise security hardening.
                 </p>
               </div>
 
