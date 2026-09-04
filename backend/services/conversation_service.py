@@ -25,7 +25,7 @@ from services.intent_router import (
 )
 
 # Amazon Nova Lite Model for Multi-Turn Conversational Reasoning
-MODEL_ID = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
+MODEL_ID = os.getenv("MODEL_ID") or os.getenv("BEDROCK_MODEL_ID") or "amazon.nova-lite-v1:0"
 
 # Memory Configuration: Hybrid Summarization Window
 RECENT_WINDOW_LIMIT = 6       # Preserve last 6 turns (3 User + 3 Assistant) verbatim

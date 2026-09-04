@@ -91,7 +91,7 @@ def generate_trip_recommendation(prompt: str) -> str:
     Send prompt to Amazon Bedrock using Converse API and extract text response.
     """
     client = get_bedrock_client()
-    model_id = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
+    model_id = os.getenv("MODEL_ID") or os.getenv("BEDROCK_MODEL_ID") or "amazon.nova-lite-v1:0"
 
     # CONCEPT: Amazon Bedrock Converse API request structure with expanded token capacity
     response = client.converse(

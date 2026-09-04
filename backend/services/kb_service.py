@@ -130,7 +130,7 @@ def _generate_grounded_answer(sanitized_question: str, retrieved_docs: list[dict
     Use Bedrock LLM to reason over retrieved docs with strict prompt-injection defenses.
     """
     client = get_bedrock_runtime_client()
-    model_id = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
+    model_id = os.getenv("MODEL_ID") or os.getenv("BEDROCK_MODEL_ID") or "amazon.nova-lite-v1:0"
 
     if not retrieved_docs:
         return {
@@ -220,7 +220,7 @@ def ask_base_model(question: str) -> dict[str, Any]:
     Used for comparative analysis (Base Model vs RAG).
     """
     client = get_bedrock_runtime_client()
-    model_id = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
+    model_id = os.getenv("MODEL_ID") or os.getenv("BEDROCK_MODEL_ID") or "amazon.nova-lite-v1:0"
     try:
         response = client.converse(
             modelId=model_id,
