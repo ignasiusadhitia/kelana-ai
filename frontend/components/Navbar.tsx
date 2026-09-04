@@ -177,32 +177,20 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
 
         {/* Mobile Header Quick Actions */}
         <div className="flex sm:hidden items-center gap-2">
-          {isInstallable && (
-            <button
-              type="button"
-              onClick={installApp}
-              className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-300 active:scale-95 cursor-pointer"
-              title="Install App"
-            >
-              <Download className="w-3 h-3" />
-              <span>Install</span>
-            </button>
-          )}
-
           {isAuthenticated ? (
             <Link
               href="/profile"
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-secondary/80 px-2.5 py-1 text-xs font-semibold text-zinc-200 active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-secondary/80 px-3 py-1 text-xs font-semibold text-zinc-200 active:scale-95"
             >
-              <User className="w-3 h-3 text-blue-400" />
+              <User className="w-3.5 h-3.5 text-blue-400" />
               <span>{firstName}</span>
             </Link>
           ) : (
             <Link
               href="/login"
-              className="inline-flex items-center gap-1 rounded-full bg-primary/20 border border-primary/40 px-3 py-1 text-xs font-semibold text-blue-300 active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 border border-primary/40 px-3 py-1 text-xs font-semibold text-blue-300 active:scale-95"
             >
-              <LogIn className="w-3 h-3" />
+              <LogIn className="w-3.5 h-3.5" />
               <span>Sign In</span>
             </Link>
           )}

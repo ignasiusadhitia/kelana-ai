@@ -23,7 +23,9 @@ import {
   LayoutDashboard,
   UserPen,
   KeyRound,
+  Download,
 } from "lucide-react";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { EditProfileForm } from "@/components/profile/EditProfileForm";
 import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
 import { TravelerPreferencesCard } from "@/components/profile/TravelerPreferencesCard";
@@ -77,6 +79,7 @@ function ProfileSkeleton() {
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout, refreshUser } = useAuth();
+  const { isInstallable, installApp } = usePwaInstall();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
@@ -166,16 +169,30 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Sign Out Action */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={logout}
-                  className="gap-2 border-red-500/30 text-red-300 hover:bg-red-950/40 hover:text-red-200 active:scale-95 shadow-sm"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
-                </Button>
+                {/* Actions: Install PWA (if available) & Sign Out */}
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+                  {isInstallable && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={installApp}
+                      className="gap-2 border-blue-500/30 text-blue-300 hover:bg-blue-950/40 hover:text-white active:scale-95 shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Install App</span>
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={logout}
+                    className="gap-2 border-red-500/30 text-red-300 hover:bg-red-950/40 hover:text-red-200 active:scale-95 shadow-sm"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </Button>
+                </div>
               </div>
             </Card>
 
