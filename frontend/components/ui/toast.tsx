@@ -294,7 +294,7 @@ export function Toaster({
     <Portal>
       <div
         aria-label="Notifications"
-        className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2.5 max-w-sm w-full pointer-events-none p-2 sm:p-0"
+        className="fixed bottom-20 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[9999] flex flex-col-reverse items-center sm:items-end gap-2.5 max-w-sm mx-auto sm:mx-0 pointer-events-none"
       >
         {toasts.map((item) => (
           <ToastCard key={item.id} item={item} onDismiss={onDismiss} />
