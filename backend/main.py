@@ -22,7 +22,13 @@ app = FastAPI(
 
 # Configure CORS middleware with strict origin validation
 cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-allowed_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+raw_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+# Normalize origins (both with and without trailing slash) to avoid CORS browser mismatch
+allowed_origins = []
+for orig in raw_origins:
+    allowed_origins.append(orig.rstrip("/"))
+    allowed_origins.append(orig if orig.endswith("/") else f"{orig}/")
+allowed_origins = list(dict.fromkeys(allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,
