@@ -26,14 +26,16 @@ const POPULAR_BUDGETS = [
 export function BudgetField({ register, setValue, watchedBudget, error }: BudgetFieldProps) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="budget" className="flex items-center gap-1.5 cursor-pointer">
+      <div className="flex items-center justify-between gap-3 mb-2 min-w-0">
+        <label htmlFor="budget" className="flex items-center gap-1.5 cursor-pointer shrink-0">
           <CircleDollarSign className="w-4 h-4 text-amber-400" />
           <Typography as="span" variant="kicker" className="text-zinc-300">
             Total Budget (USD)
           </Typography>
         </label>
-        <Typography variant="muted">e.g. 2000</Typography>
+        <Typography variant="muted" className="text-right min-w-0 truncate">
+          e.g. 2000
+        </Typography>
       </div>
 
       <Input

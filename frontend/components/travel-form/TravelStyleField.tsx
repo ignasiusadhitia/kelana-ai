@@ -65,14 +65,16 @@ export function TravelStyleField({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2.5">
-        <label className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-3 mb-2.5 min-w-0">
+        <label className="flex items-center gap-1.5 shrink-0">
           <SlidersHorizontal className="w-4 h-4 text-purple-400" />
           <Typography as="span" variant="kicker" className="text-zinc-300">
             Travel Style
           </Typography>
         </label>
-        <Typography variant="muted">Customizes your itinerary</Typography>
+        <Typography variant="muted" className="text-right min-w-0 truncate">
+          Customizes your itinerary
+        </Typography>
       </div>
 
       {/* Travel Style Card Selector Grid */}

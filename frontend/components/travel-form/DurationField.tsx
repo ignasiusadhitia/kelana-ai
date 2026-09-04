@@ -27,14 +27,16 @@ const POPULAR_DURATIONS = [
 export function DurationField({ register, setValue, watchedDays, error }: DurationFieldProps) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="days" className="flex items-center gap-1.5 cursor-pointer">
+      <div className="flex items-center justify-between gap-3 mb-2 min-w-0">
+        <label htmlFor="days" className="flex items-center gap-1.5 cursor-pointer shrink-0">
           <Calendar className="w-4 h-4 text-emerald-400" />
           <Typography as="span" variant="kicker" className="text-zinc-300">
             Duration (Days)
           </Typography>
         </label>
-        <Typography variant="muted">1 – 14 Days</Typography>
+        <Typography variant="muted" className="text-right min-w-0 truncate">
+          1 – 14 Days
+        </Typography>
       </div>
 
       <Input

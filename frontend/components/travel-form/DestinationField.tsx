@@ -27,14 +27,16 @@ const POPULAR_DESTINATIONS = [
 export function DestinationField({ register, setValue, error }: DestinationFieldProps) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="destination" className="flex items-center gap-1.5 cursor-pointer">
+      <div className="flex items-center justify-between gap-3 mb-2 min-w-0">
+        <label htmlFor="destination" className="flex items-center gap-1.5 cursor-pointer shrink-0">
           <MapPin className="w-4 h-4 text-blue-400" />
           <Typography as="span" variant="kicker" className="text-zinc-300">
             Destination
           </Typography>
         </label>
-        <Typography variant="muted">Where do you want to go?</Typography>
+        <Typography variant="muted" className="text-right min-w-0 truncate">
+          Where do you want to go?
+        </Typography>
       </div>
 
       <Input
