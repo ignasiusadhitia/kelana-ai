@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, RefreshCw, Printer } from "lucide-react";
 import { TripResponse } from "@/types/trip";
 import { LoadingState } from "@/components/LoadingState";
-import { Button } from "@/components/ui/button";
 import { updateTripBudget, regenerateTripAi } from "@/services/tripService";
 import { toast } from "@/components/ui/toast";
 import { formatBudget } from "@/lib/utils";
@@ -26,7 +24,7 @@ import { generateTripIcs } from "@/lib/calendar";
 
 interface TripRecommendationProps {
   trip: TripResponse;
-  onReset: () => void;
+  onReset?: () => void;
   onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
@@ -256,40 +254,7 @@ export function TripRecommendation({
       {/* Structured Day Tabs & Accordion Markdown Content */}
       <TripDayAccordions sections={sections} />
 
-      {/* Bottom Action CTA */}
-      <div className="pt-4 border-t border-card-border flex flex-col sm:flex-row gap-3">
-        <Button
-          type="button"
-          size="lg"
-          onClick={onReset}
-          className="flex-1 py-4 text-sm gap-2 active:scale-95"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Plan Another Journey</span>
-        </Button>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={handleRegenerateAi}
-          className="px-6 py-4 text-sm gap-2 active:scale-95"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Regenerate Itinerary</span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          onClick={handlePrint}
-          className="px-6 py-4 text-sm gap-2 active:scale-95"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print Itinerary</span>
-        </Button>
-      </div>
 
       {/* Portal-based Edit Budget Modal */}
       <EditBudgetModal
