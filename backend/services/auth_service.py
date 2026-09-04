@@ -20,7 +20,7 @@ if not SECRET_KEY:
         "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
     )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")) # 24 Hours default
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")) # 7 Days default (aligned with HttpOnly cookie maxAge)
 
 def hash_password(password: str) -> str:
     """Hash a plaintext password with bcrypt (automatically salted)."""

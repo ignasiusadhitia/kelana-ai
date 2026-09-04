@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Typography } from "@/components/ui/typography";
 import { Logo } from "@/components/Logo";
 
@@ -46,14 +47,7 @@ export function Footer({ onPlanTrip }: FooterProps) {
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-300">
-            <button
-              type="button"
-              onClick={handlePlanClick}
-              className="cursor-pointer hover:text-white transition-colors"
-            >
-              Home
-            </button>
+          <nav className="flex flex-wrap items-center justify-center gap-5 sm:gap-6 text-xs text-zinc-300">
             <button
               type="button"
               onClick={handlePlanClick}
@@ -61,10 +55,15 @@ export function Footer({ onPlanTrip }: FooterProps) {
             >
               Trip Planner
             </button>
-            <a href="#" className="hover:text-white transition-colors">Destinations</a>
-            <a href="#" className="hover:text-white transition-colors">Guides</a>
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
+            <Link href="/trips" className="hover:text-white transition-colors">
+              My Trips
+            </Link>
+            <Link href="/chat" className="hover:text-white transition-colors">
+              Chat
+            </Link>
+            <Link href="/about" className="hover:text-white transition-colors font-medium text-blue-400">
+              About
+            </Link>
           </nav>
         </div>
 

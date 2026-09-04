@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

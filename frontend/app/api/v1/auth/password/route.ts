@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * PUT /api/v1/auth/password
@@ -8,15 +9,11 @@ const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL |
  */
 export async function PUT(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
     const body = await request.json();
 
     const response = await fetch(`${BACKEND_URL}/api/v1/auth/password`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(authHeader ? { Authorization: authHeader } : {}),
-      },
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify(body),
     });
 

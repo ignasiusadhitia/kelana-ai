@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/assistant
@@ -17,17 +18,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (authHeader) {
-      headers["Authorization"] = authHeader;
-    }
-
     const response = await fetch(`${BACKEND_URL}/api/v1/assistant`, {
       method: "POST",
-      headers,
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify({
         question: body.question.trim(),
         session_id: body.session_id || null,

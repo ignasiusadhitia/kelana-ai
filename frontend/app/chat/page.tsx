@@ -529,8 +529,8 @@ export default function ChatPage() {
         const next = new Set(prev).add(tripToSaveMessageId);
         try {
           localStorage.setItem("kelana_saved_trip_msg_ids", JSON.stringify(Array.from(next)));
-        } catch (e) {
-          console.warn("Failed to persist saved message ID to localStorage:", e);
+        } catch {
+          // Ignore storage quota errors silently
         }
         return next;
       });

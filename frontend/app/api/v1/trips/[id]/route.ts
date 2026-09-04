@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 interface RouteParams {
   params: Promise<{
     id: string;
   }>;
-}
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
 }
 
 async function parseBackendResponse(response: Response) {
@@ -43,7 +36,7 @@ export async function GET(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "GET",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
       cache: "no-store",
     });
 
@@ -94,7 +87,7 @@ export async function PUT(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "PUT",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify(body),
     });
 
@@ -137,7 +130,7 @@ export async function DELETE(request: Request, context: RouteParams) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}`, {
       method: "DELETE",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
     });
 
     const data = await parseBackendResponse(response);

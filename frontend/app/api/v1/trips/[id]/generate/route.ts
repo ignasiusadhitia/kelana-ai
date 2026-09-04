@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 interface RouteParams {
   params: Promise<{
     id: string;
   }>;
-}
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
 }
 
 /**
@@ -36,7 +29,7 @@ export async function POST(request: Request, context: RouteParams) {
       `${BACKEND_URL}/api/v1/trips/${tripId}/generate`,
       {
         method: "POST",
-        headers: getForwardHeaders(request),
+        headers: getBffAuthHeaders(request),
       }
     );
 

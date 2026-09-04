@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, LogIn, LogOut } from "lucide-react";
+import { User, LogIn, LogOut, Download } from "lucide-react";
 import { Typography } from "@/components/ui/typography";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/hooks/useAuth";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
 
 /**
  * COMPONENT: Navbar (Personalized Multi-User Navigation)
@@ -19,6 +20,7 @@ interface NavbarProps {
 export function Navbar({ onPlanTrip }: NavbarProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
+  const { isInstallable, installApp } = usePwaInstall();
 
   const handlePlanClick = () => {
     if (onPlanTrip) {
@@ -105,7 +107,28 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
             Chat
           </Link>
 
+          <Link
+            href="/about"
+            className={`text-xs font-medium transition-colors ${
+              pathname === "/about"
+                ? "text-white font-semibold"
+                : "text-muted-foreground hover:text-white"
+            }`}
+          >
+            About
+          </Link>
 
+          {isInstallable && (
+            <button
+              type="button"
+              onClick={installApp}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20 hover:text-white transition-all active:scale-95 cursor-pointer"
+              title="Install KelanaAI App"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Install App</span>
+            </button>
+          )}
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2.5 pl-2 border-l border-border">
@@ -154,6 +177,18 @@ export function Navbar({ onPlanTrip }: NavbarProps) {
 
         {/* Mobile Header Quick Actions */}
         <div className="flex sm:hidden items-center gap-2">
+          {isInstallable && (
+            <button
+              type="button"
+              onClick={installApp}
+              className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-300 active:scale-95 cursor-pointer"
+              title="Install App"
+            >
+              <Download className="w-3 h-3" />
+              <span>Install</span>
+            </button>
+          )}
+
           {isAuthenticated ? (
             <Link
               href="/profile"

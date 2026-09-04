@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
-}
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * GET /api/v1/conversations
@@ -18,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const response = await fetch(`${BACKEND_URL}/api/v1/conversations`, {
       method: "GET",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
     });
 
     const data = await response.json().catch(() => []);
@@ -48,7 +41,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const response = await fetch(`${BACKEND_URL}/api/v1/conversations`, {
       method: "POST",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify(body),
     });
 

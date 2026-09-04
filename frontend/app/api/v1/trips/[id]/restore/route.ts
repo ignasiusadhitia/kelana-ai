@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/trips/[id]/restore
@@ -12,14 +13,10 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const authHeader = request.headers.get("authorization");
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips/${id}/restore`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(authHeader ? { Authorization: authHeader } : {}),
-      },
+      headers: getBffAuthHeaders(request),
     });
 
     const rawText = await response.text();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { SESSION_COOKIE_OPTIONS } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/auth/login
@@ -33,7 +34,17 @@ export async function POST(request: Request) {
       data = { detail: rawText || `Backend error (${response.status})` };
     }
 
-    return NextResponse.json(data, { status: response.status });
+    const nextResponse = NextResponse.json(data, { status: response.status });
+
+    if (response.ok && data?.access_token) {
+      nextResponse.cookies.set(
+        SESSION_COOKIE_OPTIONS.name,
+        data.access_token,
+        SESSION_COOKIE_OPTIONS
+      );
+    }
+
+    return nextResponse;
   } catch (error: unknown) {
     console.error("Auth login proxy error:", error);
     const errorMessage =

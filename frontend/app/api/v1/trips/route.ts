@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
 import { tripFormSchema } from "@/schemas/tripSchema";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
-}
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 /**
  * POST /api/v1/trips
@@ -41,7 +34,7 @@ export async function POST(request: Request) {
     // Forward sanitized payload with Authorization header to FastAPI backend
     const response = await fetch(`${BACKEND_URL}/api/v1/trips`, {
       method: "POST",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify(validation.data),
     });
 
@@ -83,7 +76,7 @@ export async function GET(request: Request) {
 
     const response = await fetch(`${BACKEND_URL}/api/v1/trips?status=${encodeURIComponent(statusParam)}`, {
       method: "GET",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
     });
 
     const rawText = await response.text();

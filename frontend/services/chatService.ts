@@ -3,8 +3,6 @@
  * Manages conversation threads, message exchanges, title renames, and deletion.
  */
 
-import { getAuthToken } from "./authService";
-
 export interface ChatMessage {
   id: number;
   conversation_id: number;
@@ -30,14 +28,9 @@ export interface ConversationDetail {
 }
 
 function getHeaders(): HeadersInit {
-  const token = getAuthToken();
-  const headers: Record<string, string> = {
+  return {
     "Content-Type": "application/json",
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
 }
 
 /**

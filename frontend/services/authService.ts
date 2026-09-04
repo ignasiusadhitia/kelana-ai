@@ -1,42 +1,39 @@
 /**
  * SERVICE LAYER: Centralized Client Authentication & Session Management.
- * Manages JWT storage (localStorage + Http/Lax cookies), user registration,
- * credential verification, profile updates, and logout flows.
+ * Manages user registration, credential verification, profile updates,
+ * and HttpOnly cookie-based session management.
+ *
+ * Security: Authentication tokens are stored securely in HttpOnly cookies
+ * set by the Next.js BFF layer. Client JavaScript never touches raw JWTs,
+ * preventing Cross-Site Scripting (XSS) token theft.
  */
 
 import { AuthResponse, LoginCredentials, RegisterCredentials, UserProfile, User } from "@/types/auth";
 
-const TOKEN_KEY = "kelana_auth_token";
-
 /**
- * Retrieves stored JWT token from client storage.
+ * Backward compatibility stub: session tokens are stored in HttpOnly cookies.
  */
 export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return null;
 }
 
 /**
- * Persists JWT token into localStorage and cookies for client/server sync.
+ * Backward compatibility stub.
  */
-export function setAuthToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
-  // Set cookie for 7 days
-  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+export function setAuthToken(_token: string): void {
+  // No-op: tokens are managed via HttpOnly cookies set by server
 }
 
 /**
- * Removes JWT token from client storage and clears cookie.
+ * Backward compatibility stub.
  */
 export function removeAuthToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
-  document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  // No-op: cookie removal is handled via /api/v1/auth/logout
 }
 
 /**
  * Authenticates user via Next.js proxy route /api/v1/auth/login.
+ * The server automatically sets the HttpOnly `kelana_token` session cookie.
  */
 export async function loginUser(credentials: LoginCredentials): Promise<AuthResponse> {
   const response = await fetch("/api/v1/auth/login", {
@@ -53,7 +50,6 @@ export async function loginUser(credentials: LoginCredentials): Promise<AuthResp
   }
 
   const data: AuthResponse = await response.json();
-  setAuthToken(data.access_token);
   return data;
 }
 
@@ -75,24 +71,34 @@ export async function registerUser(credentials: RegisterCredentials): Promise<Au
   }
 
   const data: AuthResponse = await response.json();
-  setAuthToken(data.access_token);
   return data;
 }
 
 /**
+ * Logs out user by requesting the BFF server to clear the HttpOnly session cookie.
+ */
+export async function logoutUser(): Promise<void> {
+  try {
+    await fetch("/api/v1/auth/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    console.warn("Error during logout request:", error);
+  }
+}
+
+/**
  * Fetches current authenticated user profile and travel activity analytics.
+ * The browser automatically passes the HttpOnly `kelana_token` cookie.
  */
 export async function getCurrentUser(): Promise<UserProfile> {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error("No authentication token found.");
-  }
-
   const response = await fetch("/api/v1/auth/me", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -111,16 +117,10 @@ export async function updateUserProfile(data: {
   name?: string;
   default_travel_style?: string;
 }): Promise<User> {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error("No authentication token found.");
-  }
-
   const response = await fetch("/api/v1/auth/profile", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -140,16 +140,10 @@ export async function changeUserPassword(data: {
   current_password: string;
   new_password: string;
 }): Promise<{ message: string }> {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error("No authentication token found.");
-  }
-
   const response = await fetch("/api/v1/auth/password", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -163,19 +157,13 @@ export async function changeUserPassword(data: {
 }
 
 /**
- * Permanently deletes authenticated user account and clears local credentials.
+ * Permanently deletes authenticated user account and clears server session cookie.
  */
 export async function deleteUserAccount(): Promise<{ message: string }> {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error("No authentication token found.");
-  }
-
   const response = await fetch("/api/v1/auth/account", {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -184,6 +172,5 @@ export async function deleteUserAccount(): Promise<{ message: string }> {
     throw new Error(err.detail || "Failed to delete account. Please try again.");
   }
 
-  removeAuthToken();
   return response.json();
 }

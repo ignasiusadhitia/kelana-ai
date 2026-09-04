@@ -16,8 +16,7 @@ function getInitialSavedTrips(): TripResponse[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
-  } catch (e) {
-    console.warn("Failed to load saved trips from localStorage:", e);
+  } catch {
     return [];
   }
 }
@@ -40,8 +39,8 @@ export function useTripGenerator() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
-    } catch (e) {
-      console.warn("Failed to persist trip:", e);
+    } catch {
+      // Storage unavailable or disabled
     }
   };
 

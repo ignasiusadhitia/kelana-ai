@@ -5,17 +5,11 @@
 
 import { TripRequest, TripResponse } from "@/types/trip";
 import { API_ENDPOINTS } from "@/constants/trip";
-import { getAuthToken } from "./authService";
 
 function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     "Content-Type": "application/json",
   };
-  const token = getAuthToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
 }
 
 /**

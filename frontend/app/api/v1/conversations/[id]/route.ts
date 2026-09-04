@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
-}
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,7 +16,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${id}`, {
       method: "GET",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
     });
 
     const data = await response.json().catch(() => ({}));
@@ -54,7 +47,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = await request.json().catch(() => ({}));
     const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${id}`, {
       method: "PATCH",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
       body: JSON.stringify(body),
     });
 
@@ -85,7 +78,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${id}`, {
       method: "DELETE",
-      headers: getForwardHeaders(request),
+      headers: getBffAuthHeaders(request),
     });
 
     if (!response.ok) {

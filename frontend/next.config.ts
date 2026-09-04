@@ -4,6 +4,13 @@ import type { NextConfig } from "next";
 // Enforces strict Content-Type sniffing prevention, clickjacking defense, and remote image domain lockdown.
 
 const nextConfig: NextConfig = {
+  productionBrowserSourceMaps: false,
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

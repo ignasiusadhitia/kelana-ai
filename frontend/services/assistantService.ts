@@ -4,8 +4,6 @@
  * grounded travel knowledge and official document citations.
  */
 
-import { getAuthToken } from "./authService";
-
 export interface SourceObject {
   document_id?: string;
   location?: {
@@ -43,17 +41,11 @@ export async function askAssistant(
   sessionId?: string,
   useRag: boolean = true
 ): Promise<AssistantResponse> {
-  const token = getAuthToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const response = await fetch("/api/v1/assistant", {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       question,
       session_id: sessionId || null,

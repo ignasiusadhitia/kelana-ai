@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Lock, LogIn, Loader2, ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Mail, Lock, LogIn, Loader2, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "@/components/Navbar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -26,6 +26,8 @@ function LoginFormContent() {
   const { login } = useAuth();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/trips";
+  const isRegistered = searchParams.get("registered") === "true";
+  const registeredEmail = searchParams.get("email") || "";
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +40,7 @@ function LoginFormContent() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: registeredEmail,
       password: "",
     },
     mode: "onTouched",
@@ -77,6 +79,14 @@ function LoginFormContent() {
             Sign in to access your saved itineraries and personalized travel history.
           </Typography>
         </div>
+
+        {/* Registration Success Banner */}
+        {isRegistered && !serverError && (
+          <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 text-xs text-emerald-300 animate-in fade-in duration-200">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>Account created successfully. Please enter your password to sign in.</span>
+          </div>
+        )}
 
         {/* Server Error Banner */}
         {serverError && (

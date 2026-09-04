@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
+import { getBffAuthHeaders } from "@/lib/bff-auth";
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-function getForwardHeaders(request: Request): HeadersInit {
-  const authHeader = request.headers.get("authorization");
-  return {
-    "Content-Type": "application/json",
-    ...(authHeader ? { Authorization: authHeader } : {}),
-  };
-}
+const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 interface RouteParams {
   params: Promise<{ id: string; messageId: string }>;
@@ -34,7 +27,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       `${BACKEND_URL}/api/v1/conversations/${id}/messages/${messageId}/edit`,
       {
         method: "POST",
-        headers: getForwardHeaders(request),
+        headers: getBffAuthHeaders(request),
         body: JSON.stringify(body),
       }
     );
