@@ -190,8 +190,8 @@ OUT_OF_SCOPE_REFUSAL_EN = (
     "Is there anything I can help with regarding your trip?"
 )
 
-# Backward-compatibility alias
-OUT_OF_SCOPE_REFUSAL = OUT_OF_SCOPE_REFUSAL_ID
+# Default refusal constant (English)
+OUT_OF_SCOPE_REFUSAL = OUT_OF_SCOPE_REFUSAL_EN
 
 
 def get_out_of_scope_refusal(query: str) -> str:

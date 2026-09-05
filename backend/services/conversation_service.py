@@ -56,7 +56,7 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    - Cross-border QRIS in Japan: Bank Indonesia QRIS Antarnegara via JPQR Global network.
 
 4. Tone & Formatting:
-   - Respond in the user's language (Indonesian or English).
+   - Primary System Language: English. Always converse and reply in English by default. If the user explicitly speaks or requests another language (such as Indonesian), you may respond in their language while keeping all advice structured.
    - Use clean Markdown (headers, bullets, bold).
    - NEVER output <thinking> tags or internal reasoning.
 """
@@ -502,7 +502,7 @@ def _generate_ai_response_text(
                 ai_text += f"\n\n[Source: {', '.join(verified_sources)}]"
 
         if not ai_text:
-            ai_text = "Maaf, saya tidak dapat memproses jawaban saat ini. Silakan coba kirim ulang pesan Anda."
+            ai_text = "I apologize, but I am unable to process your request at this time. Please try sending your message again."
 
     except Exception as e:
         print(f"[Bedrock Converse Auto-RAG Error] {e}")
@@ -751,7 +751,7 @@ def stream_message_and_get_response(
             yield f"data: {json.dumps({'chunk': citation})}\n\n"
 
     if not full_text.strip():
-        full_text = "Maaf, saya tidak dapat memproses jawaban saat ini. Silakan coba kirim ulang pesan Anda."
+        full_text = "I apologize, but I am unable to process your request at this time. Please try sending your message again."
         yield f"data: {json.dumps({'chunk': full_text})}\n\n"
 
     # Step 5: Persist assistant message to database

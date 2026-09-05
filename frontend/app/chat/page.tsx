@@ -609,20 +609,20 @@ function ChatContent() {
   const suggestedPrompts = currentTripDestination
     ? [
         {
-          label: `Bea Cukai dari ${currentTripDestination}`,
-          prompt: `Apa saja aturan bea cukai Indonesia yang perlu saya ketahui untuk oleh-oleh dari ${currentTripDestination}?`,
+          label: `Customs Rules for ${currentTripDestination}`,
+          prompt: `What are the customs regulations and duty-free limits I should know when returning from ${currentTripDestination}?`,
         },
         {
-          label: "Kuliner Halal di Rute",
-          prompt: `Rekomendasikan tempat makan halal yang bisa saya kunjungi di sekitar rute ${currentTripDestination}.`,
+          label: `Halal Dining in ${currentTripDestination}`,
+          prompt: `Can you recommend verified halal-friendly dining spots along my itinerary in ${currentTripDestination}?`,
         },
         {
-          label: "Pembayaran QRIS",
-          prompt: `Apakah saya bisa menggunakan QRIS Indonesia untuk berbelanja di ${currentTripDestination}?`,
+          label: `Payment Methods in ${currentTripDestination}`,
+          prompt: `What are the best payment methods, transit cards, and cross-border QRIS options in ${currentTripDestination}?`,
         },
         {
-          label: "Revisi Rute Perjalanan",
-          prompt: `Bantu saya mengatur ulang rencana perjalanan agar lebih santai dan efisien berdasarkan itinerary saya.`,
+          label: "Refine Itinerary Schedule",
+          prompt: `Help me adjust and optimize this itinerary schedule to be more relaxed and well-paced.`,
         },
       ]
     : SUGGESTED_PROMPTS;
