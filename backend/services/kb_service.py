@@ -60,9 +60,12 @@ def retrieve_passages(
 
     if min_score is None:
         try:
-            min_score = float(os.getenv("RAG_SEMANTIC_THRESHOLD", "0.735"))
+            min_score = float(os.getenv("RAG_SEMANTIC_THRESHOLD", "0.35"))
+            # Cap threshold to at most 0.38 so full-sentence travel guides & itinerary prompts match reliably
+            if min_score > 0.40:
+                min_score = 0.35
         except ValueError:
-            min_score = 0.735
+            min_score = 0.35
 
     client = get_kb_client()
     try:
@@ -84,6 +87,18 @@ def retrieve_passages(
                     "content": content,   # Raw document excerpt
                     "score": score,
                 })
+
+        # Destination alignment: if user query explicitly mentions a destination,
+        # filter out documents from conflicting unmentioned destinations
+        known_destinations = ["tokyo", "osaka", "kyoto", "singapore", "bali", "korea", "seoul"]
+        q_lower = sanitized_q.lower()
+        mentioned_destinations = [d for d in known_destinations if d in q_lower]
+        if mentioned_destinations:
+            has_matching = any(any(d in r["source"].lower() for d in mentioned_destinations) for r in results)
+            if has_matching:
+                unmentioned = [d for d in known_destinations if d not in mentioned_destinations]
+                results = [r for r in results if not any(d in r["source"].lower() for d in unmentioned)]
+
         return results[:top_k]
     except Exception as e:
         print(f"[KB retrieve_passages Warning] S3 Knowledge Base retrieval failed: {e}. Gracefully returning empty passages.")

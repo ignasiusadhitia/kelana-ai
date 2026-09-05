@@ -155,7 +155,7 @@ KNOWLEDGE_BASE_ID=your_knowledge_base_id
 KNOWLEDGE_BASE_MODEL_ARN=arn:aws:bedrock:ap-southeast-2::foundation-model/amazon.nova-lite-v1:0
 JWT_SECRET_KEY=your_random_64_char_secret_key
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
-RAG_SEMANTIC_THRESHOLD=0.735
+RAG_SEMANTIC_THRESHOLD=0.35
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
