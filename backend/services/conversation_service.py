@@ -939,20 +939,25 @@ def regenerate_latest_response(
         )
 
     latest_msg = history_messages[-1]
-    if latest_msg.role != "assistant":
+    if latest_msg.role == "assistant":
+        effective_history = history_messages[:-1]
+        if not effective_history or effective_history[-1].role != "user":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot regenerate: no preceding user prompt found."
+            )
+        user_prompt_msg = effective_history[-1]
+        delete_target = latest_msg
+    elif latest_msg.role == "user":
+        user_prompt_msg = latest_msg
+        effective_history = history_messages
+        delete_target = None
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot regenerate: latest message is not an assistant response."
+            detail="Cannot regenerate: unrecognized message role."
         )
 
-    effective_history = history_messages[:-1]
-    if not effective_history or effective_history[-1].role != "user":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot regenerate: no preceding user prompt found."
-        )
-
-    user_prompt_msg = effective_history[-1]
     sanitized_text, is_suspicious = sanitize_user_input(user_prompt_msg.content)
 
     # LLM-first: generate reply before modifying DB rows
@@ -964,8 +969,9 @@ def regenerate_latest_response(
         is_suspicious=is_suspicious
     )
 
-    # Atomic replace: remove old assistant turn, insert fresh one
-    db.delete(latest_msg)
+    # Atomic replace / append: remove old assistant turn if present, insert fresh one
+    if delete_target is not None:
+        db.delete(delete_target)
     new_ai_msg = Message(
         conversation_id=conversation.id,
         role="assistant",

@@ -49,6 +49,8 @@ import {
   X,
   Copy,
   RotateCw,
+  RotateCcw,
+  AlertCircle,
   Loader2,
   Lock,
   LogIn,
@@ -119,6 +121,19 @@ function parseMessageContentAndSources(rawContent: string): { text: string; sour
     .trim();
 
   return { text: cleanText || rawContent, sources };
+}
+
+function isFailedMessage(msg: ChatMessage): boolean {
+  if (msg.role !== "assistant") return false;
+  if (msg.is_error) return true;
+  const text = (msg.content || "").trim();
+  const lower = text.toLowerCase();
+  return (
+    lower.startsWith("sorry, i encountered an issue") ||
+    lower.startsWith("failed to stream message") ||
+    lower.startsWith("i apologize, but i encountered an issue") ||
+    lower.includes("failed to stream message")
+  );
 }
 
 function ChatContent() {
@@ -547,6 +562,18 @@ function ChatContent() {
 
     setIsRegenerating(true);
     setIsSending(true);
+
+    // Optimistically remove any trailing error/empty assistant message so the
+    // ThinkingMessageSkeleton renders cleanly in its place
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      if (last.role === "assistant" && (isFailedMessage(last) || !last.content)) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+
     try {
       const updated = await regenerateResponse(activeConversationId);
       setMessages(updated.messages || []);
@@ -569,6 +596,15 @@ function ChatContent() {
         { title: "Regeneration Failed" }
       );
       console.error("Failed to regenerate response:", err);
+      // Re-fetch messages from server to restore correct state
+      try {
+        const detail = await import("@/services/chatService").then((m) =>
+          m.getConversation(activeConversationId!)
+        );
+        if (detail?.messages) setMessages(detail.messages);
+      } catch {
+        // ignore secondary failure
+      }
     } finally {
       setIsRegenerating(false);
       setIsSending(false);
@@ -783,7 +819,7 @@ function ChatContent() {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempAiMsgId
-              ? { ...m, content: `Sorry, I encountered an issue: ${errorMsg}` }
+              ? { ...m, content: `Sorry, I encountered an issue: ${errorMsg}`, is_error: true }
               : m
           )
         );
@@ -1302,6 +1338,7 @@ function ChatContent() {
                     const { text: cleanText, sources } = isUser
                       ? { text: msg.content, sources: [] }
                       : parseMessageContentAndSources(msg.content);
+                    const isFailed = isFailedMessage(msg);
 
                     const prevMsg = idx > 0 ? messages[idx - 1] : null;
                     const showDateDivider =
@@ -1387,53 +1424,80 @@ function ChatContent() {
                               </div>
                             ) : (
                               <>
-                                {/* Message content bubble */}
-                                <div
-                                  className={`group/bubble relative rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-md ${
-                                    isUser
-                                      ? "bg-blue-600 text-white rounded-br-xs"
-                                      : "bg-zinc-950/75 border border-white/10 text-zinc-200 rounded-bl-xs"
-                                  }`}
-                                >
-                                  {isUser ? (
-                                    <p className="leading-relaxed whitespace-pre-wrap">{cleanText}</p>
-                                  ) : (
-                                    <div className="prose prose-invert prose-xs sm:prose-sm max-w-none break-words">
-                                      <MarkdownRenderer content={cleanText} />
-                                    </div>
-                                  )}
-
-                                  {/* User message hover actions: Copy & Edit */}
-                                  {isUser && !isSending && (
-                                    <div className="absolute -left-16 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                                      <Tooltip content="Copy" side="top">
+                                {/* --- Error card (failed stream) --- */}
+                                {isFailed ? (
+                                  <div className="rounded-2xl rounded-bl-xs px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-md bg-red-950/40 border border-red-500/25 text-red-300 max-w-xs">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                                      <div className="space-y-2">
+                                        <p className="text-[11px] sm:text-xs leading-relaxed">
+                                          Something went wrong — the response could not be generated.
+                                        </p>
                                         <button
                                           type="button"
-                                          onClick={() => handleCopyMessage(msg.id, cleanText)}
-                                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
+                                          onClick={handleRegenerateResponse}
+                                          disabled={isSending || isRegenerating}
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-red-500/20 hover:bg-red-500/35 border border-red-500/30 text-red-300 hover:text-red-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                          {isCopied ? (
-                                            <Check className="w-3 h-3 text-emerald-400" />
+                                          {isRegenerating ? (
+                                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
                                           ) : (
-                                            <Copy className="w-3 h-3" />
+                                            <RotateCcw className="w-2.5 h-2.5" />
                                           )}
+                                          Try Again
                                         </button>
-                                      </Tooltip>
-                                      <Tooltip content="Edit" side="top">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleStartEditMessage(msg)}
-                                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
-                                        >
-                                          <Edit2 className="w-3 h-3" />
-                                        </button>
-                                      </Tooltip>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
+                                  </div>
+                                ) : (
+                                  /* --- Normal message content bubble --- */
+                                  <div
+                                    className={`group/bubble relative rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-md ${
+                                      isUser
+                                        ? "bg-blue-600 text-white rounded-br-xs"
+                                        : "bg-zinc-950/75 border border-white/10 text-zinc-200 rounded-bl-xs"
+                                    }`}
+                                  >
+                                    {isUser ? (
+                                      <p className="leading-relaxed whitespace-pre-wrap">{cleanText}</p>
+                                    ) : (
+                                      <div className="prose prose-invert prose-xs sm:prose-sm max-w-none break-words">
+                                        <MarkdownRenderer content={cleanText} />
+                                      </div>
+                                    )}
 
-                                {/* Source citation badge */}
-                                {!isUser && sources.length > 0 && (
+                                    {/* User message hover actions: Copy & Edit */}
+                                    {isUser && !isSending && (
+                                      <div className="absolute -left-16 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                                        <Tooltip content="Copy" side="top">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCopyMessage(msg.id, cleanText)}
+                                            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
+                                          >
+                                            {isCopied ? (
+                                              <Check className="w-3 h-3 text-emerald-400" />
+                                            ) : (
+                                              <Copy className="w-3 h-3" />
+                                            )}
+                                          </button>
+                                        </Tooltip>
+                                        <Tooltip content="Edit" side="top">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEditMessage(msg)}
+                                            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                          </button>
+                                        </Tooltip>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Source citation badge — only for normal AI messages */}
+                                {!isUser && !isFailed && sources.length > 0 && (
                                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-zinc-400">
                                     <FileText className="w-3 h-3 text-blue-400 shrink-0" />
                                     <span>{sources.length > 1 ? "Sources:" : "Source:"}</span>
@@ -1448,143 +1512,145 @@ function ChatContent() {
                                   </div>
                                 )}
 
-                                {/* Bottom action row: timestamp + Copy + (Regenerate on last AI turn) */}
-                                <div className={`mt-1 flex items-center gap-1.5 px-1 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-                                  <Tooltip content={formatFullDateTooltip(msg.created_at)} side="top">
-                                    <span className="text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1 cursor-default select-none">
-                                      <Clock className="w-2.5 h-2.5" />
-                                      {formatTimestamp(msg.created_at)}
-                                    </span>
-                                  </Tooltip>
+                                {/* Bottom action row: timestamp + Copy + Regenerate — hidden for error messages */}
+                                {!isFailed && (
+                                  <div className={`mt-1 flex items-center gap-1.5 px-1 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                                    <Tooltip content={formatFullDateTooltip(msg.created_at)} side="top">
+                                      <span className="text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1 cursor-default select-none">
+                                        <Clock className="w-2.5 h-2.5" />
+                                        {formatTimestamp(msg.created_at)}
+                                      </span>
+                                    </Tooltip>
 
-                                  {/* Copy button — all messages, mobile-always-visible, desktop-fade-in on hover */}
-                                  <Tooltip content={isCopied ? "Copied!" : "Copy message"} side="top">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopyMessage(msg.id, cleanText)}
-                                      aria-label="Copy message"
-                                      className={`p-1 rounded-md transition-all ${
-                                        isCopied
-                                          ? "text-emerald-400 opacity-100"
-                                          : "text-zinc-500 hover:text-zinc-200 hover:bg-white/10 sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
-                                      }`}
-                                    >
-                                      {isCopied ? (
-                                        <Check className="w-2.5 h-2.5 text-emerald-400" />
-                                      ) : (
-                                        <Copy className="w-2.5 h-2.5" />
-                                      )}
-                                    </button>
-                                  </Tooltip>
-
-                                  {/* Edit button for user messages on mobile */}
-                                  {isUser && (
-                                    <Tooltip content="Edit" side="top">
+                                    {/* Copy button — all non-error messages */}
+                                    <Tooltip content={isCopied ? "Copied!" : "Copy message"} side="top">
                                       <button
                                         type="button"
-                                        onClick={() => handleStartEditMessage(msg)}
-                                        disabled={isSending}
-                                        className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors sm:hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                                        onClick={() => handleCopyMessage(msg.id, cleanText)}
+                                        aria-label="Copy message"
+                                        className={`p-1 rounded-md transition-all ${
+                                          isCopied
+                                            ? "text-emerald-400 opacity-100"
+                                            : "text-zinc-500 hover:text-zinc-200 hover:bg-white/10 sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
+                                        }`}
                                       >
-                                        <Edit2 className="w-2.5 h-2.5" />
+                                        {isCopied ? (
+                                          <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-2.5 h-2.5" />
+                                        )}
                                       </button>
                                     </Tooltip>
-                                  )}
 
-                                  {/* Regenerate — latest assistant turn only */}
-                                  {!isUser && isLastMessage && (
-                                    <Tooltip content="Regenerate response" side="top">
-                                      <button
-                                        type="button"
-                                        onClick={handleRegenerateResponse}
-                                        disabled={isSending || isRegenerating}
-                                        className="p-1 rounded-md text-zinc-500 hover:text-blue-400 hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
-                                      >
-                                        <RotateCw className={`w-2.5 h-2.5 ${isRegenerating ? "animate-spin text-blue-400" : ""}`} />
-                                      </button>
-                                    </Tooltip>
-                                  )}
-
-                                  {/* Save as Trip button for assistant messages containing itineraries */}
-                                  {!isUser &&
-                                    (cleanText.includes("Day 1") ||
-                                      cleanText.includes("## Day") ||
-                                      cleanText.toLowerCase().includes("itinerary") ||
-                                      cleanText.toLowerCase().includes("jadwal") ||
-                                      cleanText.toLowerCase().includes("hari 1")) && (
-                                    savedMessageIds.has(msg.id) ? (
-                                      <Tooltip
-                                        content={
-                                          currentTripId
-                                            ? "Applied to linked Blueprint (Click to view)"
-                                            : "Already saved to My Trips (Click to view)"
-                                        }
-                                        side="top"
-                                      >
+                                    {/* Edit button for user messages on mobile */}
+                                    {isUser && (
+                                      <Tooltip content="Edit" side="top">
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            router.push(currentTripId ? `/trips/${currentTripId}` : "/trips")
+                                          onClick={() => handleStartEditMessage(msg)}
+                                          disabled={isSending}
+                                          className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors sm:hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Edit2 className="w-2.5 h-2.5" />
+                                        </button>
+                                      </Tooltip>
+                                    )}
+
+                                    {/* Regenerate — latest assistant turn only (non-error) */}
+                                    {!isUser && isLastMessage && (
+                                      <Tooltip content="Regenerate response" side="top">
+                                        <button
+                                          type="button"
+                                          onClick={handleRegenerateResponse}
+                                          disabled={isSending || isRegenerating}
+                                          className="p-1 rounded-md text-zinc-500 hover:text-blue-400 hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
+                                        >
+                                          <RotateCw className={`w-2.5 h-2.5 ${isRegenerating ? "animate-spin text-blue-400" : ""}`} />
+                                        </button>
+                                      </Tooltip>
+                                    )}
+
+                                    {/* Save as Trip button — only for normal AI messages with itinerary content */}
+                                    {!isUser &&
+                                      (cleanText.includes("Day 1") ||
+                                        cleanText.includes("## Day") ||
+                                        cleanText.toLowerCase().includes("itinerary") ||
+                                        cleanText.toLowerCase().includes("jadwal") ||
+                                        cleanText.toLowerCase().includes("hari 1")) && (
+                                      savedMessageIds.has(msg.id) ? (
+                                        <Tooltip
+                                          content={
+                                            currentTripId
+                                              ? "Applied to linked Blueprint (Click to view)"
+                                              : "Already saved to My Trips (Click to view)"
                                           }
-                                          className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-blue-300 hover:text-blue-200 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all active:scale-95 ml-1"
+                                          side="top"
                                         >
-                                          <BookmarkCheck className="w-2.5 h-2.5 text-blue-400" />
-                                          <span className="hidden sm:inline">Saved</span>
-                                        </button>
-                                      </Tooltip>
-                                    ) : currentTripId ? (
-                                      /* Kasus A: Linked Chat -> Apply to Blueprint */
-                                      <Tooltip
-                                        content={
-                                          /(?:^|\n)##\s+Day/i.test(cleanText) ||
-                                          /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
-                                            ? "Apply this itinerary update to your linked Blueprint"
-                                            : "Apply to Blueprint (Note: message doesn't have standard ## Day headings)"
-                                        }
-                                        side="top"
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={() => handleApplyToBlueprint(cleanText, msg.id)}
-                                          disabled={applyingBlueprintMessageId === msg.id}
-                                          className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 transition-all active:scale-95 ml-1 disabled:opacity-50"
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              router.push(currentTripId ? `/trips/${currentTripId}` : "/trips")
+                                            }
+                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-blue-300 hover:text-blue-200 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all active:scale-95 ml-1"
+                                          >
+                                            <BookmarkCheck className="w-2.5 h-2.5 text-blue-400" />
+                                            <span className="hidden sm:inline">Saved</span>
+                                          </button>
+                                        </Tooltip>
+                                      ) : currentTripId ? (
+                                        /* Kasus A: Linked Chat -> Apply to Blueprint */
+                                        <Tooltip
+                                          content={
+                                            /(?:^|\n)##\s+Day/i.test(cleanText) ||
+                                            /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
+                                              ? "Apply this itinerary update to your linked Blueprint"
+                                              : "Apply to Blueprint (Note: message doesn't have standard ## Day headings)"
+                                          }
+                                          side="top"
                                         >
-                                          {applyingBlueprintMessageId === msg.id ? (
-                                            <>
-                                              <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
-                                              <span className="hidden sm:inline">Applying...</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Sparkles className="w-2.5 h-2.5" />
-                                              <span className="hidden sm:inline">Apply to Blueprint</span>
-                                            </>
-                                          )}
-                                        </button>
-                                      </Tooltip>
-                                    ) : (
-                                      /* Kasus B: Standalone Chat -> Save as Official Trip */
-                                      <Tooltip
-                                        content={
-                                          /(?:^|\n)##\s+Day/i.test(cleanText) ||
-                                          /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
-                                            ? "Save this itinerary as an official Trip Blueprint"
-                                            : "Save as official Trip (Day-by-Day formatting recommended)"
-                                        }
-                                        side="top"
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenSaveTrip(cleanText, msg.id)}
-                                          className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all active:scale-95 ml-1"
+                                          <button
+                                            type="button"
+                                            onClick={() => handleApplyToBlueprint(cleanText, msg.id)}
+                                            disabled={applyingBlueprintMessageId === msg.id}
+                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 transition-all active:scale-95 ml-1 disabled:opacity-50"
+                                          >
+                                            {applyingBlueprintMessageId === msg.id ? (
+                                              <>
+                                                <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                                                <span className="hidden sm:inline">Applying...</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Sparkles className="w-2.5 h-2.5" />
+                                                <span className="hidden sm:inline">Apply to Blueprint</span>
+                                              </>
+                                            )}
+                                          </button>
+                                        </Tooltip>
+                                      ) : (
+                                        /* Kasus B: Standalone Chat -> Save as Official Trip */
+                                        <Tooltip
+                                          content={
+                                            /(?:^|\n)##\s+Day/i.test(cleanText) ||
+                                            /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
+                                              ? "Save this itinerary as an official Trip Blueprint"
+                                              : "Save as official Trip (Day-by-Day formatting recommended)"
+                                          }
+                                          side="top"
                                         >
-                                          <BookmarkPlus className="w-2.5 h-2.5" />
-                                          <span className="hidden sm:inline">Save as Official Trip</span>
-                                        </button>
-                                      </Tooltip>
-                                    )
-                                  )}
-                                </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenSaveTrip(cleanText, msg.id)}
+                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all active:scale-95 ml-1"
+                                          >
+                                            <BookmarkPlus className="w-2.5 h-2.5" />
+                                            <span className="hidden sm:inline">Save as Official Trip</span>
+                                          </button>
+                                        </Tooltip>
+                                      )
+                                    )}
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
@@ -1600,7 +1666,12 @@ function ChatContent() {
                   })
                 )}
 
-                {isSending && !isRegenerating && messages.length > 0 && !messages[messages.length - 1].content && (
+                {isSending && (
+                  // Show ThinkingMessageSkeleton:
+                  // - When a new message is sending and the AI bubble is empty (streaming not started)
+                  // - When regenerating (the failed bubble has been removed optimistically)
+                  (isRegenerating || (!messages[messages.length - 1]?.content)) && messages.length > 0
+                ) && (
                   <ThinkingMessageSkeleton />
                 )}
 

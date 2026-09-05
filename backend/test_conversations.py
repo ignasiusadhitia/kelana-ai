@@ -282,6 +282,39 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertEqual(msgs[0].content, "Kuliner khas Jogja")
         self.assertEqual(msgs[1].role, "assistant")
         self.assertIn("Jawaban alternatif", msgs[1].content)
+
+    @patch("services.conversation_service.get_bedrock_client")
+    def test_regenerate_latest_response_when_stream_failed_with_user_turn_only(self, mock_bedrock_client):
+        mock_client = MagicMock()
+        mock_client.converse.return_value = {
+            "stopReason": "end_turn",
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"text": "Jawaban setelah recovery dari stream gagal!"}]
+                }
+            }
+        }
+        mock_bedrock_client.return_value = mock_client
+
+        conv = create_conversation(self.db, self.user.id, "Stream Failed Recovery Thread")
+        m1 = Message(conversation_id=conv.id, role="user", content="Rekomendasi hotel di Bali")
+        self.db.add(m1)
+        self.db.commit()
+
+        # Recovery scenario: latest message in DB is user turn because stream aborted before assistant reply
+        updated_conv = regenerate_latest_response(
+            db=self.db,
+            conversation_id=conv.id,
+            user_id=self.user.id
+        )
+
+        msgs = self.db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.id.asc()).all()
+        self.assertEqual(len(msgs), 2)
+        self.assertEqual(msgs[0].content, "Rekomendasi hotel di Bali")
+        self.assertEqual(msgs[1].role, "assistant")
+        self.assertIn("recovery dari stream gagal", msgs[1].content)
+
     @patch("services.conversation_service.get_bedrock_client")
     def test_llm_injection_defense(self, mock_bedrock_client):
         # Scenario 1: LLM classifier returns YES -> triggers security refusal immediately

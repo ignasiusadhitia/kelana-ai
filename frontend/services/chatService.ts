@@ -9,6 +9,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  is_error?: boolean;
 }
 
 export interface Conversation {
