@@ -200,6 +200,7 @@ function ChatContent() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSendingRef = useRef(false);
 
   // Scroll management: Anti-scroll hijacking & instant snap on conversation load
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -706,9 +707,10 @@ function ChatContent() {
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
-    if (!text || isSending || !isOnline) return;
+    if (!text || isSending || isSendingRef.current || !isOnline) return;
 
-    // Immediately lock UI and prevent any duplicate triggers
+    // Immediately lock UI synchronously and prevent any duplicate triggers
+    isSendingRef.current = true;
     setIsSending(true);
     setInput("");
     if (textareaRef.current) {
@@ -763,6 +765,7 @@ function ChatContent() {
         );
       } catch (err) {
         console.error("Failed to init conversation:", err);
+        isSendingRef.current = false;
         setIsSending(false);
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId && m.id !== tempAiMsgId));
         toast.error("Failed to start new conversation. Please try again.");
@@ -839,6 +842,7 @@ function ChatContent() {
         );
       }
     } finally {
+      isSendingRef.current = false;
       setIsSending(false);
     }
   };
@@ -1104,7 +1108,7 @@ function ChatContent() {
                           isActive
                             ? "bg-blue-600/15 border-blue-500/40 text-white shadow-sm cursor-pointer"
                             : isSending
-                            ? "bg-transparent border-transparent text-zinc-500 cursor-not-allowed opacity-60"
+                            ? "bg-transparent border-transparent text-zinc-500 cursor-not-allowed opacity-60 pointer-events-none"
                             : "bg-transparent border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200 cursor-pointer"
                         }`}
                       >
@@ -1254,14 +1258,18 @@ function ChatContent() {
                   {/* Mobile Quick Wayfinding (Exit chat to Planner or Trips) */}
                   <Link
                     href="/"
-                    className="flex sm:hidden items-center justify-center p-1.5 rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 hover:text-white transition-all active:scale-95"
+                    className={`flex sm:hidden items-center justify-center p-1.5 rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 hover:text-white transition-all active:scale-95 ${
+                      isSending ? "pointer-events-none opacity-40 cursor-not-allowed" : ""
+                    }`}
                     title="Back to Trip Planner"
                   >
                     <Compass className="w-3.5 h-3.5 text-blue-400" />
                   </Link>
                   <Link
                     href="/trips"
-                    className="flex sm:hidden items-center justify-center p-1.5 rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 hover:text-white transition-all active:scale-95"
+                    className={`flex sm:hidden items-center justify-center p-1.5 rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 hover:text-white transition-all active:scale-95 ${
+                      isSending ? "pointer-events-none opacity-40 cursor-not-allowed" : ""
+                    }`}
                     title="My Trips"
                   >
                     <Map className="w-3.5 h-3.5 text-emerald-400" />
@@ -1328,7 +1336,7 @@ function ChatContent() {
                           type="button"
                           onClick={() => handleSendMessage(item.prompt)}
                           disabled={isSending}
-                          className="text-left text-xs text-zinc-300 bg-zinc-950/60 hover:bg-blue-600/20 hover:text-blue-200 hover:border-blue-500/40 border border-white/10 rounded-xl p-2.5 transition-all flex items-center justify-between group shadow-sm active:scale-98"
+                          className="text-left text-xs text-zinc-300 bg-zinc-950/60 hover:bg-blue-600/20 hover:text-blue-200 hover:border-blue-500/40 border border-white/10 rounded-xl p-2.5 transition-all flex items-center justify-between group shadow-sm active:scale-98 disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed"
                         >
                           <div className="min-w-0 pr-2">
                             <span className="font-semibold text-white block text-[11px] group-hover:text-blue-300 truncate">
