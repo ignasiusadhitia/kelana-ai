@@ -49,3 +49,24 @@ export function formatBudget(amount: number | string): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+/**
+ * Strips chat assistant pleasantries/greetings (e.g. "Absolutely! Here's a revised 5-day itinerary...")
+ * preceding the structured itinerary sections (e.g. ## Day 1 or **Day 1**), preventing conversational
+ * chitchat from polluting formal trip blueprints.
+ */
+export function stripConversationalPreamble(text: string): string {
+  if (!text) return "";
+  const match = text.match(/(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+)/i);
+  if (match && match.index !== undefined && match.index > 0) {
+    const preamble = text.slice(0, match.index).trim();
+    const isPreambleGreeting =
+      /^(?:absolutely|sure|certainly|of course|here(?:'s| is)|i(?:'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut)\b/i.test(preamble) ||
+      (preamble.length < 350 && !preamble.includes("\n-") && !preamble.includes("\n*") && !preamble.includes("\n1."));
+    if (isPreambleGreeting) {
+      return text.slice(match.index).trim();
+    }
+  }
+  return text.trim();
+}
+

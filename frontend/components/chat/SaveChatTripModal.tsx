@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { createTripService } from "@/services/tripService";
 import { TRAVEL_STYLE_OPTIONS } from "@/constants/trip";
 import { getTravelStyleIconComponent } from "@/lib/icons";
+import { stripConversationalPreamble } from "@/lib/utils";
 import { TripResponse } from "@/types/trip";
 
 /**
@@ -79,12 +80,13 @@ export function SaveChatTripModal({
 
     try {
       setIsSaving(true);
+      const cleanedItinerary = stripConversationalPreamble(rawItineraryText);
       const createdTrip = await createTripService({
         destination: destination.trim(),
         days: Number(days),
         budget: Number(budget),
         travel_style: travelStyle,
-        ai_recommendation: rawItineraryText,
+        ai_recommendation: cleanedItinerary,
       });
 
       toast.success(`Saved "${createdTrip.destination}" as Official Trip!`, {

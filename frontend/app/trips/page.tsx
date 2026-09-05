@@ -41,7 +41,7 @@ import { TripResponse } from "@/types/trip";
 
 import { TripFiltersToolbar, SortOption } from "@/components/trips/TripFiltersToolbar";
 import { TripPagination } from "@/components/trips/TripPagination";
-import { TripSkeletonGrid } from "@/components/trips/TripSkeletonGrid";
+import { TripSkeletonGrid, TripCardSkeleton } from "@/components/trips/TripSkeletonGrid";
 import { UnauthenticatedTripsPrompt } from "@/components/trips/UnauthenticatedTripsPrompt";
 
 // Lazy-load confirmation dialog
@@ -125,6 +125,14 @@ function TripsContent() {
   const isLoading = viewTab === "active" ? isActiveLoading : isTrashLoading;
   const isError = viewTab === "active" ? isActiveError : isTrashError;
   const currentError = viewTab === "active" ? activeError : trashError;
+
+  // Check if a newly created trip is currently being fetched/highlighted
+  const isNewTripLoading =
+    viewTab === "active" &&
+    Boolean(
+      highlightParam &&
+      !activeTrips.some((t) => String(t.id) === String(highlightParam))
+    );
 
   // Soft Delete Mutation (Move to Trash)
   const softDeleteMutation = useMutation({
@@ -415,7 +423,7 @@ function TripsContent() {
       )}
 
       {/* 6. Empty State (No trips at all in current tab) */}
-      {!isLoading && !isError && isAuthenticated && displayedTrips.length === 0 && (
+      {!isLoading && !isError && !isNewTripLoading && isAuthenticated && displayedTrips.length === 0 && (
         viewTab === "active" ? (
           <EmptyState
             title="No trips saved yet."
@@ -478,8 +486,9 @@ function TripsContent() {
       )}
 
       {/* 8. Trip Cards Grid */}
-      {!isLoading && !isError && paginatedTrips.length > 0 && (
+      {!isLoading && !isError && (paginatedTrips.length > 0 || isNewTripLoading) && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isNewTripLoading && <TripCardSkeleton isHighlighted={true} />}
           {paginatedTrips.map((trip) => (
             <TripCard
               key={trip.id}

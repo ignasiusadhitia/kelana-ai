@@ -42,10 +42,6 @@ export function TripHeader({
             {getTravelStyleIconComponent(trip.travel_style, { className: "w-3.5 h-3.5 text-blue-400" })}
             <span>{trip.travel_style || "Solo"}</span>
           </Badge>
-
-          <span className="text-xs text-zinc-500 font-mono">
-            Plan #{trip.id}
-          </span>
         </div>
 
         {/* Destination Headline */}

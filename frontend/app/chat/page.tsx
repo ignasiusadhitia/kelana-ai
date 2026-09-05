@@ -37,6 +37,7 @@ import {
   ChatMessage,
 } from "@/services/chatService";
 import { updateTripRecommendation } from "@/services/tripService";
+import { stripConversationalPreamble } from "@/lib/utils";
 import {
   Send,
   Bot,
@@ -657,7 +658,8 @@ function ChatContent() {
 
     try {
       setApplyingBlueprintMessageId(messageId);
-      await updateTripRecommendation(currentTripId, aiText);
+      const cleanedText = stripConversationalPreamble(aiText);
+      await updateTripRecommendation(currentTripId, cleanedText);
       setSavedMessageIds((prev) => {
         const next = new Set(prev).add(messageId);
         try {
@@ -706,19 +708,11 @@ function ChatContent() {
     const text = (textToSend || input).trim();
     if (!text || isSending || !isOnline) return;
 
-    let targetConvId = activeConversationId;
-
-    if (!targetConvId) {
-      try {
-        const newConv = await createConversation("New Conversation", currentTripId || undefined);
-        setConversations((prev) => [newConv, ...prev]);
-        targetConvId = newConv.id;
-        setActiveConversationId(newConv.id);
-        router.replace(`/chat?id=${newConv.id}`, { scroll: false });
-      } catch (err) {
-        console.error("Failed to init conversation:", err);
-        return;
-      }
+    // Immediately lock UI and prevent any duplicate triggers
+    setIsSending(true);
+    setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
 
     const tempUserMsgId =
@@ -730,9 +724,13 @@ function ChatContent() {
         ? `temp_${crypto.randomUUID()}`
         : `temp_${Date.now() + 1}`;
 
+    let targetConvId = activeConversationId;
+
+    // Immediately display user message and AI thinking skeleton.
+    // This instantly unmounts the empty state and suggestion cards!
     const tempUserMsg: ChatMessage = {
       id: tempUserMsgId,
-      conversation_id: targetConvId,
+      conversation_id: targetConvId || "temp_conv",
       role: "user",
       content: text,
       created_at: new Date().toISOString(),
@@ -740,13 +738,37 @@ function ChatContent() {
 
     const tempAiMsg: ChatMessage = {
       id: tempAiMsgId,
-      conversation_id: targetConvId,
+      conversation_id: targetConvId || "temp_conv",
       role: "assistant",
       content: "",
       created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, tempUserMsg, tempAiMsg]);
+    setIsAtBottom(true);
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+
+    if (!targetConvId) {
+      try {
+        const newConv = await createConversation("New Conversation", currentTripId || undefined);
+        setConversations((prev) => [newConv, ...prev]);
+        targetConvId = newConv.id;
+        setActiveConversationId(newConv.id);
+        router.replace(`/chat?id=${newConv.id}`, { scroll: false });
+        // Reconcile optimistic messages with real conversation ID
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.conversation_id === "temp_conv" ? { ...m, conversation_id: newConv.id } : m
+          )
+        );
+      } catch (err) {
+        console.error("Failed to init conversation:", err);
+        setIsSending(false);
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId && m.id !== tempAiMsgId));
+        toast.error("Failed to start new conversation. Please try again.");
+        return;
+      }
+    }
 
     // Optimistically reorder sidebar: bump target conversation to position 0 immediately
     setConversations((prev) => {
@@ -760,14 +782,6 @@ function ChatContent() {
       const rest = prev.filter((c) => String(c.id) !== String(targetConvId));
       return [target, ...rest];
     });
-
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-    setIsAtBottom(true);
-    requestAnimationFrame(() => scrollToBottom("smooth"));
-    setIsSending(true);
 
     let accumulatedText = "";
 
@@ -1255,9 +1269,10 @@ function ChatContent() {
 
                   <Button
                     onClick={handleNewConversation}
+                    disabled={isSending}
                     size="sm"
                     variant="outline"
-                    className="gap-1.5 h-7 px-2 sm:px-2.5 text-xs rounded-lg border-white/10 hover:bg-white/5 active:scale-95 shrink-0"
+                    className="gap-1.5 h-7 px-2 sm:px-2.5 text-xs rounded-lg border-white/10 hover:bg-white/5 active:scale-95 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">New Chat</span>

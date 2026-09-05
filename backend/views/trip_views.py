@@ -25,6 +25,7 @@ from services.bedrock_service import (
     generate_trip_recommendation,
 )
 
+import re
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from utils.rate_limiter import check_ai_rate_limit
@@ -36,6 +37,23 @@ from schemas.trip import TripRequest, TripResponse, UpdateTripRequest, GenerateT
 from database import get_db
 
 router = APIRouter(tags=["trips"])
+
+
+def _clean_itinerary_preamble(text: str) -> str:
+    """Strip chat assistant pleasantries (e.g. 'Absolutely! Here is...') before saving to blueprint."""
+    if not text:
+        return text
+    match = re.search(r'(?i)(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+)', text)
+    if match and match.start() > 0:
+        preamble = text[:match.start()].strip()
+        is_greeting = bool(re.match(
+            r'(?i)^(?:absolutely|sure|certainly|of course|here(?:\'s| is)|i(?:\'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut)\b',
+            preamble
+        )) or (len(preamble) < 350 and not any(line.strip().startswith(('-', '*', '1.')) for line in preamble.splitlines()))
+        if is_greeting:
+            return text[match.start():].strip()
+    return text.strip()
+
 
 
 # ------------------------------------------------------------------------------

@@ -182,11 +182,7 @@ export function TripCard({
           </Button>
         </div>
       ) : (
-        <div className="mt-4 sm:mt-5 pt-3 border-t border-border/50 flex items-center justify-between">
-          <Typography variant="muted" className="text-[10px] sm:text-[11px] text-zinc-500">
-            Plan #{trip.id}
-          </Typography>
-
+        <div className="mt-4 sm:mt-5 pt-3 border-t border-border/50 flex items-center justify-end">
           <Link
             href={`/trips/${trip.id}`}
             className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition-all group-hover:translate-x-1 group-hover:text-blue-400 active:scale-95"

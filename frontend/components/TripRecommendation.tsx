@@ -73,6 +73,24 @@ export function TripRecommendation({
       rawParts = rawText.split(conversationalDelimiter).filter((s) => s.trim().length > 0);
     }
 
+    // Filter out conversational assistant greeting preambles before the first day section
+    if (rawParts.length > 1) {
+      const firstPart = rawParts[0].trim();
+      const firstLine = firstPart.split("\n")[0].trim();
+      const isHeading = firstLine.startsWith("#");
+      const isDayMarker = /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+/i.test(firstLine);
+
+      if (!isHeading && !isDayMarker) {
+        const isConversationalPreamble =
+          /^(?:absolutely|sure|certainly|of course|here(?:'s| is)|i(?:'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut)\b/i.test(firstLine) ||
+          (firstPart.length < 350 && !firstPart.includes("\n-") && !firstPart.includes("\n*") && !firstPart.includes("\n1."));
+
+        if (isConversationalPreamble) {
+          rawParts.shift(); // Drop the conversational greeting so itinerary cleanly starts with Day 1
+        }
+      }
+    }
+
     if (rawParts.length <= 1) {
       return [
         {
@@ -93,14 +111,20 @@ export function TripRecommendation({
       const isHeading = firstLine.startsWith("#");
       const isBoldTitle = /^\*\*(?:Day|Hari)\s+\d+/i.test(firstLine);
 
-      let rawTitle = firstLine
-        .replace(/^#+\s*/, "")
-        .replace(/^\*\*(.*?)\*\*:?.*$/, "$1")
-        .replace(/^_(.*?)_:?.*$/, "$1")
-        .trim();
+      let rawTitle = "";
+      if (isHeading) {
+        rawTitle = firstLine.replace(/^#+\s*/, "").trim();
+      } else if (isBoldTitle) {
+        rawTitle = firstLine
+          .replace(/^\*\*(.*?)\*\*:?.*$/, "$1")
+          .replace(/^_(.*?)_:?.*$/, "$1")
+          .trim();
+      } else {
+        rawTitle = idx === 0 ? "Trip Overview" : `Section ${idx + 1}`;
+      }
 
       if (!rawTitle) {
-        rawTitle = idx === 0 ? "Overview" : `Section ${idx + 1}`;
+        rawTitle = idx === 0 ? "Trip Overview" : `Section ${idx + 1}`;
       }
 
       const body = (isHeading || isBoldTitle) ? lines.slice(1).join("\n").trim() : part.trim();
