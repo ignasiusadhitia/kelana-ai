@@ -8,7 +8,7 @@ Dokumen ini berisi kumpulan skenario uji komprehensif untuk menguji ketahanan, k
 
 Suite pengujian otomatis telah dijalankan langsung terhadap Amazon Bedrock Knowledge Base (`EW7EM5BPON`) dan database PostgreSQL melalui skrip:
 ```bash
-python test_stress_chat.py
+python stress_test_chat.py
 ```
 **Hasil: 12/12 Percakapan Lulus 100% (ALL 4 SUITES PASSED)**.
 
@@ -63,6 +63,6 @@ python test_stress_chat.py
 Untuk mengeksekusi skenario ini secara otomatis langsung ke server backend:
 ```bash
 cd backend
-.\.venv\Scripts\python.exe test_stress_chat.py
+.\.venv\Scripts\python.exe stress_test_chat.py
 ```
 Skrip ini akan memvalidasi respon karakter per karakter, memeriksa keberadaan tag sitasi, mengecek tag `<thinking>`, dan memastikan integritas data multi-turn di database.
