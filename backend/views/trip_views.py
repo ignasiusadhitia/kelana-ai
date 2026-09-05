@@ -73,6 +73,8 @@ def create_trip(
     """
     if not request.ai_recommendation:
         check_ai_rate_limit(http_request, current_user.id)
+    else:
+        request.ai_recommendation = _clean_itinerary_preamble(request.ai_recommendation)
     return create_trip_with_ai_db(db, request, current_user.id)
 
 
