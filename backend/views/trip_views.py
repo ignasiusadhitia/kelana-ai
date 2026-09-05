@@ -32,7 +32,7 @@ from utils.rate_limiter import check_ai_rate_limit
 from services.auth_deps import get_current_user
 from models.user import User
 from models.trip import Trip
-from schemas.trip import TripRequest, TripResponse, UpdateTripRequest, GenerateTripResponse
+from schemas.trip import TripRequest, TripResponse, UpdateTripRequest, GenerateTripResponse, UpdateTripRecommendationRequest
 from database import get_db
 
 router = APIRouter(tags=["trips"])
@@ -173,6 +173,25 @@ def permanent_delete_trip(
     trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "permanently delete this itinerary.")
     hard_delete_trip_db(db, trip)
     return {"message": f"Trip #{trip.public_id} permanently deleted.", "id": trip.public_id}
+
+
+@router.patch("/api/v1/trips/{trip_id}/recommendation", response_model=TripResponse)
+def update_trip_recommendation(
+    trip_id: str,
+    request: UpdateTripRecommendationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TripResponse:
+    """
+    Apply a new AI itinerary text to an existing trip Blueprint (Chat-to-Blueprint promotion).
+    - Verifies trip existence (404).
+    - Verifies ownership (403).
+    - Updates ONLY ai_recommendation — destination, days, budget, category, daily_budget,
+      and travel_style are intentionally left unchanged.
+    - Does NOT trigger any Bedrock AI generation.
+    """
+    trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "update this itinerary.")
+    return save_trip_ai_recommendation_db(db, trip, request.ai_recommendation)
 
 
 @router.post("/api/v1/trips/{trip_id}/generate", response_model=GenerateTripResponse)

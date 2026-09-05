@@ -109,5 +109,81 @@ class TestModel3Bridge(unittest.TestCase):
         clean_prompt = _inject_trip_context(self.conversation, self.db, BASE_SYSTEM_PROMPT)
         self.assertNotIn("### LINKED ACTIVE TRIP BLUEPRINT:", clean_prompt)
 
+    def test_base_system_prompt_has_itinerary_format_rule(self):
+        """Verify that BASE_SYSTEM_PROMPT contains Rule 5 enforcing ## Day X format."""
+        self.assertIn("ITINERARY FORMAT:", BASE_SYSTEM_PROMPT)
+        self.assertIn("## Day 1: [Thematic Title]", BASE_SYSTEM_PROMPT)
+        self.assertIn("## Essential Local Dishes & Where to Try Them", BASE_SYSTEM_PROMPT)
+        self.assertIn("NEVER use bold headers (**Day 1**)", BASE_SYSTEM_PROMPT)
+
+    def test_patch_recommendation_endpoint_success(self):
+        """Verify PATCH /api/v1/trips/{trip_id}/recommendation updates ai_recommendation only."""
+        from views.trip_views import update_trip_recommendation
+        from schemas.trip import UpdateTripRecommendationRequest
+
+        new_itinerary = "## Day 1: Arrive Kyoto\nExplore Gion\n\n## Day 2: Arashiyama\nBamboo Grove"
+        request = UpdateTripRecommendationRequest(ai_recommendation=new_itinerary)
+
+        updated = update_trip_recommendation(
+            trip_id=self.trip.public_id,
+            request=request,
+            current_user=self.user,
+            db=self.db
+        )
+
+        self.assertEqual(updated.ai_recommendation, new_itinerary)
+        self.assertEqual(updated.destination, "Kyoto, Japan")
+        self.assertEqual(updated.days, 5)
+        self.assertEqual(updated.budget, 2000.0)
+        self.assertEqual(updated.travel_style, "Family")
+
+    def test_patch_recommendation_forbidden_for_other_user(self):
+        """Verify PATCH /api/v1/trips/{trip_id}/recommendation returns 403 for unauthorized user."""
+        from views.trip_views import update_trip_recommendation
+        from schemas.trip import UpdateTripRecommendationRequest
+        from fastapi import HTTPException
+
+        other_user = User(
+            name="Impostor User",
+            email="impostor@example.com",
+            password_hash="fake_hash",
+            default_travel_style="Solo"
+        )
+        self.db.add(other_user)
+        self.db.commit()
+        self.db.refresh(other_user)
+
+        request = UpdateTripRecommendationRequest(ai_recommendation="Hacked itinerary")
+
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                update_trip_recommendation(
+                    trip_id=self.trip.public_id,
+                    request=request,
+                    current_user=other_user,
+                    db=self.db
+                )
+            self.assertEqual(ctx.exception.status_code, 403)
+        finally:
+            self.db.query(User).filter(User.id == other_user.id).delete()
+            self.db.commit()
+
+    def test_patch_recommendation_not_found(self):
+        """Verify PATCH /api/v1/trips/{trip_id}/recommendation returns 404 for nonexistent trip."""
+        from views.trip_views import update_trip_recommendation
+        from schemas.trip import UpdateTripRecommendationRequest
+        from fastapi import HTTPException
+
+        request = UpdateTripRecommendationRequest(ai_recommendation="Some text")
+
+        with self.assertRaises(HTTPException) as ctx:
+            update_trip_recommendation(
+                trip_id="trp_nonexistent999",
+                request=request,
+                current_user=self.user,
+                db=self.db
+            )
+        self.assertEqual(ctx.exception.status_code, 404)
+
 if __name__ == "__main__":
     unittest.main()

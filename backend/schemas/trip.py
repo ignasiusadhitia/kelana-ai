@@ -50,3 +50,7 @@ class GenerateTripResponse(BaseModel):
     recommendation  : str
 
     model_config = {"from_attributes": True, "populate_by_name": True}
+
+class UpdateTripRecommendationRequest(BaseModel):
+    """Request schema for updating only the AI recommendation text of an existing trip."""
+    ai_recommendation: str = Field(min_length=1, description="New AI-generated itinerary text to apply to the Blueprint.")

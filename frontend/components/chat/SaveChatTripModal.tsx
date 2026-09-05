@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Compass, MapPin, Calendar, CircleDollarSign, Sparkles, X, Loader2 } from "lucide-react";
+import { Compass, MapPin, Calendar, CircleDollarSign, Sparkles, X, Loader2, AlertCircle } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
@@ -36,97 +36,37 @@ export function SaveChatTripModal({
 }: SaveChatTripModalProps) {
   const router = useRouter();
 
-  // Try to detect travel style from itinerary text or defaultStyle
-  const detectedStyle = React.useMemo(() => {
-    const lower = rawItineraryText.toLowerCase();
-    for (const opt of TRAVEL_STYLE_OPTIONS) {
-      if (lower.includes(opt.id.toLowerCase())) {
-        return opt.id;
-      }
-    }
-    return defaultStyle || "Family";
-  }, [rawItineraryText, defaultStyle]);
-
-  // Try to parse days from ## Day X or Hari X or "X hari" / "X days"
-  const detectedDays = React.useMemo(() => {
-    // Check for "Day X" or "Hari X" (e.g. "Day 1", "Hari 1", "## Hari 1", "**Hari 1:")
-    const matches = rawItineraryText.match(/(?:##\s+|###\s+|####\s+)?(?:\*\*)?(?:Day|Hari)\s+(\d+)/gi);
-    if (matches && matches.length > 0) {
-      const nums = matches
-        .map((m) => {
-          const n = m.replace(/[^0-9]/g, "");
-          return n ? parseInt(n, 10) : 1;
-        })
-        .filter((n) => !isNaN(n));
-      if (nums.length > 0) return Math.min(Math.max(...nums), 14);
-    }
-
-    // Check for "5 hari" or "5 days" in text (e.g. "Durasi: 5 hari 4 malam")
-    const durationMatch = rawItineraryText.match(/(\d+)\s*(?:hari|days)/i);
-    if (durationMatch) {
-      const parsed = parseInt(durationMatch[1], 10);
-      if (!isNaN(parsed) && parsed >= 1) return Math.min(parsed, 14);
-    }
-
-    return 3;
-  }, [rawItineraryText]);
-
-  // Clean default destination name
-  const cleanedDestination = React.useMemo(() => {
-    // Check if itinerary explicitly specifies destination field like "Tujuan Liburan: (Misal: Pantai Kuta, Bali)" or "Destinasi: Bali"
-    const destFieldMatch = rawItineraryText.match(
-      /(?:Tujuan(?: Liburan)?|Destinasi|Destination)\s*[:*-]+\s*(?:\([^)]*\)\s*)?([A-Za-z0-9\s,]+)/i
+  // Validate if the AI response follows the Day-by-Day heading structure
+  const hasDayHeadings = React.useMemo(() => {
+    return (
+      /(?:^|\n)##\s+Day\s+\d+/i.test(rawItineraryText) ||
+      /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(rawItineraryText)
     );
-    if (destFieldMatch && destFieldMatch[1].trim()) {
-      const cleaned = destFieldMatch[1]
-        .replace(/^(?:Misal|Contoh|e\.g\.)[:\s]*/i, "")
-        .replace(/[)\].]+$/, "")
-        .split("\n")[0]
-        .trim();
-      if (cleaned.length >= 2) return cleaned;
-    }
-
-    if (!defaultDestination || defaultDestination === "New Conversation") {
-      // Try to extract first capitalized place
-      const firstFewLines = rawItineraryText.split("\n").slice(0, 3).join(" ");
-      const match = firstFewLines.match(/(?:to|in|ke|di)\s+([A-Z][a-zA-Z\s,]+?)(?:[.!,\n]|$)/);
-      return match ? match[1].trim() : "Custom Destination";
-    }
-    return defaultDestination.replace(/\.\.\.$/, "").trim();
-  }, [defaultDestination, rawItineraryText]);
-
-  // Try to estimate budget from text (USD or IDR)
-  const detectedBudget = React.useMemo(() => {
-    const usdMatch = rawItineraryText.match(/(?:USD|\$)\s*([0-9,.]+)/i);
-    if (usdMatch) {
-      const val = parseFloat(usdMatch[1].replace(/,/g, ""));
-      if (!isNaN(val) && val >= 50) return Math.min(Math.round(val), 100000);
-    }
-    const idrMatch = rawItineraryText.match(/(?:Rp|IDR)\.?\s*([0-9.,]+)/i);
-    if (idrMatch) {
-      const rawNum = idrMatch[1].replace(/\./g, "").replace(/,/g, ".");
-      const idrVal = parseFloat(rawNum);
-      if (!isNaN(idrVal) && idrVal > 100000) {
-        return Math.min(Math.max(Math.round(idrVal / 16000), 50), 100000);
-      }
-    }
-    return 1500;
   }, [rawItineraryText]);
 
-  const [destination, setDestination] = useState(cleanedDestination);
-  const [days, setDays] = useState(detectedDays);
-  const [budget, setBudget] = useState(detectedBudget);
-  const [travelStyle, setTravelStyle] = useState(detectedStyle);
+  const initialDestination =
+    defaultDestination && defaultDestination !== "New Conversation"
+      ? defaultDestination.replace(/\.\.\.$/, "").trim()
+      : "";
+
+  const [destination, setDestination] = useState(initialDestination);
+  const [days, setDays] = useState(3);
+  const [budget, setBudget] = useState(1500);
+  const [travelStyle, setTravelStyle] = useState(defaultStyle || "Family");
   const [isSaving, setIsSaving] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
-      setDestination(cleanedDestination);
-      setDays(detectedDays);
-      setBudget(detectedBudget);
-      setTravelStyle(detectedStyle);
+      setDestination(
+        defaultDestination && defaultDestination !== "New Conversation"
+          ? defaultDestination.replace(/\.\.\.$/, "").trim()
+          : ""
+      );
+      setDays(3);
+      setBudget(1500);
+      setTravelStyle(defaultStyle || "Family");
     }
-  }, [isOpen, cleanedDestination, detectedDays, detectedBudget, detectedStyle]);
+  }, [isOpen, defaultDestination, defaultStyle]);
 
   if (!isOpen) return null;
 
@@ -147,7 +87,7 @@ export function SaveChatTripModal({
         ai_recommendation: rawItineraryText,
       });
 
-      toast.success(`Saved "${createdTrip.destination}" to My Trips!`, {
+      toast.success(`Saved "${createdTrip.destination}" as Official Trip!`, {
         title: "Trip Saved",
       });
 
@@ -181,10 +121,10 @@ export function SaveChatTripModal({
               </div>
               <div>
                 <Typography id="save-trip-title" variant="h4" className="text-sm font-bold text-white">
-                  Save Itinerary to My Trips
+                  Save as Official Trip
                 </Typography>
                 <Typography variant="muted" className="text-[11px] text-zinc-400">
-                  Store this AI itinerary in your dashboard.
+                  Confirm the trip details before saving to your Blueprint.
                 </Typography>
               </div>
             </div>
@@ -199,6 +139,14 @@ export function SaveChatTripModal({
 
           {/* Form */}
           <form onSubmit={handleSave} className="mt-4 space-y-3.5">
+            {!hasDayHeadings && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-[11px] text-amber-300">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
+                <div>
+                  <span className="font-semibold">Formatting note:</span> This itinerary doesn&apos;t follow the standard Day-by-Day (## Day X) heading format. It will be saved as an overview section in your Blueprint.
+                </div>
+              </div>
+            )}
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 mb-1">
                 <MapPin className="w-3.5 h-3.5 text-blue-400" />
@@ -286,6 +234,9 @@ export function SaveChatTripModal({
               <p className="line-clamp-2 text-zinc-400 italic">
                 &ldquo;{rawItineraryText.slice(0, 140)}...&rdquo;
               </p>
+              <p className="mt-1.5 text-[10px] text-zinc-500">
+                The itinerary will be stored in your Blueprint exactly as generated in the chat.
+              </p>
             </div>
 
             {/* Modal Actions */}
@@ -308,12 +259,12 @@ export function SaveChatTripModal({
                 {isSaving ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving Trip...</span>
+                    <span>Saving as Official Trip...</span>
                   </>
                 ) : (
                   <>
                     <Compass className="w-3.5 h-3.5" />
-                    <span>Save to My Trips</span>
+                    <span>Save as Official Trip</span>
                   </>
                 )}
               </Button>

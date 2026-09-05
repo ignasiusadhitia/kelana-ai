@@ -125,6 +125,30 @@ export async function regenerateTripAi(
 }
 
 /**
+ * Applies a new AI itinerary text to an existing trip Blueprint without touching
+ * destination, days, budget, or travel style (Chat-to-Blueprint promotion — Kasus A).
+ */
+export async function updateTripRecommendation(
+  id: string | number,
+  aiRecommendation: string
+): Promise<TripResponse> {
+  const response = await fetch(`${API_ENDPOINTS.TRIPS}/${id}/recommendation`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ai_recommendation: aiRecommendation }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || `Failed to apply itinerary to Blueprint (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+/**
  * Soft-deletes a trip by ID (moves to trash bin).
  */
 export async function deleteTripService(id: string | number): Promise<void> {

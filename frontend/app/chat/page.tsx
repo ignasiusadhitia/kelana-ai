@@ -36,6 +36,7 @@ import {
   Conversation,
   ChatMessage,
 } from "@/services/chatService";
+import { updateTripRecommendation } from "@/services/tripService";
 import {
   Send,
   Bot,
@@ -160,10 +161,11 @@ function ChatContent() {
   // Search filter for sidebar conversations
   const [searchConvQuery, setSearchConvQuery] = useState("");
 
-  // Save chat as trip modal states
+  // Save chat as trip / Apply to Blueprint states
   const [saveTripModalOpen, setSaveTripModalOpen] = useState(false);
   const [tripToSaveText, setTripToSaveText] = useState("");
   const [tripToSaveMessageId, setTripToSaveMessageId] = useState<string | number | null>(null);
+  const [applyingBlueprintMessageId, setApplyingBlueprintMessageId] = useState<string | number | null>(null);
   const [savedMessageIds, setSavedMessageIds] = useState<Set<string | number>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
@@ -605,6 +607,42 @@ function ChatContent() {
   const currentTripId = activeConversation?.trip_id || linkedTripId;
   const currentTripDestination =
     activeConversation?.trip_destination || linkedTripDestination;
+
+  const handleApplyToBlueprint = async (aiText: string, messageId: string | number) => {
+    if (!currentTripId) return;
+    if (!isAuthenticated) {
+      toast.info("Please sign in to update trip blueprints.", {
+        title: "Sign In Required",
+      });
+      router.push("/login?redirect=/chat");
+      return;
+    }
+
+    try {
+      setApplyingBlueprintMessageId(messageId);
+      await updateTripRecommendation(currentTripId, aiText);
+      setSavedMessageIds((prev) => {
+        const next = new Set(prev).add(messageId);
+        try {
+          localStorage.setItem("kelana_saved_trip_msg_ids", JSON.stringify(Array.from(next)));
+        } catch {
+          // Ignore storage quota errors silently
+        }
+        return next;
+      });
+      toast.success("Blueprint updated! Opening your trip page...", {
+        title: "Blueprint Applied",
+      });
+      router.push(`/trips/${currentTripId}`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to apply itinerary to Blueprint.",
+        { title: "Failed to Apply" }
+      );
+    } finally {
+      setApplyingBlueprintMessageId(null);
+    }
+  };
 
   const suggestedPrompts = currentTripDestination
     ? [
@@ -1474,25 +1512,73 @@ function ChatContent() {
                                       cleanText.toLowerCase().includes("jadwal") ||
                                       cleanText.toLowerCase().includes("hari 1")) && (
                                     savedMessageIds.has(msg.id) ? (
-                                      <Tooltip content="Already saved to My Trips (Click to view)" side="top">
+                                      <Tooltip
+                                        content={
+                                          currentTripId
+                                            ? "Applied to linked Blueprint (Click to view)"
+                                            : "Already saved to My Trips (Click to view)"
+                                        }
+                                        side="top"
+                                      >
                                         <button
                                           type="button"
-                                          onClick={() => router.push("/trips")}
+                                          onClick={() =>
+                                            router.push(currentTripId ? `/trips/${currentTripId}` : "/trips")
+                                          }
                                           className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-blue-300 hover:text-blue-200 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all active:scale-95 ml-1"
                                         >
                                           <BookmarkCheck className="w-2.5 h-2.5 text-blue-400" />
                                           <span className="hidden sm:inline">Saved</span>
                                         </button>
                                       </Tooltip>
+                                    ) : currentTripId ? (
+                                      /* Kasus A: Linked Chat -> Apply to Blueprint */
+                                      <Tooltip
+                                        content={
+                                          /(?:^|\n)##\s+Day/i.test(cleanText) ||
+                                          /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
+                                            ? "Apply this itinerary update to your linked Blueprint"
+                                            : "Apply to Blueprint (Note: message doesn't have standard ## Day headings)"
+                                        }
+                                        side="top"
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => handleApplyToBlueprint(cleanText, msg.id)}
+                                          disabled={applyingBlueprintMessageId === msg.id}
+                                          className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 transition-all active:scale-95 ml-1 disabled:opacity-50"
+                                        >
+                                          {applyingBlueprintMessageId === msg.id ? (
+                                            <>
+                                              <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                                              <span className="hidden sm:inline">Applying...</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Sparkles className="w-2.5 h-2.5" />
+                                              <span className="hidden sm:inline">Apply to Blueprint</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      </Tooltip>
                                     ) : (
-                                      <Tooltip content="Save this itinerary to My Trips" side="top">
+                                      /* Kasus B: Standalone Chat -> Save as Official Trip */
+                                      <Tooltip
+                                        content={
+                                          /(?:^|\n)##\s+Day/i.test(cleanText) ||
+                                          /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
+                                            ? "Save this itinerary as an official Trip Blueprint"
+                                            : "Save as official Trip (Day-by-Day formatting recommended)"
+                                        }
+                                        side="top"
+                                      >
                                         <button
                                           type="button"
                                           onClick={() => handleOpenSaveTrip(cleanText, msg.id)}
                                           className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all active:scale-95 ml-1"
                                         >
                                           <BookmarkPlus className="w-2.5 h-2.5" />
-                                          <span className="hidden sm:inline">Save Trip</span>
+                                          <span className="hidden sm:inline">Save as Official Trip</span>
                                         </button>
                                       </Tooltip>
                                     )
