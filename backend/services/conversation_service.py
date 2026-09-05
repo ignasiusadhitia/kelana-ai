@@ -89,6 +89,26 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
 
    NEVER use bold headers (**Day 1**) or plain-text headings for day sections.
    ALWAYS use level-2 markdown (## ) for day and guide section headers.
+
+6. MAXIMUM ITINERARY DURATION & MODULAR BREAKDOWN POLICY (STRICT 14-DAY CAP):
+   - Hard Duration Limit: You MUST NEVER generate a continuous day-by-day itinerary exceeding 14 days in a single response (strictly capped at 14 days maximum).
+   - Technical Rationale: KelanaAI's itinerary design mandates rich, granular depth for each day (Morning, Afternoon, Evening, Insider Tip, Daily Cost Breakdown). Generating itineraries longer than 14 days in a single response exceeds LLM output token limits, causing mid-sentence text truncation and degraded recommendation quality.
+   - User Inquiries Exceeding 14 Days (e.g., 15-30 days, 3 weeks, 1 month):
+     * DO NOT attempt to generate an itinerary with more than 14 days.
+     * DO NOT produce a rushed, shallow, or truncated itinerary that cuts off mid-generation.
+     * INSTEAD, politely guide the traveler through a structured modular breakdown (communicating in the user's language, e.g. Indonesian if the user writes in Indonesian):
+       a. Transparent Explanation: Politely explain that KelanaAI caps single itineraries at 14 days so that every day receives authentic, curated local detail without running into text truncation limits.
+       b. Strategic Multi-Leg Breakdown: Analyze the destination and propose a sensible breakdown into distinct regional legs or travel phases (each <= 14 days, typically 4-7 days per leg). For example:
+          - For 20 days in Japan:
+            * Leg 1: Tokyo & Kanto Region (6-7 days)
+            * Leg 2: Kansai: Kyoto, Osaka & Nara (6-7 days)
+            * Leg 3: Hokkaido or Hiroshima & Miyajima (5-6 days)
+          - For 3 weeks in Europe:
+            * Leg 1: Western Europe: France & Belgium (7 days)
+            * Leg 2: Central Europe: Switzerland & Germany (7 days)
+            * Leg 3: Southern Europe: Italy (7 days)
+       c. Interactive Next Step: Invite the traveler to choose which leg or region they want to detail first (e.g. "Which leg or destination would you like to plan first? We can start with Leg 1 right now, or customize one of these options!").
+   - Subsequent Responses: When the user selects a specific leg (<= 14 days), generate the complete, rich day-by-day itinerary for that leg using the standard ITINERARY FORMAT.
 """
 
 
@@ -155,6 +175,63 @@ def _inject_trip_context(conversation: Conversation, db: Session, system_prompt:
                 f"1. Seamlessly tailor all advice (dining, transit, packing, lodging, activities) to this specific destination, budget ceiling, and duration.\n"
                 f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters."
             )
+    return system_prompt
+
+
+def _detect_requested_duration_days(text: str) -> Optional[int]:
+    """
+    Detect if user query explicitly asks for a trip duration exceeding 14 days.
+    Supports days (e.g. 20 days, 21 hari), weeks (e.g. 3 weeks, 3 minggu), and months (e.g. 1 month, 1 bulan).
+    Returns the detected duration in days if > 14, else None.
+    """
+    q = text.lower()
+
+    # 1. Months -> Days (1 month = 30 days, 2 months = 60 days)
+    month_match = re.search(r'\b(?:(\d+)|satu|one|dua|two)\s*(?:months?|bulan)\b', q)
+    if month_match:
+        val_str = month_match.group(1)
+        val = int(val_str) if val_str and val_str.isdigit() else (2 if any(w in q for w in ['dua', 'two']) else 1)
+        days = val * 30
+        if days > 14:
+            return days
+
+    # 2. Weeks -> Days (e.g. 3 weeks = 21 days, 3 minggu = 21 hari)
+    week_match = re.search(r'\b(?:(\d+)|tiga|three|empat|four|dua|two)\s*(?:weeks?|minggu)\b', q)
+    if week_match:
+        val_str = week_match.group(1)
+        word_map = {'two': 2, 'dua': 2, 'three': 3, 'tiga': 3, 'four': 4, 'empat': 4}
+        val = int(val_str) if val_str and val_str.isdigit() else next((word_map[w] for w in word_map if w in q), 2)
+        days = val * 7
+        if days > 14:
+            return days
+
+    # 3. Explicit days (e.g. 15-day, 20 days, 25 hari)
+    day_match = re.search(r'\b(\d+)\s*[\s-]*(?:days?|hari)\b', q)
+    if day_match:
+        days = int(day_match.group(1))
+        if days > 14:
+            return days
+
+    return None
+
+
+def _inject_duration_limit_alert(text: str, system_prompt: str) -> str:
+    """
+    If traveler's prompt requests an itinerary exceeding 14 days, inject an explicit
+    high-priority directive instructing the LLM to execute the modular breakdown flow.
+    """
+    detected_days = _detect_requested_duration_days(text)
+    if detected_days:
+        return system_prompt + (
+            f"\n\n### ACTIVE TRIP DURATION NOTICE: USER REQUESTED {detected_days} DAYS (> 14 DAYS)\n"
+            f"The traveler is asking to plan an itinerary of {detected_days} days. REMINDER: STRICT 14-DAY MAXIMUM CAP APPLIES.\n"
+            f"DO NOT generate a day-by-day itinerary of {detected_days} days. Single responses longer than 14 days suffer output truncation.\n"
+            f"CRITICAL ACTION REQUIRED:\n"
+            f"1. Acknowledge the destination and duration warmly.\n"
+            f"2. Transparently explain in the user's language that KelanaAI curates itineraries up to 14 days per plan to maintain deep, authentic local recommendations without cut-offs.\n"
+            f"3. Propose a smart, modular breakdown into distinct regional legs or travel phases (each 3 to 7 days, up to 14 days per leg).\n"
+            f"4. Offer clear options and invite the traveler to pick which leg or destination to plan first (e.g. 'Shall we start with Leg 1, or would you like to customize one of these legs?')."
+        )
     return system_prompt
 
 
@@ -493,6 +570,9 @@ def _generate_ai_response_text(
     # Linked Trip Blueprint Grounding (Model 3)
     system_prompt = _inject_trip_context(conversation, db, system_prompt)
 
+    # 14-Day Trip Planning Limit & Modular Breakdown Guardrail
+    system_prompt = _inject_duration_limit_alert(sanitized_text, system_prompt)
+
     # Format payload for Amazon Bedrock Converse API
     raw_payload = []
     for m in recent_slice:
@@ -731,6 +811,9 @@ def stream_message_and_get_response(
 
     # Linked Trip Blueprint Grounding (Model 3)
     system_prompt = _inject_trip_context(conversation, db, system_prompt)
+
+    # 14-Day Trip Planning Limit & Modular Breakdown Guardrail
+    system_prompt = _inject_duration_limit_alert(sanitized_text, system_prompt)
 
     raw_payload = []
     for m in recent_slice:

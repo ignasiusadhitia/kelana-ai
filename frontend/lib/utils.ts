@@ -105,7 +105,7 @@ export function extractTripDetailsFromContent({
   const titleDays = titleDurMatch ? parseInt(titleDurMatch[1], 10) : 0;
 
   const rawDays = Math.max(headingDays, titleDays) || 3;
-  const days = Math.max(1, Math.min(rawDays, 30));
+  const days = Math.max(1, Math.min(rawDays, 14));
 
   // 2. TRAVEL STYLE
   // Preset style IDs (normalized casing) — free-text allowed beyond these

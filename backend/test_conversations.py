@@ -32,7 +32,9 @@ from services.conversation_service import (
     send_message_and_get_response,
     edit_user_message_and_regenerate,
     regenerate_latest_response,
-    _auto_generate_title
+    _auto_generate_title,
+    _detect_requested_duration_days,
+    _inject_duration_limit_alert
 )
 
 class TestConversationalReActAndVectorStore(unittest.TestCase):
@@ -372,6 +374,32 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         )
         self.assertEqual(response_clean.role, "assistant")
         self.assertIn("Labuan Bajo", response_clean.content)
+
+    def test_14_day_duration_limit_guardrails(self):
+        """Verify that duration detector catches > 14 days and prompt injector injects the modular breakdown alert."""
+        # 1. Test detection of days > 14
+        self.assertEqual(_detect_requested_duration_days("Plan a 20-day trip to Japan"), 20)
+        self.assertEqual(_detect_requested_duration_days("Buatkan itinerary 25 hari keliling Eropa"), 25)
+        self.assertEqual(_detect_requested_duration_days("Liburan 3 minggu di New Zealand"), 21)
+        self.assertEqual(_detect_requested_duration_days("Backpacking 1 bulan di Asia Tenggara"), 30)
+
+        # 2. Test that duration <= 14 days returns None (allowed directly)
+        self.assertIsNone(_detect_requested_duration_days("Plan a 5-day trip to Tokyo"))
+        self.assertIsNone(_detect_requested_duration_days("Rencana liburan 14 hari di Korea"))
+        self.assertIsNone(_detect_requested_duration_days("What are 10 things to do in Paris?"))
+
+        # 3. Test prompt injection when > 14 days
+        base_prompt = "You are KelanaAI."
+        alerted_prompt = _inject_duration_limit_alert("Plan a 21-day trip to Japan", base_prompt)
+        self.assertIn("ACTIVE TRIP DURATION NOTICE", alerted_prompt)
+        self.assertIn("21 DAYS", alerted_prompt)
+        self.assertIn("STRICT 14-DAY MAXIMUM CAP APPLIES", alerted_prompt)
+        self.assertIn("modular breakdown", alerted_prompt.lower())
+
+        # 4. Test no injection when <= 14 days
+        clean_prompt = _inject_duration_limit_alert("Plan a 7-day trip to Tokyo", base_prompt)
+        self.assertEqual(clean_prompt, base_prompt)
+
 
 
 if __name__ == "__main__":
