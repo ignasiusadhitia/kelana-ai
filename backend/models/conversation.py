@@ -23,10 +23,20 @@ class Conversation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     context_summary = Column(Text, nullable=True, default=None)
+    trip_id = Column(BigInteger, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True, default=None)
 
     # Relationships - strictly ordered by message ID ascending for deterministic chronology
     user = relationship("User", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", passive_deletes=True, order_by="Message.id.asc()")
+    trip = relationship("Trip", foreign_keys=[trip_id], lazy="select")
+
+    @property
+    def trip_public_id(self) -> str | None:
+        return self.trip.public_id if self.trip else None
+
+    @property
+    def trip_destination(self) -> str | None:
+        return self.trip.destination if self.trip else None
 
 
 class Message(Base):

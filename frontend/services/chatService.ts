@@ -17,6 +17,8 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   message_count: number;
+  trip_id?: string | null;
+  trip_destination?: string | null;
 }
 
 export interface ConversationDetail {
@@ -24,6 +26,8 @@ export interface ConversationDetail {
   title: string;
   created_at: string;
   updated_at: string;
+  trip_id?: string | null;
+  trip_destination?: string | null;
   messages: ChatMessage[];
 }
 
@@ -54,13 +58,14 @@ export async function listConversations(): Promise<Conversation[]> {
 /**
  * Create a new conversation session.
  * @param title Optional title for the new conversation thread.
+ * @param tripId Optional public trip ID (trp_...) to link.
  * @returns Promise resolving to the newly created Conversation.
  */
-export async function createConversation(title?: string): Promise<Conversation> {
+export async function createConversation(title?: string, tripId?: string): Promise<Conversation> {
   const response = await fetch("/api/v1/conversations", {
     method: "POST",
     headers: getHeaders(),
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, trip_id: tripId || undefined }),
   });
 
   if (!response.ok) {

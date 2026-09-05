@@ -282,13 +282,7 @@ export function SaveChatTripModal({
 
             {/* Snippet Preview */}
             <div className="rounded-xl border border-white/5 bg-zinc-900/60 p-2.5 text-[11px] text-zinc-400">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-zinc-300">Content Preview:</span>
-                <span className="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  Disimpan langsung (tanpa regenerate AI)
-                </span>
-              </div>
+              <div className="font-semibold text-zinc-300 mb-1">Content Preview:</div>
               <p className="line-clamp-2 text-zinc-400 italic">
                 &ldquo;{rawItineraryText.slice(0, 140)}...&rdquo;
               </p>

@@ -9,6 +9,7 @@ from typing import Optional, List
 class ConversationCreate(BaseModel):
     """Request schema for creating a new conversation session."""
     title: Optional[str] = Field(default=None, max_length=255, description="Optional custom conversation title")
+    trip_id: Optional[str] = Field(default=None, description="Optional public trip ID (trp_...) to link")
 
 class ConversationUpdate(BaseModel):
     """Request schema for updating an existing conversation title."""
@@ -35,6 +36,8 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     message_count: int = 0
+    trip_id: Optional[str] = Field(default=None, validation_alias="trip_public_id")
+    trip_destination: Optional[str] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
@@ -44,6 +47,8 @@ class ConversationDetailResponse(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
+    trip_id: Optional[str] = Field(default=None, validation_alias="trip_public_id")
+    trip_destination: Optional[str] = None
     messages: List[MessageResponse] = []
 
     model_config = {"from_attributes": True, "populate_by_name": True}

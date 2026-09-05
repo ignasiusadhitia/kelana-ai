@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bot } from "lucide-react";
 import { TripResponse } from "@/types/trip";
 import { LoadingState } from "@/components/LoadingState";
 import { updateTripBudget, regenerateTripAi } from "@/services/tripService";
@@ -50,6 +52,7 @@ export function TripRecommendation({
   onReset,
   onTripUpdated,
 }: TripRecommendationProps) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [isEditBudgetOpen, setIsEditBudgetOpen] = useState(false);
   const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
@@ -264,6 +267,25 @@ export function TripRecommendation({
         onClose={() => setIsEditBudgetOpen(false)}
         onSave={handleSaveBudget}
       />
+
+      {/* Floating Action Button (FAB): Discuss with AI */}
+      <div className="fixed bottom-24 right-4 sm:bottom-8 sm:right-6 z-40 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <button
+          type="button"
+          onClick={() => router.push(`/chat?trip_id=${trip.id}`)}
+          className="group flex items-center gap-2.5 px-4 sm:px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-xl shadow-blue-500/25 border border-blue-400/30 backdrop-blur-md transition-all duration-200 active:scale-95 hover:shadow-2xl hover:shadow-blue-500/40"
+          title={`Discuss ${trip.destination} trip with KelanaAI`}
+        >
+          <div className="relative flex items-center justify-center w-6 h-6 rounded-lg bg-white/20">
+            <Bot className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+            </span>
+          </div>
+          <span className="tracking-tight">Discuss with AI</span>
+        </button>
+      </div>
     </div>
   );
 }

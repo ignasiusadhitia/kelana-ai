@@ -45,14 +45,16 @@ def create_conversation_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Start a new conversation session for the authenticated user."""
-    conv = create_conversation(db, current_user.id, payload.title)
+    """Start a new conversation session for the authenticated user, optionally linked to a trip."""
+    conv = create_conversation(db, current_user.id, payload.title, payload.trip_id)
     return {
         "id": conv.public_id,
         "title": conv.title,
         "created_at": conv.created_at,
         "updated_at": conv.updated_at,
-        "message_count": 0
+        "message_count": 0,
+        "trip_id": conv.trip_public_id,
+        "trip_destination": conv.trip_destination,
     }
 
 

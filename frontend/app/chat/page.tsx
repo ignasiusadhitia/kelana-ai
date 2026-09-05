@@ -5,10 +5,10 @@
  * Interactive conversational travel planner with multi-turn context and thread management.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ import {
   BookmarkCheck,
   ChevronDown,
   WifiOff,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   SidebarConversationSkeleton,
@@ -118,9 +119,16 @@ function parseMessageContentAndSources(rawContent: string): { text: string; sour
   return { text: cleanText || rawContent, sources };
 }
 
-export default function ChatPage() {
+function ChatContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlChatId = searchParams.get("id");
+  const urlTripId = searchParams.get("trip_id");
+
+  // State for linked trip context (Model 3)
+  const [linkedTripId, setLinkedTripId] = useState<string | null>(null);
+  const [linkedTripDestination, setLinkedTripDestination] = useState<string | null>(null);
 
   // State for conversation list and active chat
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -272,9 +280,6 @@ export default function ChatPage() {
       setIsLoadingConversations(true);
       const data = await listConversations();
       setConversations(data);
-      if (data.length > 0 && !activeConversationId) {
-        selectConversation(data[0].id);
-      }
     } catch (err) {
       console.error("Failed to load conversations:", err);
     } finally {
@@ -282,7 +287,54 @@ export default function ChatPage() {
     }
   };
 
-  const selectConversation = async (convId: string | number) => {
+  // Synchronize active conversation with URL query parameter (?id=...)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (urlChatId) {
+      if (String(activeConversationId) !== String(urlChatId)) {
+        selectConversation(urlChatId, false);
+      }
+    } else {
+      if (activeConversationId !== null) {
+        setActiveConversationId(null);
+        setMessages([]);
+      }
+    }
+  }, [urlChatId, isAuthenticated]);
+
+  // Synchronize linked trip with URL query parameter (?trip_id=...)
+  // Q2 Decision: If an existing conversation is already linked to this trip, resume it!
+  useEffect(() => {
+    if (!isAuthenticated || !urlTripId) return;
+
+    // Check if an existing conversation is already linked to this trip
+    const existing = conversations.find(
+      (c) => c.trip_id && String(c.trip_id) === String(urlTripId)
+    );
+
+    if (existing) {
+      // Resume existing conversation
+      selectConversation(existing.id, true);
+    } else {
+      // Load trip metadata to show context banner and dynamic prompts for a new chat
+      fetch(`/api/v1/trips/${urlTripId}`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((trip) => {
+          if (trip) {
+            setLinkedTripId(String(trip.id));
+            setLinkedTripDestination(trip.destination);
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch linked trip:", err);
+          setLinkedTripId(null);
+          setLinkedTripDestination(null);
+        });
+    }
+  }, [urlTripId, conversations, isAuthenticated]);
+
+  const selectConversation = async (convId: string | number, updateUrl = true) => {
     if (isSending) return;
 
     // On mobile, close sidebar drawer when a chat is selected
@@ -290,20 +342,37 @@ export default function ChatPage() {
       setIsSidebarOpen(false);
     }
 
-    if (convId === activeConversationId && messages.length > 0) return;
+    if (updateUrl) {
+      router.push(`/chat?id=${convId}`, { scroll: false });
+    }
+
+    if (String(convId) === String(activeConversationId) && messages.length > 0) return;
     try {
       setActiveConversationId(convId);
       setIsLoadingMessages(true);
       const detail = await getConversation(convId);
       setMessages(detail.messages || []);
+      if (detail.trip_id) {
+        setLinkedTripId(String(detail.trip_id));
+        setLinkedTripDestination(detail.trip_destination || null);
+      } else if (!urlTripId) {
+        setLinkedTripId(null);
+        setLinkedTripDestination(null);
+      }
     } catch (err) {
       console.error(`Failed to load conversation #${convId}:`, err);
+      toast.error("Conversation not found or failed to load.", {
+        title: "Chat Not Found",
+      });
+      setActiveConversationId(null);
+      setMessages([]);
+      router.replace("/chat", { scroll: false });
     } finally {
       setIsLoadingMessages(false);
     }
   };
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = () => {
     if (isSending) return;
 
     // On mobile, close sidebar drawer when creating a new chat
@@ -311,19 +380,12 @@ export default function ChatPage() {
       setIsSidebarOpen(false);
     }
 
-    try {
-      const newConv = await createConversation("New Conversation");
-      setConversations((prev) => [newConv, ...prev]);
-      setActiveConversationId(newConv.id);
-      setMessages([]);
-      textareaRef.current?.focus();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create conversation.",
-        { title: "Creation Failed" }
-      );
-      console.error("Failed to create conversation:", err);
-    }
+    setActiveConversationId(null);
+    setMessages([]);
+    setLinkedTripId(null);
+    setLinkedTripDestination(null);
+    router.push("/chat", { scroll: false });
+    textareaRef.current?.focus();
   };
 
   const handleStartRename = (conv: Conversation, e: React.MouseEvent) => {
@@ -375,13 +437,10 @@ export default function ChatPage() {
       await deleteConversation(convToDelete);
       const remaining = conversations.filter((c) => c.id !== convToDelete);
       setConversations(remaining);
-      if (activeConversationId === convToDelete) {
-        if (remaining.length > 0) {
-          selectConversation(remaining[0].id);
-        } else {
-          setActiveConversationId(null);
-          setMessages([]);
-        }
+      if (String(activeConversationId) === String(convToDelete)) {
+        setActiveConversationId(null);
+        setMessages([]);
+        router.push("/chat", { scroll: false });
       }
       toast.success("Conversation thread deleted successfully.", {
         title: "Thread Deleted",
@@ -454,8 +513,8 @@ export default function ChatPage() {
       const updated = await editMessageAndRegenerate(activeConversationId, targetMsgId, text);
       setMessages(updated.messages || []);
       setConversations((prev) => {
-        const remaining = prev.filter((c) => c.id !== activeConversationId);
-        const existing = prev.find((c) => c.id === activeConversationId);
+        const remaining = prev.filter((c) => String(c.id) !== String(activeConversationId));
+        const existing = prev.find((c) => String(c.id) === String(activeConversationId));
         const item: Conversation = {
           id: updated.id,
           title: updated.title,
@@ -489,8 +548,8 @@ export default function ChatPage() {
       const updated = await regenerateResponse(activeConversationId);
       setMessages(updated.messages || []);
       setConversations((prev) => {
-        const remaining = prev.filter((c) => c.id !== activeConversationId);
-        const existing = prev.find((c) => c.id === activeConversationId);
+        const remaining = prev.filter((c) => String(c.id) !== String(activeConversationId));
+        const existing = prev.find((c) => String(c.id) === String(activeConversationId));
         const item: Conversation = {
           id: updated.id,
           title: updated.title,
@@ -540,6 +599,34 @@ export default function ChatPage() {
     }
   };
 
+  const activeConversation = conversations.find(
+    (c) => String(c.id) === String(activeConversationId)
+  );
+  const currentTripId = activeConversation?.trip_id || linkedTripId;
+  const currentTripDestination =
+    activeConversation?.trip_destination || linkedTripDestination;
+
+  const suggestedPrompts = currentTripDestination
+    ? [
+        {
+          label: `Bea Cukai dari ${currentTripDestination}`,
+          prompt: `Apa saja aturan bea cukai Indonesia yang perlu saya ketahui untuk oleh-oleh dari ${currentTripDestination}?`,
+        },
+        {
+          label: "Kuliner Halal di Rute",
+          prompt: `Rekomendasikan tempat makan halal yang bisa saya kunjungi di sekitar rute ${currentTripDestination}.`,
+        },
+        {
+          label: "Pembayaran QRIS",
+          prompt: `Apakah saya bisa menggunakan QRIS Indonesia untuk berbelanja di ${currentTripDestination}?`,
+        },
+        {
+          label: "Revisi Rute Perjalanan",
+          prompt: `Bantu saya mengatur ulang rencana perjalanan agar lebih santai dan efisien berdasarkan itinerary saya.`,
+        },
+      ]
+    : SUGGESTED_PROMPTS;
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
     if (!text || isSending || !isOnline) return;
@@ -548,10 +635,11 @@ export default function ChatPage() {
 
     if (!targetConvId) {
       try {
-        const newConv = await createConversation("New Conversation");
+        const newConv = await createConversation("New Conversation", currentTripId || undefined);
         setConversations((prev) => [newConv, ...prev]);
         targetConvId = newConv.id;
         setActiveConversationId(newConv.id);
+        router.replace(`/chat?id=${newConv.id}`, { scroll: false });
       } catch (err) {
         console.error("Failed to init conversation:", err);
         return;
@@ -587,14 +675,14 @@ export default function ChatPage() {
 
     // Optimistically reorder sidebar: bump target conversation to position 0 immediately
     setConversations((prev) => {
-      const idx = prev.findIndex((c) => c.id === targetConvId);
+      const idx = prev.findIndex((c) => String(c.id) === String(targetConvId));
       if (idx <= 0) return prev;
       const target = {
         ...prev[idx],
         updated_at: new Date().toISOString(),
         message_count: (prev[idx].message_count || 0) + 1,
       };
-      const rest = prev.filter((c) => c.id !== targetConvId);
+      const rest = prev.filter((c) => String(c.id) !== String(targetConvId));
       return [target, ...rest];
     });
 
@@ -632,7 +720,7 @@ export default function ChatPage() {
           }
           if (doneData.title) {
             setConversations((prev) =>
-              prev.map((c) => (c.id === targetConvId ? { ...c, title: doneData.title || c.title } : c))
+              prev.map((c) => (String(c.id) === String(targetConvId) ? { ...c, title: doneData.title || c.title } : c))
             );
           }
         }
@@ -672,8 +760,6 @@ export default function ChatPage() {
       handleSendMessage();
     }
   };
-
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   const formatTimestamp = (isoString: string) => {
     try {
@@ -918,7 +1004,7 @@ export default function ChatPage() {
                       c.title.toLowerCase().includes(searchConvQuery.trim().toLowerCase())
                     )
                     .map((conv) => {
-                    const isActive = conv.id === activeConversationId;
+                    const isActive = String(conv.id) === String(activeConversationId);
                     const isEditing = editingConvId === conv.id;
 
                     return (
@@ -1104,6 +1190,27 @@ export default function ChatPage() {
                 </div>
               </div>
 
+              {/* Linked Trip Context Banner (Model 3 Bridge) */}
+              {currentTripDestination && (
+                <div className="px-3 sm:px-5 py-2 border-b border-amber-500/20 bg-amber-950/20 flex items-center justify-between gap-2 shrink-0 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Map className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="text-[11px] text-amber-300 font-medium truncate">
+                      Linked Trip: <span className="font-bold text-amber-200">{currentTripDestination}</span>
+                    </span>
+                  </div>
+                  {currentTripId && (
+                    <Link
+                      href={`/trips/${currentTripId}`}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline shrink-0 flex items-center gap-1 active:scale-95"
+                    >
+                      <span>Open Blueprint</span>
+                      <ArrowUpRight className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+              )}
+
               {/* Messages Scroll Area */}
               <div
                 ref={chatContainerRef}
@@ -1125,7 +1232,7 @@ export default function ChatPage() {
                     </p>
 
                     <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-left">
-                      {SUGGESTED_PROMPTS.map((item, idx) => (
+                      {suggestedPrompts.map((item, idx) => (
                         <button
                           key={idx}
                           type="button"
@@ -1505,5 +1612,19 @@ export default function ChatPage() {
         onSaved={handleTripSaved}
       />
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-400">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        </div>
+      }
+    >
+      <ChatContent />
+    </Suspense>
   );
 }

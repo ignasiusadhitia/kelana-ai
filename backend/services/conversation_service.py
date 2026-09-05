@@ -101,19 +101,63 @@ def _build_rag_system_prompt(passages: list[dict[str, Any]]) -> str:
     )
 
 
+def _inject_trip_context(conversation: Conversation, db: Session, system_prompt: str) -> str:
+    """
+    Inject active linked trip blueprint into the system prompt if conversation is linked to a trip.
+    Runs AFTER RAG retrieval and intent routing — grounds answers directly to the traveler's active itinerary.
+    """
+    if hasattr(conversation, "trip_id") and conversation.trip_id:
+        from models.trip import Trip
+        linked_trip = db.query(Trip).filter(Trip.id == conversation.trip_id, Trip.deleted_at.is_(None)).first()
+        if linked_trip:
+            return system_prompt + (
+                f"\n\n### LINKED ACTIVE TRIP BLUEPRINT:\n"
+                f"The user is discussing or refining a specific trip blueprint:\n"
+                f"- Destination: {linked_trip.destination}\n"
+                f"- Duration: {linked_trip.days} days\n"
+                f"- Total Budget: USD {linked_trip.budget:,.2f} (Daily Limit: USD {linked_trip.daily_budget:,.2f}/day)\n"
+                f"- Travel Persona / Style: {linked_trip.travel_style or 'Solo'}\n"
+                f"- Budget Tier: {linked_trip.category}\n\n"
+                f"CRITICAL DIRECTIVES FOR LINKED TRIP:\n"
+                f"1. Seamlessly tailor all advice (dining, transit, packing, lodging, activities) to this specific destination, budget ceiling, and duration.\n"
+                f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters."
+            )
+    return system_prompt
+
+
 # ------------------------------------------------------------------------------
 # Part B: Conversation Session Management (CRUD & History Isolation)
 # ------------------------------------------------------------------------------
 
-def create_conversation(db: Session, user_id: int, title: Optional[str] = None) -> Conversation:
-    """Create a new conversation thread for the user with sanitized title."""
+def create_conversation(
+    db: Session,
+    user_id: int,
+    title: Optional[str] = None,
+    trip_id: Optional[str] = None
+) -> Conversation:
+    """Create a new conversation thread for the user with sanitized title, optionally linked to a trip."""
     if title and title.strip():
         conv_title = re.sub(r"[<>]", "", title).strip()[:100]
     else:
         conv_title = "New Conversation"
+
+    # Resolve trip_id (public_id trp_... -> internal integer ID)
+    resolved_trip_id = None
+    if trip_id:
+        from models.trip import Trip
+        trip = db.query(Trip).filter(
+            Trip.public_id == str(trip_id).strip(),
+            Trip.deleted_at.is_(None)
+        ).first()
+        if trip:
+            resolved_trip_id = trip.id
+            if conv_title == "New Conversation":
+                conv_title = f"Chat: {trip.destination}"
+
     conversation = Conversation(
         user_id=user_id,
-        title=conv_title or "New Conversation"
+        title=conv_title or "New Conversation",
+        trip_id=resolved_trip_id
     )
     db.add(conversation)
     db.commit()
@@ -122,7 +166,7 @@ def create_conversation(db: Session, user_id: int, title: Optional[str] = None) 
 
 
 def list_conversations(db: Session, user_id: int) -> List[Dict[str, Any]]:
-    """List all conversations for a user ordered by most recently active message with message count."""
+    """List all conversations for a user ordered by most recently active message with message count and linked trip."""
     last_activity = func.coalesce(func.max(Message.created_at), Conversation.updated_at, Conversation.created_at)
     rows = (
         db.query(
@@ -143,7 +187,9 @@ def list_conversations(db: Session, user_id: int) -> List[Dict[str, Any]]:
             "title": c.title,
             "created_at": c.created_at,
             "updated_at": last_act or c.updated_at,
-            "message_count": int(count)
+            "message_count": int(count),
+            "trip_id": c.trip_public_id,
+            "trip_destination": c.trip_destination,
         }
         for c, count, last_act in rows
     ]
@@ -411,6 +457,9 @@ def _generate_ai_response_text(
                 f"- Seamlessly tailor budget pacing, dining suggestions, lodging tiers, and activity selections to this travel style, unless the user explicitly requests otherwise."
             )
 
+    # Linked Trip Blueprint Grounding (Model 3)
+    system_prompt = _inject_trip_context(conversation, db, system_prompt)
+
     # Format payload for Amazon Bedrock Converse API
     raw_payload = []
     for m in recent_slice:
@@ -646,6 +695,9 @@ def stream_message_and_get_response(
                 f"- Preferred Travel Style: {user.default_travel_style}\n"
                 f"- Seamlessly tailor budget pacing, dining suggestions, lodging tiers, and activity selections to this travel style, unless the user explicitly requests otherwise."
             )
+
+    # Linked Trip Blueprint Grounding (Model 3)
+    system_prompt = _inject_trip_context(conversation, db, system_prompt)
 
     raw_payload = []
     for m in recent_slice:
