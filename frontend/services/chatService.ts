@@ -146,8 +146,15 @@ export async function sendMessage(conversationId: string | number, content: stri
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Failed to send message");
+    const errorText = await response.text().catch(() => "");
+    let errorDetail = "";
+    try {
+      const errorData = JSON.parse(errorText);
+      errorDetail = errorData.detail || errorData.message || "";
+    } catch {
+      errorDetail = errorText.slice(0, 200);
+    }
+    throw new Error(errorDetail || `Failed to send message (HTTP ${response.status})`);
   }
 
   return response.json();
@@ -170,8 +177,15 @@ export async function sendMessageStream(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Failed to stream message");
+    const errorText = await response.text().catch(() => "");
+    let errorDetail = "";
+    try {
+      const errorData = JSON.parse(errorText);
+      errorDetail = errorData.detail || errorData.message || "";
+    } catch {
+      errorDetail = errorText.slice(0, 200);
+    }
+    throw new Error(errorDetail || `Failed to stream message (HTTP ${response.status})`);
   }
 
   const contentType = response.headers.get("content-type") || "";

@@ -641,7 +641,7 @@ def stream_message_and_get_response(
     # Step 3: Load conversation history strictly ordered by ID
     history_messages = (
         db.query(Message)
-        .filter(Message.conversation_id == conversation_id)
+        .filter(Message.conversation_id == conversation.id)
         .order_by(Message.id.asc())
         .all()
     )
@@ -649,34 +649,34 @@ def stream_message_and_get_response(
     # Early refusal checks
     if is_suspicious:
         refusal = get_security_refusal(sanitized_text)
-        ai_msg = Message(conversation_id=conversation_id, role="assistant", content=refusal)
+        ai_msg = Message(conversation_id=conversation.id, role="assistant", content=refusal)
         db.add(ai_msg)
         db.commit()
         db.refresh(ai_msg)
         yield f"data: {json.dumps({'chunk': refusal})}\n\n"
-        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.id, 'user_message_id': user_msg.id, 'title': conversation.title})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
         return
 
     client = get_bedrock_client()
     if _llm_injection_check(client, sanitized_text):
         refusal = get_security_refusal(sanitized_text)
-        ai_msg = Message(conversation_id=conversation_id, role="assistant", content=refusal)
+        ai_msg = Message(conversation_id=conversation.id, role="assistant", content=refusal)
         db.add(ai_msg)
         db.commit()
         db.refresh(ai_msg)
         yield f"data: {json.dumps({'chunk': refusal})}\n\n"
-        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.id, 'user_message_id': user_msg.id, 'title': conversation.title})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
         return
 
     intent_result = classify_user_intent(sanitized_text)
     if intent_result.intent == IntentType.OUT_OF_SCOPE:
         refusal = get_out_of_scope_refusal(sanitized_text)
-        ai_msg = Message(conversation_id=conversation_id, role="assistant", content=refusal)
+        ai_msg = Message(conversation_id=conversation.id, role="assistant", content=refusal)
         db.add(ai_msg)
         db.commit()
         db.refresh(ai_msg)
         yield f"data: {json.dumps({'chunk': refusal})}\n\n"
-        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.id, 'user_message_id': user_msg.id, 'title': conversation.title})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
         return
 
     # Semantic Vector Routing
