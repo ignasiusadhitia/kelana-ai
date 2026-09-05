@@ -174,6 +174,7 @@ function ChatContent() {
   const [editMessageInput, setEditMessageInput] = useState("");
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | number | null>(null);
 
   // Search filter for sidebar conversations
   const [searchConvQuery, setSearchConvQuery] = useState("");
@@ -502,12 +503,14 @@ function ChatContent() {
   };
 
   const handleSaveEditMessage = async (msgId: string | number) => {
-    if (!activeConversationId || isSending || isSubmittingEdit) return;
+    if (!activeConversationId || isSending || isSubmittingEdit || isSendingRef.current) return;
     const text = editMessageInput.trim();
     if (!text) return;
 
+    isSendingRef.current = true;
     setIsSubmittingEdit(true);
     setIsSending(true);
+    setIsRegenerating(true);
     try {
       let targetMsgId = msgId;
 
@@ -530,6 +533,25 @@ function ChatContent() {
         }
       }
 
+      // Optimistically update edited user turn and replace subsequent assistant turn with loading skeleton
+      setMessages((prev) => {
+        const editIdx = prev.findIndex((m) => String(m.id) === String(targetMsgId || msgId));
+        if (editIdx === -1) return prev;
+        const updatedUserMsg = { ...prev[editIdx], content: text };
+        const tempAiMsg: ChatMessage = {
+          id: `temp_regen_${Date.now()}`,
+          conversation_id: activeConversationId,
+          role: "assistant",
+          content: "",
+          created_at: new Date().toISOString(),
+        };
+        return [...prev.slice(0, editIdx), updatedUserMsg, tempAiMsg];
+      });
+      setEditingMessageId(null);
+      setEditMessageInput("");
+      setIsAtBottom(true);
+      requestAnimationFrame(() => scrollToBottom("smooth"));
+
       const updated = await editMessageAndRegenerate(activeConversationId, targetMsgId, text);
       setMessages(updated.messages || []);
       setConversations((prev) => {
@@ -544,8 +566,6 @@ function ChatContent() {
         };
         return [item, ...remaining];
       });
-      setEditingMessageId(null);
-      setEditMessageInput("");
       toast.success("Message edited and discussion updated.", { title: "Turn Updated" });
     } catch (err) {
       toast.error(
@@ -553,28 +573,42 @@ function ChatContent() {
         { title: "Edit Failed" }
       );
       console.error("Failed to edit message:", err);
+      try {
+        const detail = await getConversation(activeConversationId);
+        if (detail?.messages) setMessages(detail.messages);
+      } catch {
+        // ignore secondary failure
+      }
     } finally {
+      isSendingRef.current = false;
       setIsSubmittingEdit(false);
+      setIsRegenerating(false);
       setIsSending(false);
     }
   };
 
   const handleRegenerateResponse = async () => {
-    if (!activeConversationId || isSending || isRegenerating) return;
+    if (!activeConversationId || isSending || isRegenerating || isSendingRef.current) return;
 
+    // Find the latest assistant message to regenerate
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== "assistant") return;
+
+    isSendingRef.current = true;
     setIsRegenerating(true);
     setIsSending(true);
+    setRegeneratingMessageId(lastMsg.id);
 
-    // Optimistically remove any trailing error/empty assistant message so the
-    // ThinkingMessageSkeleton renders cleanly in its place
-    setMessages((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      if (last.role === "assistant" && (isFailedMessage(last) || !last.content)) {
-        return prev.slice(0, -1);
-      }
-      return prev;
-    });
+    // Optimistically empty the assistant message content so it immediately renders ThinkingMessageSkeleton in-place
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === lastMsg.id
+          ? { ...m, content: "", is_error: false }
+          : m
+      )
+    );
+    setIsAtBottom(true);
+    requestAnimationFrame(() => scrollToBottom("smooth"));
 
     try {
       const updated = await regenerateResponse(activeConversationId);
@@ -600,14 +634,14 @@ function ChatContent() {
       console.error("Failed to regenerate response:", err);
       // Re-fetch messages from server to restore correct state
       try {
-        const detail = await import("@/services/chatService").then((m) =>
-          m.getConversation(activeConversationId!)
-        );
+        const detail = await getConversation(activeConversationId);
         if (detail?.messages) setMessages(detail.messages);
       } catch {
         // ignore secondary failure
       }
     } finally {
+      isSendingRef.current = false;
+      setRegeneratingMessageId(null);
       setIsRegenerating(false);
       setIsSending(false);
     }
@@ -1354,7 +1388,6 @@ function ChatContent() {
                 ) : (
                   messages.map((msg, idx) => {
                     const isUser = msg.role === "user";
-                    if (!isUser && !msg.content) return null;
                     const isLastMessage = idx === messages.length - 1;
                     const isEditingThis = editingMessageId === msg.id;
                     const isCopied = copiedMessageId === msg.id;
@@ -1371,6 +1404,33 @@ function ChatContent() {
                           new Date(msg.created_at).toDateString() !==
                             new Date(prevMsg.created_at).toDateString()
                       );
+
+                    // When an assistant message is regenerating or awaiting streaming output,
+                    // replace the message directly with ThinkingMessageSkeleton!
+                    const isTargetRegenerating =
+                      !isUser &&
+                      ((regeneratingMessageId && String(msg.id) === String(regeneratingMessageId)) ||
+                       (isRegenerating && isLastMessage) ||
+                       (!msg.content && (isSending || isRegenerating)));
+
+                    if (isTargetRegenerating) {
+                      return (
+                        <div key={msg.id} className="space-y-3.5 sm:space-y-4">
+                          {showDateDivider && (
+                            <div className="flex items-center justify-center my-3 sm:my-4">
+                              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-900/90 px-3 py-1 shadow-sm backdrop-blur-md">
+                                <span className="text-[10px] sm:text-[11px] font-medium text-zinc-400">
+                                  {formatDateDivider(msg.created_at)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          <ThinkingMessageSkeleton />
+                        </div>
+                      );
+                    }
+
+                    if (!isUser && !msg.content) return null;
 
                     return (
                       <div key={msg.id} className="space-y-3.5 sm:space-y-4">
@@ -1689,12 +1749,8 @@ function ChatContent() {
                   })
                 )}
 
-                {isSending && (
-                  // Show ThinkingMessageSkeleton:
-                  // - When a new message is sending and the AI bubble is empty (streaming not started)
-                  // - When regenerating (the failed bubble has been removed optimistically)
-                  (isRegenerating || (!messages[messages.length - 1]?.content)) && messages.length > 0
-                ) && (
+                {/* Fallback ThinkingMessageSkeleton: only when the latest message in list is a user turn */}
+                {isSending && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
                   <ThinkingMessageSkeleton />
                 )}
 
