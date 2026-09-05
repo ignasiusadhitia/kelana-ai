@@ -89,11 +89,17 @@ def retrieve_passages(
                 })
 
         # Destination alignment: if user query explicitly mentions a destination,
-        # filter out documents from conflicting unmentioned destinations
-        known_destinations = ["tokyo", "osaka", "kyoto", "singapore", "bali", "korea", "seoul"]
+        # filter out documents from conflicting unmentioned destinations or external locations
+        known_destinations = ["tokyo", "osaka", "kyoto", "japan", "jepang", "singapore", "bali", "indonesia", "korea", "seoul"]
+        external_locations = ["swiss", "switzerland", "alps", "paris", "france", "europe", "eropa", "germany", "jerman", "italy", "italia", "uk", "london", "australia", "america", "usa", "thailand", "bangkok", "vietnam"]
         q_lower = sanitized_q.lower()
         mentioned_destinations = [d for d in known_destinations if d in q_lower]
-        if mentioned_destinations:
+        mentioned_external = [e for e in external_locations if e in q_lower]
+
+        if mentioned_external and not mentioned_destinations:
+            # Query targets an external destination outside KB; filter out specific destination guides to prevent ghost citations
+            results = [r for r in results if not any(d in r["source"].lower() for d in known_destinations)]
+        elif mentioned_destinations:
             has_matching = any(any(d in r["source"].lower() for d in mentioned_destinations) for r in results)
             if has_matching:
                 unmentioned = [d for d in known_destinations if d not in mentioned_destinations]

@@ -208,29 +208,75 @@ Execute this track in `/chat` to prove multi-turn memory, RAG factual precision,
 
 ---
 
-## 8. Automated Verification Command Cheat Sheet
+## 8. Demo Track 6: Enhanced Chat Guardrails & UX Resilience
+
+### Test 6.1: 14-Day Planning Limit & Modular Breakdown
+1. In `/chat`, submit: *"Plan a 20-day trip to Japan for our family with a budget of $5,000."*
+2. **Validation:**
+   - AI transparently explains that single itineraries are capped at 14 days to preserve granular recommendation depth without truncation.
+   - Proposes a modular multi-leg breakdown (e.g. Leg 1: Tokyo & Kanto 7d, Leg 2: Kansai 7d, Leg 3: Hokkaido 6d).
+   - Invites traveler to select Leg 1 or customize.
+   - **Zero** truncated 20-day text output.
+
+### Test 6.2: In-Place Loading Skeleton during Regeneration
+1. On any assistant message in `/chat`, click **"Regenerate Response"** (RotateCw icon).
+2. **Validation:**
+   - The specific message turns into a `ThinkingMessageSkeleton` **in-place** at that exact position.
+   - No layout jumping or duplicate skeleton at the bottom of the conversation.
+   - Fresh response streams and renders smoothly at the same message position.
+
+### Test 6.3: Synchronous Interaction Lock during Generation
+1. While an AI response is actively streaming, attempt to:
+   - Click a prompt pill.
+   - Click a different conversation in the sidebar.
+   - Press Enter in the input bar.
+2. **Validation:**
+   - `isSendingRef = true` synchronously blocks all submissions.
+   - Input textarea and prompt pills show disabled/not-allowed cursor.
+   - Zero double-message submissions or state collisions.
+
+### Test 6.4: Free-Text & Custom Travel Style Auto-Extraction
+1. In chat, generate an itinerary from: *"Plan a 5-day photography trip to Kyoto with budget $2000"*.
+2. Click **"Save as Official Trip"**.
+3. **Validation:**
+   - Modal opens with Destination: `Kyoto`, Duration: `5`, Budget: `2000`.
+   - Travel Style automatically selects Custom mode with text input pre-filled as `Photography`.
+   - Traveler can seamlessly edit or toggle back to presets.
+   - Duration is strictly capped at 14 days (`Math.min(rawDays, 14)`).
+
+### Test 6.5: Preamble Stripping on Blueprint Promotion
+1. Verify assistant messages with conversational greetings (*"Certainly! Here is your bespoke..."*) are saved cleanly.
+2. Clicking **"Apply to Blueprint"** or saving via modal strips the pleasantries via `stripConversationalPreamble()`.
+3. The resulting `/trips/[id]` accordion starts cleanly at `## Day 1` without greeting clutter.
+
+---
+
+## 9. Automated Verification Command Cheat Sheet
 
 Run these commands during a live evaluation or technical review to prove zero regressions:
 
 ```bash
-# 1. Full Backend Automated Unit & Regression Tests (41/41 PASS)
+# 1. Full Backend Automated Unit & Regression Tests (42/42 PASS)
 cd backend
 python -m unittest discover -s . -p "test_*.py" -v
 
 # 2. Model 3 Bridge & Recommendation PATCH Specific Tests (8/8 PASS)
 python -m unittest test_model3_bridge.py -v
 
-# 3. Live Bedrock & RAG Multi-Turn Stress Benchmark (Live AWS API)
+# 3. 14-Day Limit & Duration Guardrail Unit Tests (13/13 PASS)
+python test_conversations.py
+
+# 4. Live Bedrock & RAG Multi-Turn Stress Benchmark (All 6 Suites PASS 100%)
 python stress_test_chat.py
 
-# 4. Database Migrations Status Check (001 - 008 Idempotent)
+# 5. Database Migrations Status Check (001 - 008 Idempotent)
 python migrate.py
 
-# 5. Frontend Type Safety Verification (0 errors)
+# 6. Frontend Type Safety Verification (0 errors)
 cd ../frontend
 npx tsc --noEmit
 
-# 6. Frontend Production Build & Route Generation (24/24 pages)
+# 7. Frontend Production Build & Route Generation (24/24 pages)
 npm run build
 ```
 

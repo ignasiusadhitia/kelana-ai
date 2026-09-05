@@ -383,9 +383,12 @@ def _summarize_older_history(client: Any, older_messages: List[Message]) -> str:
     
     transcript = "\n".join([f"{m.role.capitalize()}: {m.content[:500]}" for m in older_messages])
     summary_prompt = (
-        "You are an assistant that summarizes past travel conversation turns. "
-        "Create a concise 2-3 sentence summary capturing key traveler constraints "
-        "(destinations, dates, group composition, dietary rules like halal/vegetarian, budget).\n\n"
+        "You are an assistant that summarizes past travel conversation turns.\n"
+        "Extract and summarize ALL core traveler constraints with highest priority:\n"
+        "- Dietary requirements (e.g. STRICT HALAL, VEGETARIAN, KOSHER, ALLERGIES)\n"
+        "- Group profile (e.g. TODDLER, BABIES, KIDS, ELDERLY, STROLLER ACCESS)\n"
+        "- Travel pace, destination, and budget\n"
+        "These constraints MUST be explicitly listed so subsequent turns never violate them.\n\n"
         f"Transcript:\n{transcript}\n\nSummary:"
     )
 
@@ -393,7 +396,7 @@ def _summarize_older_history(client: Any, older_messages: List[Message]) -> str:
         response = client.converse(
             modelId=MODEL_ID,
             messages=[{"role": "user", "content": [{"text": summary_prompt}]}],
-            inferenceConfig={"maxTokens": 200, "temperature": 0.1}
+            inferenceConfig={"maxTokens": 300, "temperature": 0.0}
         )
         return response["output"]["message"]["content"][0]["text"].strip()
     except Exception as e:
@@ -550,9 +553,12 @@ def _generate_ai_response_text(
         older_summary = _get_or_build_summary(client, db, conversation, older_slice)
         if older_summary:
             system_prompt += (
-                f"\n\n### SUMMARY OF EARLIER DISCUSSION:\n"
+                f"\n\n### SUMMARY OF EARLIER DISCUSSION & MANDATORY TRAVELER CONSTRAINTS:\n"
                 f"{older_summary}\n\n"
-                "Always incorporate these ongoing traveler preferences into your response."
+                "CRITICAL CONVERSATIONAL MEMORY RULE:\n"
+                "You MUST strictly respect and enforce all ongoing traveler constraints from this summary "
+                "(especially dietary rules like Halal dining, traveling with toddlers/children, stroller accessibility, and budget limits). "
+                "NEVER violate these constraints or recommend non-compliant venues (e.g. NEVER recommend non-halal meat/alcohol if traveler requires Halal)."
             )
     else:
         recent_slice = effective_history
@@ -792,9 +798,12 @@ def stream_message_and_get_response(
         older_summary = _get_or_build_summary(client, db, conversation, older_slice)
         if older_summary:
             system_prompt += (
-                f"\n\n### SUMMARY OF EARLIER DISCUSSION:\n"
+                f"\n\n### SUMMARY OF EARLIER DISCUSSION & MANDATORY TRAVELER CONSTRAINTS:\n"
                 f"{older_summary}\n\n"
-                "Always incorporate these ongoing traveler preferences into your response."
+                "CRITICAL CONVERSATIONAL MEMORY RULE:\n"
+                "You MUST strictly respect and enforce all ongoing traveler constraints from this summary "
+                "(especially dietary rules like Halal dining, traveling with toddlers/children, stroller accessibility, and budget limits). "
+                "NEVER violate these constraints or recommend non-compliant venues (e.g. NEVER recommend non-halal meat/alcohol if traveler requires Halal)."
             )
     else:
         recent_slice = history_messages
