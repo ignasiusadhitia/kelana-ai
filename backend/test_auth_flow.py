@@ -232,5 +232,32 @@ def test_full_auth_and_isolation_flow():
     print("ALL 8 AUTH, PROFILE, SECURITY & PRIVACY TESTS PASSED 100%!")
     print("========================================================")
 
+def test_register_rate_limiting():
+    print("\n--- [TEST 9: Register Rate Limiting Protection] ---")
+    from utils.rate_limiter import register_rate_limiter
+    register_rate_limiter.reset()
+
+    test_ip_headers = {"x-forwarded-for": "198.51.100.42"}
+    # Max 5 registrations per minute per IP
+    for i in range(5):
+        res = client.post("/api/v1/auth/register", headers=test_ip_headers, json={
+            "name": f"Spam Bot {i}",
+            "email": f"bot_{i}_{os.urandom(4).hex()}@spam.com",
+            "password": "password123"
+        })
+        assert res.status_code == 201, f"Expected 201 on attempt {i+1}, got {res.status_code}: {res.text}"
+
+    # 6th request from same IP must be blocked with 429
+    res_blocked = client.post("/api/v1/auth/register", headers=test_ip_headers, json={
+        "name": "Spam Bot 6",
+        "email": f"bot_6_{os.urandom(4).hex()}@spam.com",
+        "password": "password123"
+    })
+    assert res_blocked.status_code == 429, f"Expected 429 Too Many Requests, got {res_blocked.status_code}: {res_blocked.text}"
+    assert "Retry-After" in res_blocked.headers
+    print(f"[PASS] 6th registration blocked with 429 Too Many Requests (Retry-After: {res_blocked.headers.get('Retry-After')}s)")
+
+
 if __name__ == "__main__":
     test_full_auth_and_isolation_flow()
+    test_register_rate_limiting()

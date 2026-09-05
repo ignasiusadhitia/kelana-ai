@@ -67,13 +67,27 @@ class SlidingWindowRateLimiter:
 # Global rate limiter instance for AI generation routes (15 requests/min per user/IP)
 ai_rate_limiter = SlidingWindowRateLimiter(max_requests=15, window_seconds=60)
 
+# Global rate limiter instance for user registration (5 requests/min per IP)
+register_rate_limiter = SlidingWindowRateLimiter(max_requests=5, window_seconds=60)
+
+
+def get_real_client_ip(request: Request) -> str:
+    """Extract real client IP address respecting reverse proxies (Vercel, Cloudflare, AWS ALB)."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client and request.client.host else "unknown"
+
 
 def check_ai_rate_limit(request: Request, user_id: Optional[int] = None) -> None:
     """
     FastAPI dependency helper to enforce rate limiting on expensive AI endpoints.
-    Keyed by user_id if authenticated, or client host IP as fallback.
+    Keyed by user_id if authenticated, or real client IP as fallback.
     """
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_real_client_ip(request)
     key = f"user:{user_id}" if user_id else f"ip:{client_ip}"
 
     allowed, retry_after = ai_rate_limiter.is_allowed(key)
@@ -81,5 +95,23 @@ def check_ai_rate_limit(request: Request, user_id: Optional[int] = None) -> None
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Rate limit exceeded (15 AI requests/min). Please try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)}
+        )
+
+
+def check_register_rate_limit(request: Request) -> None:
+    """
+    FastAPI dependency helper to enforce rate limiting on user registration.
+    Prevents brute-force bot spamming, mass fake account creation, and bcrypt CPU exhaustion.
+    Max 5 registration requests per minute per IP.
+    """
+    client_ip = get_real_client_ip(request)
+    key = f"register:{client_ip}"
+
+    allowed, retry_after = register_rate_limiter.is_allowed(key)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many registration requests. Please wait {retry_after} seconds before trying again.",
             headers={"Retry-After": str(retry_after)}
         )

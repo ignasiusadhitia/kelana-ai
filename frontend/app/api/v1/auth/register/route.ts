@@ -17,10 +17,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const clientIp =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "";
+
     const response = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(clientIp ? { "x-forwarded-for": clientIp } : {}),
       },
       body: JSON.stringify(body),
     });

@@ -20,6 +20,7 @@ from schemas.auth import (
 from services.auth_service import hash_password, verify_password, create_access_token
 from services.auth_deps import get_current_user
 from services.trip_services import get_user_analytics_db
+from utils.rate_limiter import check_register_rate_limit, get_real_client_ip
 
 # Rate Limiting Configuration (Defense against credential stuffing & brute-force)
 _failed_login_attempts: dict[str, list[datetime]] = defaultdict(list)
@@ -51,14 +52,21 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def register_user(
+    request: UserRegisterRequest,
+    req: Request,
+    db: Session = Depends(get_db)
+) -> TokenResponse:
     """
     Register a new traveler account:
+    - Enforces IP-based rate limiting (max 5 attempts/min per IP).
     - Validates email uniqueness.
     - Hashes password using bcrypt.
     - Persists user to PostgreSQL.
     - Issues a signed JWT access token immediately.
     """
+    check_register_rate_limit(req)
+
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
         raise HTTPException(
@@ -102,7 +110,7 @@ def login_user(
     - Compares password against stored bcrypt hash.
     - Returns JWT access token upon success.
     """
-    client_ip = req.client.host if req.client and req.client.host else "unknown"
+    client_ip = get_real_client_ip(req)
     _check_login_rate_limit(client_ip)
 
     user = db.query(User).filter(User.email == request.email.lower().strip()).first()
