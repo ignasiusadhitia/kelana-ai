@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { createTripService } from "@/services/tripService";
 import { TRAVEL_STYLE_OPTIONS } from "@/constants/trip";
 import { getTravelStyleIconComponent } from "@/lib/icons";
-import { stripConversationalPreamble } from "@/lib/utils";
+import { stripConversationalPreamble, extractTripDetailsFromContent } from "@/lib/utils";
 import { TripResponse } from "@/types/trip";
 
 /**
@@ -22,6 +22,8 @@ interface SaveChatTripModalProps {
   isOpen: boolean;
   onClose: () => void;
   rawItineraryText: string;
+  userPrompt?: string;
+  conversationTitle?: string;
   defaultDestination?: string;
   defaultStyle?: string;
   onSaved?: (trip: TripResponse) => void;
@@ -31,6 +33,8 @@ export function SaveChatTripModal({
   isOpen,
   onClose,
   rawItineraryText,
+  userPrompt = "",
+  conversationTitle = "",
   defaultDestination = "",
   defaultStyle = "Family",
   onSaved,
@@ -45,29 +49,40 @@ export function SaveChatTripModal({
     );
   }, [rawItineraryText]);
 
-  const initialDestination =
-    defaultDestination && defaultDestination !== "New Conversation"
-      ? defaultDestination.replace(/\.\.\.$/, "").trim()
-      : "";
+  // Extract trip parameters intelligently from itinerary text, user prompt, and thread title
+  const extracted = React.useMemo(() => {
+    return extractTripDetailsFromContent({
+      aiText: rawItineraryText,
+      userPrompt,
+      conversationTitle,
+      defaultStyle,
+    });
+  }, [rawItineraryText, userPrompt, conversationTitle, defaultStyle]);
 
-  const [destination, setDestination] = useState(initialDestination);
-  const [days, setDays] = useState(3);
-  const [budget, setBudget] = useState(1500);
-  const [travelStyle, setTravelStyle] = useState(defaultStyle || "Family");
+  const [destination, setDestination] = useState(
+    extracted.destination ||
+    (defaultDestination && defaultDestination !== "New Conversation"
+      ? defaultDestination.replace(/\.\.\.$/, "").trim()
+      : "")
+  );
+  const [days, setDays] = useState(extracted.days || 3);
+  const [budget, setBudget] = useState(extracted.budget || 1500);
+  const [travelStyle, setTravelStyle] = useState(extracted.travelStyle || defaultStyle || "Family");
   const [isSaving, setIsSaving] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       setDestination(
-        defaultDestination && defaultDestination !== "New Conversation"
+        extracted.destination ||
+        (defaultDestination && defaultDestination !== "New Conversation"
           ? defaultDestination.replace(/\.\.\.$/, "").trim()
-          : ""
+          : "")
       );
-      setDays(3);
-      setBudget(1500);
-      setTravelStyle(defaultStyle || "Family");
+      setDays(extracted.days || 3);
+      setBudget(extracted.budget || 1500);
+      setTravelStyle(extracted.travelStyle || defaultStyle || "Family");
     }
-  }, [isOpen, defaultDestination, defaultStyle]);
+  }, [isOpen, extracted, defaultDestination, defaultStyle]);
 
   if (!isOpen) return null;
 

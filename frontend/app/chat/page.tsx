@@ -183,6 +183,7 @@ function ChatContent() {
   const [saveTripModalOpen, setSaveTripModalOpen] = useState(false);
   const [tripToSaveText, setTripToSaveText] = useState("");
   const [tripToSaveMessageId, setTripToSaveMessageId] = useState<string | number | null>(null);
+  const [tripToSaveUserPrompt, setTripToSaveUserPrompt] = useState("");
   const [applyingBlueprintMessageId, setApplyingBlueprintMessageId] = useState<string | number | null>(null);
   const [savedMessageIds, setSavedMessageIds] = useState<Set<string | number>>(() => {
     if (typeof window === "undefined") return new Set();
@@ -657,6 +658,24 @@ function ChatContent() {
     }
     setTripToSaveText(rawItinerary);
     setTripToSaveMessageId(messageId);
+
+    // Extract the preceding user prompt for high-precision metadata extraction
+    const msgIdx = messages.findIndex((m) => String(m.id) === String(messageId));
+    let prompt = "";
+    if (msgIdx > 0) {
+      for (let i = msgIdx - 1; i >= 0; i--) {
+        if (messages[i].role === "user") {
+          prompt = messages[i].content;
+          break;
+        }
+      }
+    } else {
+      const userMsgs = messages.filter((m) => m.role === "user");
+      if (userMsgs.length > 0) {
+        prompt = userMsgs[userMsgs.length - 1].content;
+      }
+    }
+    setTripToSaveUserPrompt(prompt);
     setSaveTripModalOpen(true);
   };
 
@@ -1844,6 +1863,8 @@ function ChatContent() {
         isOpen={saveTripModalOpen}
         onClose={() => setSaveTripModalOpen(false)}
         rawItineraryText={tripToSaveText}
+        userPrompt={tripToSaveUserPrompt}
+        conversationTitle={activeConversation?.title}
         defaultDestination={activeConversation?.title}
         defaultStyle={user?.default_travel_style || "Family"}
         onSaved={handleTripSaved}
