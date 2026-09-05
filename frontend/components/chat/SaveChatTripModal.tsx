@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Compass, MapPin, Calendar, CircleDollarSign, Sparkles, X, Loader2, AlertCircle } from "lucide-react";
+import { Compass, MapPin, Calendar, CircleDollarSign, Sparkles, X, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
 import { Typography } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,11 @@ export function SaveChatTripModal({
   );
   const [days, setDays] = useState(extracted.days || 3);
   const [budget, setBudget] = useState(extracted.budget || 1500);
-  const [travelStyle, setTravelStyle] = useState(extracted.travelStyle || defaultStyle || "Family");
+  const isPresetStyle = (s: string) => TRAVEL_STYLE_OPTIONS.some((o) => o.id.toLowerCase() === s.toLowerCase());
+  const initialStyle = extracted.travelStyle || defaultStyle || "Family";
+  const [travelStyle, setTravelStyle] = useState(initialStyle);
+  const [isCustomStyle, setIsCustomStyle] = useState(!isPresetStyle(initialStyle));
+  const [customStyleText, setCustomStyleText] = useState(!isPresetStyle(initialStyle) ? initialStyle : "");
   const [isSaving, setIsSaving] = useState(false);
 
   React.useEffect(() => {
@@ -80,7 +84,11 @@ export function SaveChatTripModal({
       );
       setDays(extracted.days || 3);
       setBudget(extracted.budget || 1500);
-      setTravelStyle(extracted.travelStyle || defaultStyle || "Family");
+      const st = extracted.travelStyle || defaultStyle || "Family";
+      setTravelStyle(st);
+      const isPreset = isPresetStyle(st);
+      setIsCustomStyle(!isPreset);
+      setCustomStyleText(!isPreset ? st : "");
     }
   }, [isOpen, extracted, defaultDestination, defaultStyle]);
 
@@ -96,11 +104,12 @@ export function SaveChatTripModal({
     try {
       setIsSaving(true);
       const cleanedItinerary = stripConversationalPreamble(rawItineraryText);
+      const finalTravelStyle = (isCustomStyle ? (customStyleText.trim() || travelStyle) : travelStyle) || "Family";
       const createdTrip = await createTripService({
         destination: destination.trim(),
         days: Number(days),
         budget: Number(budget),
-        travel_style: travelStyle,
+        travel_style: finalTravelStyle,
         ai_recommendation: cleanedItinerary,
       });
 
@@ -218,17 +227,23 @@ export function SaveChatTripModal({
                   <span>Travel Style</span>
                 </label>
                 <span className="text-[11px] text-zinc-400">
-                  Selected: <span className="text-white font-semibold">{travelStyle}</span>
+                  Selected:{" "}
+                  <span className="text-white font-semibold">
+                    {isCustomStyle ? (customStyleText || travelStyle) : travelStyle}
+                  </span>
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {TRAVEL_STYLE_OPTIONS.map((style) => {
-                  const isSelected = travelStyle.toLowerCase() === style.id.toLowerCase();
+                  const isSelected = !isCustomStyle && travelStyle.toLowerCase() === style.id.toLowerCase();
                   return (
                     <button
                       key={style.id}
                       type="button"
-                      onClick={() => setTravelStyle(style.id)}
+                      onClick={() => {
+                        setIsCustomStyle(false);
+                        setTravelStyle(style.id);
+                      }}
                       className={`cursor-pointer flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl border text-[11px] font-medium transition-all active:scale-95 ${
                         isSelected
                           ? "border-primary bg-primary/20 text-white shadow-sm ring-1 ring-primary/50"
@@ -243,6 +258,53 @@ export function SaveChatTripModal({
                   );
                 })}
               </div>
+
+              {/* Custom style option toggle or input */}
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomStyle(true);
+                    if (!customStyleText) {
+                      setCustomStyleText(travelStyle !== "Family" ? travelStyle : "");
+                    }
+                  }}
+                  className={`cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium transition-colors active:scale-95 ${
+                    isCustomStyle ? "text-primary" : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>{isCustomStyle ? "Custom style enabled" : "+ Custom travel style..."}</span>
+                </button>
+                {isCustomStyle && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomStyle(false);
+                      setTravelStyle("Family");
+                    }}
+                    className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    Reset to presets
+                  </button>
+                )}
+              </div>
+
+              {isCustomStyle && (
+                <div className="mt-1.5">
+                  <Input
+                    type="text"
+                    value={customStyleText}
+                    onChange={(e) => {
+                      setCustomStyleText(e.target.value);
+                      setTravelStyle(e.target.value);
+                    }}
+                    placeholder="e.g. Photography tour, Scuba Diving, Road Trip"
+                    className="h-8 text-xs"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
 
             {/* Snippet Preview */}

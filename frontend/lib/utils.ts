@@ -108,24 +108,81 @@ export function extractTripDetailsFromContent({
   const days = Math.max(1, Math.min(rawDays, 30));
 
   // 2. TRAVEL STYLE
-  const textLower = combined.toLowerCase();
+  // Preset style IDs (normalized casing) — free-text allowed beyond these
+  const PRESET_STYLES = ["Backpacker", "Solo", "Family", "Couple", "Luxury", "Adventure", "Culinary", "Wellness"];
+
+  // Synonym map: each preset → regex pattern for detection
+  const STYLE_SYNONYMS: Record<string, RegExp> = {
+    Backpacker: /(?:backpacker|hemat|hostel|budget\s+traveler)/i,
+    Couple:     /(?:couple|honeymoon|pasangan|romantic|romantis)/i,
+    Luxury:     /(?:luxury|mewah|5-star|five-star|resort|premium)/i,
+    Adventure:  /(?:adventure|petualang|hiking|trekking|outdoor|extreme)/i,
+    Culinary:   /(?:culinary|kuliner|street\s+food|foodie|gastronomy|dining)/i,
+    Wellness:   /(?:wellness|spa|meditasi|relax|santai|healing|meditation)/i,
+    Solo:       /(?:\bsolo\b|sendiri|me\s+time)/i,
+    Family:     /(?:family|keluarga|anak|kids|children)/i,
+  };
+
+  const STOP_WORDS = new Set([
+    "day", "days", "hari", "short", "long", "quick", "great", "fun",
+    "first", "next", "my", "our", "a", "an", "the", "good", "official",
+    "new", "planned", "summer", "winter"
+  ]);
+
   let travelStyle = defaultStyle || "Family";
-  if (/(?:backpacker|hemat|hostel|budget\s+traveler)/i.test(textLower)) {
-    travelStyle = "Backpacker";
-  } else if (/(?:couple|honeymoon|pasangan|romantic|romantis)/i.test(textLower)) {
-    travelStyle = "Couple";
-  } else if (/(?:luxury|mewah|5-star|five-star|resort|premium)/i.test(textLower)) {
-    travelStyle = "Luxury";
-  } else if (/(?:adventure|petualang|hiking|trekking|outdoor|nature)/i.test(textLower)) {
-    travelStyle = "Adventure";
-  } else if (/(?:culinary|kuliner|street\s+food|foodie|makanan|dining)/i.test(textLower)) {
-    travelStyle = "Culinary";
-  } else if (/(?:wellness|spa|relax|santai|healing|meditation)/i.test(textLower)) {
-    travelStyle = "Wellness";
-  } else if (/(?:solo|sendiri|me\s+time)/i.test(textLower)) {
-    travelStyle = "Solo";
-  } else if (/(?:family|keluarga|anak|kids|children)/i.test(textLower)) {
-    travelStyle = "Family";
+
+  // Priority 1: explicit declaration, e.g. "travel style: Photography", "style: Cultural Exploration with budget $1000"
+  const explicitMatch = (userPrompt + "\n" + aiText).match(
+    /(?:travel\s+style|gaya\s+perjalanan|travel\s+mode|style)\s*[:\-–—=]\s*([A-Za-z][A-Za-z\s]{1,30}?)(?:\s+(?:with|budget|for|pada|under|dengan)|\s*[,.\n!?]|$)/i
+  );
+  if (explicitMatch) {
+    const raw = explicitMatch[1].trim();
+    const matchedPreset = PRESET_STYLES.find((p) => p.toLowerCase() === raw.toLowerCase());
+    travelStyle = matchedPreset ?? raw;
+  } else {
+    // Priority 2: exact preset name mentioned verbatim in user prompt (most reliable signal)
+    const presetInPrompt = PRESET_STYLES.find((p) =>
+      new RegExp(`\\b${p}\\b`, "i").test(userPrompt)
+    );
+    if (presetInPrompt) {
+      travelStyle = presetInPrompt;
+    } else {
+      // Priority 3: Indonesian / conversational style phrase, e.g. "ala [style]", "tema [style]", "fokus [style]"
+      const modeMatch = userPrompt.match(
+        /\b(?:ala|mode|tema|fokus|nuansa)\s+([A-Za-z][A-Za-z\s]{1,30}?)(?:\s+(?:trip|travel|liburan|tour|jalan-jalan)|\s*[,.?!]|$)/i
+      );
+      // Priority 4: phrase like "[N-day] [Custom Style] trip/tour to [Destination]"
+      const tripPhraseMatch = userPrompt.match(
+        /(?:^|\s)(?:\d+[\s-]*(?:days?|hari)\s+)?([A-Za-z]{3,20}(?:\s+[A-Za-z]{3,20})?)\s+(?:trip|tour|vacation|holiday)\s+(?:to|ke|in|di)\b/i
+      );
+
+      let candidate = (modeMatch?.[1] || tripPhraseMatch?.[1] || "").trim();
+      candidate = candidate.replace(/^(?:\d+[\s-]*)?(?:days?|hari)\s+/i, "").trim();
+
+      if (candidate && !STOP_WORDS.has(candidate.toLowerCase())) {
+        if (candidate.toLowerCase() === "road") {
+          travelStyle = "Road Trip";
+        } else {
+          const matchedPreset = PRESET_STYLES.find((p) => p.toLowerCase() === candidate.toLowerCase());
+          travelStyle =
+            matchedPreset ??
+            candidate
+              .split(" ")
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(" ");
+        }
+      } else {
+        // Priority 5: synonym keyword match (scan userPrompt first, then full combined)
+        const scanText = userPrompt || combined;
+        const matchedByKeyword = Object.entries(STYLE_SYNONYMS).find(([, pattern]) =>
+          pattern.test(scanText)
+        );
+        if (matchedByKeyword) {
+          travelStyle = matchedByKeyword[0];
+        }
+        // else: stay at defaultStyle (passed from user profile or component default)
+      }
+    }
   }
 
   // 3. BUDGET (USD)
