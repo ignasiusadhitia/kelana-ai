@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Bot, Sparkles, MessageSquareDashed, Plus } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
 
 /**
  * COMPONENT: ChatSkeletons
@@ -152,6 +153,68 @@ export function EmptySidebarState({ onNewChat }: { onNewChat: () => void }) {
           <span>Start First Chat</span>
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * COMPONENT: ChatPageSkeleton
+ * Full-page shimmering layout skeleton matching the Chat UI shell (Navbar, Sidebar, Message Thread, Input Box).
+ * Eliminates blank screens and spinner flicker during route navigation and Suspense hydration.
+ */
+export function ChatPageSkeleton() {
+  return (
+    <div className="flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-blue-500/20 selection:text-blue-200">
+      <Navbar />
+
+      <main className="relative flex-1 min-h-0 flex flex-col px-4 py-8 pb-24 sm:pb-8 sm:px-6 lg:px-8 w-full">
+        {/* Ambient Top Glow */}
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-80 w-full max-w-5xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12),transparent_60%)]" />
+
+        <div className="relative mx-auto max-w-5xl w-full flex-1 min-h-0 flex rounded-2xl sm:rounded-3xl border border-white/10 bg-zinc-900/60 backdrop-blur-2xl shadow-2xl overflow-hidden">
+          {/* Desktop Sidebar Placeholder */}
+          <aside className="hidden md:flex w-64 lg:w-72 flex-col border-r border-white/10 bg-zinc-950/60 shrink-0">
+            <div className="p-3.5 border-b border-white/10 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-zinc-800/80 animate-pulse" />
+                <div className="h-3.5 w-24 rounded bg-zinc-800 animate-pulse" />
+              </div>
+              <div className="h-7 w-14 rounded-lg bg-zinc-800/80 animate-pulse" />
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden p-2">
+              <SidebarConversationSkeleton />
+            </div>
+          </aside>
+
+          {/* Main Chat Thread Area */}
+          <div className="flex-1 min-w-0 flex flex-col bg-zinc-950/40 relative">
+            {/* Header Placeholder */}
+            <div className="p-3 sm:p-4 border-b border-white/10 flex items-center justify-between gap-3 bg-zinc-950/70 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-zinc-800 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="h-3.5 w-32 rounded bg-zinc-800 animate-pulse" />
+                  <div className="h-2 w-20 rounded bg-zinc-800/60 animate-pulse" />
+                </div>
+              </div>
+              <div className="h-7 w-20 rounded-lg bg-zinc-800/80 animate-pulse" />
+            </div>
+
+            {/* Simulated Chat Messages */}
+            <div className="flex-1 min-h-0 p-3 sm:p-4 overflow-hidden">
+              <MessageThreadSkeleton />
+            </div>
+
+            {/* Input Box Placeholder */}
+            <div className="p-3 sm:p-4 border-t border-white/10 bg-zinc-950/60 shrink-0">
+              <div className="h-10 w-full rounded-xl bg-zinc-900/80 border border-white/10 flex items-center justify-between px-3">
+                <div className="h-3 w-48 sm:w-64 rounded bg-zinc-800/60 animate-pulse" />
+                <div className="w-6 h-6 rounded-lg bg-blue-600/40 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

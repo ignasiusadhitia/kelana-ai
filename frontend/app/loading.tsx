@@ -41,7 +41,7 @@ export default function Loading() {
           variant="muted"
           className="mt-1.5 text-xs text-zinc-400 font-medium"
         >
-          Fetching your travel itineraries and dashboard
+          Preparing your travel experience...
         </Typography>
 
         {/* Animated Gradient Progress Indicator */}

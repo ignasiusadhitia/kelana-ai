@@ -71,6 +71,7 @@ import {
   MessageThreadSkeleton,
   ThinkingMessageSkeleton,
   EmptySidebarState,
+  ChatPageSkeleton,
 } from "@/components/chat/ChatSkeletons";
 import { SaveChatTripModal } from "@/components/chat/SaveChatTripModal";
 
@@ -1703,13 +1704,7 @@ function ChatContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-400">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-        </div>
-      }
-    >
+    <Suspense fallback={<ChatPageSkeleton />}>
       <ChatContent />
     </Suspense>
   );
