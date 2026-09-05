@@ -126,8 +126,11 @@ def _build_rag_system_prompt(passages: list[dict[str, Any]]) -> str:
         BASE_SYSTEM_PROMPT
         + f"\n\n### VERIFIED KNOWLEDGE BASE DOCUMENTS (S3):\n"
           f"<retrieved_documents>\n{docs_block}\n</retrieved_documents>\n\n"
-          f"PERMITTED SOURCES (You may ONLY cite from this exact list): [{permitted_str}]. "
-          f"NEVER cite any other filename."
+          f"PERMITTED SOURCES (You may ONLY cite from this exact list): [{permitted_str}].\n\n"
+          f"STRICT RAG GROUNDING & CITATION RULES:\n"
+          f"1. Ground your itinerary activities, sights, tips, and dining suggestions in the verified facts from <retrieved_documents>.\n"
+          f"2. You MUST ALWAYS append the exact citation tag at the very end of your response: [Source: {permitted_str}].\n"
+          f"3. ZERO HALLUCINATION POLICY: Never invent, assume, or cite any source, link, or filename outside [{permitted_str}].\n"
     )
 
 
