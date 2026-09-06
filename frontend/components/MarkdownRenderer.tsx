@@ -124,19 +124,19 @@ function cleanHeadingText(text: string): string {
 }
 
 function getTimeBlockBadge(rawText: string) {
-  if (/morning|pagi/i.test(rawText)) {
+  if (/morning|pagi|breakfast|sarapan/i.test(rawText)) {
     return {
       icon: <Sunrise className="w-3.5 h-3.5 text-amber-400" />,
       colorClass: "bg-amber-500/10 text-amber-300 border-amber-500/20",
     };
   }
-  if (/afternoon|siang|sore/i.test(rawText)) {
+  if (/afternoon|siang|sore|lunch|brunch/i.test(rawText)) {
     return {
       icon: <Sun className="w-3.5 h-3.5 text-sky-400" />,
       colorClass: "bg-sky-500/10 text-sky-300 border-sky-500/20",
     };
   }
-  if (/evening|night|malam/i.test(rawText)) {
+  if (/evening|night|malam|dinner/i.test(rawText)) {
     return {
       icon: <Moon className="w-3.5 h-3.5 text-indigo-400" />,
       colorClass: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
@@ -211,7 +211,7 @@ const markdownComponents: Components = {
   h4: ({ children }) => {
     const rawText = extractText(children);
     const cleanedText = cleanHeadingText(rawText) || rawText;
-    const isTimeBlock = /morning|afternoon|evening|night|budget|cost|breakdown|expense|tip|insider|pagi|siang|sore|malam|biaya/i.test(
+    const isTimeBlock = /morning|afternoon|evening|night|breakfast|lunch|dinner|brunch|budget|cost|breakdown|expense|tip|insider|pagi|siang|sore|malam|sarapan|biaya/i.test(
       cleanedText
     );
     if (isTimeBlock) {

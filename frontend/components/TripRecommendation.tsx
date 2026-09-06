@@ -73,7 +73,7 @@ function isGuideHeaderLine(line: string): boolean {
 // Check if a line is a sub-timeblock header inside a day (NOT a section delimiter)
 function isTimeBlockHeader(line: string): boolean {
   const stripped = stripHeaderPrefix(line);
-  return /^(?:Morning|Afternoon|Evening|Night|Insider Tip|Daily Cost Breakdown|Budget Breakdown|Pagi|Siang|Sore|Malam|Estimasi Biaya)\b/i.test(
+  return /^(?:Morning|Afternoon|Evening|Night|Breakfast|Lunch|Dinner|Brunch|Insider Tips?|Daily Cost Breakdown|Budget Breakdown|Cost Breakdown|Pagi|Siang|Sore|Malam|Sarapan|Estimasi Biaya)\b/i.test(
     stripped
   );
 }
@@ -157,8 +157,8 @@ export function TripRecommendation({
         continue;
       }
 
-      // Check for Guide section delimiter (or any H2/H3 after first day that isn't a time block)
-      const isHeading = /^[#\s]*#{2,}\s+[A-Za-z]/.test(trimmed);
+      // Check for Guide section delimiter (only H2 and H3 can be section candidates; H4+ are inner body elements)
+      const isHeading = /^[#\s]*#{2,3}\s+[A-Za-z]/.test(trimmed);
       const isGuideCandidate =
         isGuideHeaderLine(trimmed) ||
         (hasFoundFirstDay && isHeading && !isTimeBlockHeader(trimmed));

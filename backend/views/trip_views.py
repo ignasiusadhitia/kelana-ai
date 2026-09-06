@@ -57,7 +57,7 @@ def _clean_itinerary_preamble(text: str) -> str:
         preamble = text[:day_match.start()].strip()
         lines = [l.strip() for l in preamble.splitlines() if l.strip()]
         # Single title heading line (e.g. '### 5-Day ...') or conversational greeting
-        if len(lines) <= 2 and all(l.startswith('#') or re.match(r'(?i)^(?:sure|here|absolutely|tentu|baik|ini)\b', l) for l in lines):
+        if len(lines) <= 2 and all(l.startswith('#') or re.match(r'(?i)^(?:sure|here|absolutely|certainly|of course|tentu|baik|ini|berikut)\b', l) for l in lines):
             return text[day_match.start():].strip()
         is_greeting = bool(re.match(
             r'(?i)^(?:absolutely|sure|certainly|of course|here(?:\'s| is)|i(?:\'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut|\d+[- ]day)\b',
