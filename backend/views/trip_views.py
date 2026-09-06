@@ -47,11 +47,11 @@ def _clean_itinerary_preamble(text: str) -> str:
     text = re.sub(r'(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$', '', text).strip()
     text = re.sub(r'\n*\[Source:\s*[^\]]+\]', '', text).strip()
 
-    match = re.search(r'(?i)(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+)', text)
+    match = re.search(r'(?i)(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+|(?:Day|Hari)\s+\d+[:\s\*\-])', text)
     if match and match.start() > 0:
         preamble = text[:match.start()].strip()
         is_greeting = bool(re.match(
-            r'(?i)^(?:absolutely|sure|certainly|of course|here(?:\'s| is)|i(?:\'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut)\b',
+            r'(?i)^(?:absolutely|sure|certainly|of course|here(?:\'s| is)|i(?:\'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut|\d+[- ]day)\b',
             preamble
         )) or (len(preamble) < 350 and not any(line.strip().startswith(('-', '*', '1.')) for line in preamble.splitlines()))
         if is_greeting:
