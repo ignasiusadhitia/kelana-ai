@@ -7,6 +7,7 @@
 [![Amazon Bedrock](https://img.shields.io/badge/Amazon_Bedrock-Nova_Lite-FF9900?style=flat&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon_Serverless-4169E1?style=flat&logo=postgresql&logoColor=white)](https://neon.tech/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Release](https://img.shields.io/badge/Release-v0.2.0-10B981?style=flat)](https://github.com/ignasiusadhitia/kelana-ai/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **KelanaAI** is an enterprise-grade, cloud-deployed travel planning application built with **Next.js 16 (App Router & Turbopack)**, **Python FastAPI**, **Amazon Bedrock (Amazon Nova Lite)**, and **Neon Serverless PostgreSQL**. Developed as the final capstone project for the **Alkademi AI Native Software Engineer Bootcamp**.
@@ -45,7 +46,7 @@ graph TD
     subgraph Data_Layer [Cloud Database & AI Inference]
         FastAPI -->|psycopg2 / SQLAlchemy Connection Pooling| Neon[(Neon Serverless PostgreSQL\nUsers, Trips, Conversations)]
         FastAPI -->|Boto3 Converse API| Bedrock[Amazon Bedrock LLM\nAmazon Nova Lite v1:0]
-        FastAPI -->|Hybrid Vector & Cosine Search| RAG[Knowledge Base RAG\nCustoms & Travel Regulations]
+        FastAPI -->|Destination-Scoped Vector Search| RAG[Knowledge Base RAG\nCustoms & Travel Regulations]
     end
 ```
 
@@ -53,27 +54,37 @@ graph TD
 * **Zero Client CORS Errors:** Browsers exclusively communicate with `/api/v1/*` on the same origin. The server-side proxy handles upstream API calls securely.
 * **HttpOnly Cookie Session Security:** JWTs are stored in HttpOnly, Secure, SameSite=Lax cookies. JavaScript cannot access tokens, eliminating Cross-Site Scripting (XSS) token theft.
 * **Credentials Never Exposed:** AWS IAM keys, JWT secret keys, and database credentials remain strictly within server-side environments.
+* **Model 3 Relational Grounding:** Conversations optionally link directly to saved trips via foreign key bindings, injecting blueprint context into prompt synthesis.
 * **High Availability:** Serverless PostgreSQL on Neon scales automatically with connection pooling, while Vercel serves cached assets at global edge locations.
 
 ---
 
 ## ✨ Key Features & Capabilities
 
-### 1. Multi-Turn Conversational Memory & AI Chat (`/chat`)
+### 1. Model 3: Chat-to-Blueprint Grounding (`/chat` & `/trips`)
+* **Bidirectional Synchronization:** Saved trip blueprints seamlessly bind to conversation threads via `trip_id` foreign keys, allowing travelers to ask questions, modify itineraries, and request dining adjustments in chat with full context.
+* **Blueprint Deep-Linking:** 1-click "Ask AI about this Trip" action from the trip blueprint detail page initializes a focused chat session preloaded with destination, duration, style, budget, and daily activities.
+* **Resilient Multi-Level Markdown & Time-Block Badges:** Custom client-side parsing handles nested activity hierarchies (Morning, Afternoon, Evening, Breakfast, Lunch, Dinner) and gracefully purges raw math markers (`$`) for pristine readability.
+
+### 2. Modular Breakdown Policy (>14 Days)
+* **Intelligent Leg Chunking:** For inquiries exceeding KelanaAI's 14-day curation threshold, the synthesis engine structures the trip into balanced regional legs (6–7 days each) with proportional budget pacing.
+* **Anti-Truncation Guarantee:** Eliminates token limit cutoffs and generic placeholder text ("free time"), ensuring every day receives authentic, curated local detail.
+
+### 3. Universal Destination-Scoped Isolation (RAG)
+* **Scoped Knowledge Base Retrieval:** Automatically isolates vector search queries to the specified destination, preventing cross-destination contamination (e.g. Kyoto rules leaking into Maldives queries).
+* **Graceful Creative Fallback:** When travelers plan journeys to non-indexed global destinations, the system synthesizes realistic itineraries without asserting non-existent regulatory knowledge.
+
+### 4. Multi-Turn Conversational Memory & AI Chat (`/chat`)
 * **Context Retention:** Maintains deterministic chat chronology with unique thread titles and automatic turn-by-turn history.
 * **Hybrid Sliding Window:** Verbatim retention of recent turns combined with automated background context summarization.
 * **Real-Time Streaming:** Server-Sent Events (SSE) streaming with interactive typing indicators, message editing, and response regeneration.
 
-### 2. Tailored Itinerary Generation
+### 5. Tailored Itinerary Generation
 * **8 Curated Travel Styles:** Backpacker, Solo, Family, Couple, Luxury, Adventure, Culinary, and Wellness.
 * **Smart Budget Breakdown:** Computes target daily spend and categorizes expenses across accommodation, food, and transit.
 * **Interactive Day Accordions:** Collapsible, visually organized daily itineraries with activity suggestions and timings.
 
-### 3. Retrieval-Augmented Generation (RAG) Travel Assistant
-* **Grounded Answers:** Bedrock Knowledge Base vector search retrieves authoritative immigration, customs, and travel rules.
-* **Direct Citations:** Answers include source document references, location URIs, and similarity threshold verification.
-
-### 4. Enterprise Security & Session Hardening
+### 6. Enterprise Security & Session Hardening
 * **HttpOnly Cookie Authentication:** Complete removal of `localStorage` JWT storage. Tokens are set by the BFF proxy upon login with a synchronized 7-day expiry.
 * **Next.js 16 Edge Route Guard (`proxy.ts`):** Automatically protects sensitive routes like `/profile` at the edge before rendering, eliminating client-side flicker.
 * **Production DevTools Lockdown:** Neutralizes the React DevTools hook, disables right-click context menu inspect, and blocks keyboard shortcuts (`F12`, `Ctrl+Shift+I/J/C`, `Ctrl+U`) in production.
@@ -81,17 +92,16 @@ graph TD
 * **LLM Injection Shield:** Pre-execution heuristic and classifier checks flag prompt-injection attacks.
 * **Soft Deletes & Ownership Verification:** Preserves trip recovery with `deleted_at` timestamps, permanent deletion safeguards, and strict database-level ownership isolation.
 
-### 5. Progressive Web App (PWA) & Offline Resiliency
+### 7. Progressive Web App (PWA) & Offline Resiliency
 * **Installable Native Experience:** Full PWA compliance with Web App Manifest (`app/manifest.ts`), maskable icons (192×192, 512×512), and Apple Touch Icon support for mobile and desktop home screens.
 * **Vanilla Service Worker (`public/sw.js`):** Background Service Worker precaching the app shell and core assets with network-first navigation fallback and dynamic API bypass.
 * **Dedicated Offline View (`/offline`):** Unvisited navigations gracefully fall back to a styled offline view when disconnected.
 * **1-Click Install Action:** Context-aware install button in the navigation header dynamically triggers the native browser install prompt when available.
 
-### 6. Production UI/UX Polish
-* **Dynamic Favicon:** Custom circular SVG compass icon generated via Next.js `ImageResponse` (`app/icon.tsx`).
-* **Global Loading Screen:** Seamless page-transition loading spinner (`app/loading.tsx`).
-* **Comprehensive Error Boundaries:** Human-readable English error states for `401`, `403`, `404` (`app/not-found.tsx`), and `500` (`app/error.tsx`, `app/global-error.tsx`).
-* **Dedicated About & Architecture Page:** Complete technical walkthrough and system design showcase (`/about`).
+### 8. 100% English Codebase & Documentation Standardization
+* **Backend PEP 257 Standard:** 100% of Python routes, models, schemas, utilities, and test suites are documented with standardized English PEP 257 docstrings.
+* **Frontend TSDoc / JSDoc Standard:** All React components, App Router pages, custom hooks, and utility modules feature comprehensive JSDoc/TSDoc type annotations and usage descriptions.
+
 
 ---
 
@@ -243,7 +253,7 @@ Open `http://localhost:3000` in your browser.
 ## 🧪 Testing & Verification
 
 ### Backend Automated Test Suites
-Run the comprehensive automated test suites verifying authentication, data isolation, rate limiting, and conversational RAG:
+Run the comprehensive automated test suites verifying authentication, data isolation, rate limiting, Model 3 Chat-to-Blueprint grounding, and conversational RAG:
 
 ```bash
 cd backend
@@ -256,9 +266,17 @@ cd backend
 .\.venv\Scripts\python.exe test_auth_flow.py
 # Result: 8/8 PASS (100%)
 
-# 3. Knowledge base assistant API suite
+# 3. Model 3 Chat-to-Blueprint grounding bridge suite
+.\.venv\Scripts\python.exe test_model3_bridge.py
+# Result: 3/3 PASS (100%)
+
+# 4. Knowledge base assistant API suite
 .\.venv\Scripts\python.exe test_assistant_api.py
 # Result: 4/4 PASS (100%)
+
+# Or execute full combined test runner:
+.\.venv\Scripts\python.exe -m unittest test_main.py test_conversations.py test_model3_bridge.py
+# Result: 26/26 PASS (100%)
 ```
 
 ### Frontend Production Build

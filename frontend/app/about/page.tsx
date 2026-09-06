@@ -38,11 +38,12 @@ export default function AboutPage() {
       color: "text-blue-400",
       bgColor: "bg-blue-950/40 border-blue-500/20",
       description:
-        "Modern App Router interface built with React 19 and Tailwind CSS v4. Operates as a Backend-For-Frontend (BFF) proxy that encapsulates upstream API tokens and handles server-side edge routing.",
+        "Modern App Router interface built with React 19 and Tailwind CSS v4. Operates as a Backend-For-Frontend (BFF) proxy encapsulating upstream credentials, streaming AI responses via SSE, and rendering interactive day accordions with dynamic time-block badges.",
       highlights: [
-        "Edge-rendered API proxy route handlers",
-        "Native Server-Sent Events (SSE) streaming",
-        "Full PWA with offline caching & installability",
+        "Edge-rendered API proxy route handlers (zero CORS)",
+        "Native Server-Sent Events (SSE) token streaming",
+        "Resilient multi-level markdown & time-block badges",
+        "Full PWA with offline caching & 1-click installation",
       ],
     },
     {
@@ -52,11 +53,12 @@ export default function AboutPage() {
       color: "text-emerald-400",
       bgColor: "bg-emerald-950/40 border-emerald-500/20",
       description:
-        "High-throughput asynchronous Python engine built with FastAPI and SQLAlchemy 2.0. Manages itinerary synthesis, multi-turn state machines, and relational persistence.",
+        "High-throughput asynchronous Python engine built with FastAPI and SQLAlchemy 2.0. Manages itinerary synthesis, multi-turn state machines, Model 3 Chat-to-Blueprint relational binding, and standardized PEP 257 documentation.",
       highlights: [
-        "Modular domain-driven routers",
+        "Model 3 Chat-to-Blueprint relational context injection",
         "Pydantic v2 strict contract validation",
         "Sliding-window rate limiting on LLM endpoints",
+        "100% English PEP 257 docstrings across all modules",
       ],
     },
     {
@@ -66,11 +68,12 @@ export default function AboutPage() {
       color: "text-purple-400",
       bgColor: "bg-purple-950/40 border-purple-500/20",
       description:
-        "Direct integration with Amazon Bedrock using Amazon Nova Lite. Deterministically structures multi-day travel itineraries with granular timeline allocations and localized pace modeling.",
+        "Direct integration with Amazon Bedrock using Amazon Nova Lite. Deterministically structures multi-day travel itineraries with granular timeline allocations, authentic local dining recommendations, and strict 14-day duration limit guardrails.",
       highlights: [
-        "Deterministic JSON schema output",
-        "Style-weighted budget calculations",
-        "Heuristic & classifier injection guardrails",
+        "Deterministic itinerary & time-block structuring",
+        "Intelligent modular breakdown for trips >14 days",
+        "Authentic local dining & anti-placeholder directives",
+        "Dual-layer heuristic & classifier injection guardrails",
       ],
     },
     {
@@ -80,8 +83,9 @@ export default function AboutPage() {
       color: "text-amber-400",
       bgColor: "bg-amber-950/40 border-amber-500/20",
       description:
-        "Managed vector retrieval querying indexed travel policies, visa frameworks, and customs documentation. Eliminates hallucinations by anchoring responses in primary sources.",
+        "Managed vector retrieval querying indexed travel policies, visa frameworks, and customs documentation. Employs universal destination-scoped filtering to eliminate cross-destination guide contamination.",
       highlights: [
+        "Universal destination-scoped vector filtering",
         "Vector similarity search with cosine thresholding",
         "Transparent source URI & chunk citations",
         "Autonomous out-of-domain query refusal",
@@ -94,11 +98,12 @@ export default function AboutPage() {
       color: "text-cyan-400",
       bgColor: "bg-cyan-950/40 border-cyan-500/20",
       description:
-        "Serverless PostgreSQL on Neon utilizing connection pooling for low-latency concurrency. Employs HttpOnly session cookies to secure user identity against XSS exploitation.",
+        "Serverless PostgreSQL on Neon utilizing connection pooling for low-latency concurrency. Employs HttpOnly session cookies to secure user identity against XSS exploitation with relational integrity.",
       highlights: [
         "HttpOnly, Secure, SameSite=Lax cookie sessions",
         "Bcrypt password hashing & 7-day token sync",
         "Cascading deletes & soft-delete audit trail",
+        "Relational Chat-to-Blueprint binding (trip_id)",
       ],
     },
     {
@@ -113,11 +118,27 @@ export default function AboutPage() {
         "Automated CI/CD git deployment pipeline",
         "Strict CORS whitelist & proxy network isolation",
         "Automated SSL termination & edge asset distribution",
+        "Zero client-side API credential leakage",
       ],
     },
   ];
 
   const coreFeatures = [
+    {
+      icon: Bot,
+      title: "Model 3: Chat-to-Blueprint Grounding",
+      desc: "Deep bidirectional integration between AI chat threads and saved trip blueprints. Travelers can ask questions or modify plans in chat, with contextual awareness of destination, duration, budget, and daily activities.",
+    },
+    {
+      icon: Layers,
+      title: "Modular Breakdown Policy (>14 Days)",
+      desc: "Prevents LLM output truncation on long journeys by structuring trips exceeding 14 days into balanced regional legs (6–7 days each) with proportional budget pacing and interactive leg selection.",
+    },
+    {
+      icon: Sparkles,
+      title: "Universal Destination Isolation",
+      desc: "Scoped Knowledge Base vector retrieval ensuring documents from one destination (e.g. Kyoto) never contaminate inquiries for another (e.g. Maldives), falling back to creative planning when outside indexed regions.",
+    },
     {
       icon: Compass,
       title: "Style-Weighted Budget Modeling",
@@ -126,7 +147,7 @@ export default function AboutPage() {
     {
       icon: MessageSquare,
       title: "Sliding-Window Conversation Memory",
-      desc: "Preserves conversational context across extended planning sessions by combining verbatim recent turns with background summarization to eliminate context drift.",
+      desc: "Preserves conversational context across extended planning sessions by combining verbatim recent turns with background summarization to eliminate context drift and preserve dietary/family constraints.",
     },
     {
       icon: ShieldCheck,
@@ -137,6 +158,11 @@ export default function AboutPage() {
       icon: Zap,
       title: "PWA Offline Resiliency",
       desc: "Installs natively across desktop and mobile platforms. Leverages a custom Service Worker to precache core assets and deliver instant offline fallbacks when network connectivity drops.",
+    },
+    {
+      icon: Code2,
+      title: "100% English Codebase Standardization",
+      desc: "Strictly unified documentation with 100% English PEP 257 docstrings across all Python backend services and comprehensive TSDoc / JSDoc comments across all React components and hooks.",
     },
   ];
 
