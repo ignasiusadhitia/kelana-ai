@@ -38,9 +38,15 @@ router = APIRouter(tags=["trips"])
 
 
 def _clean_itinerary_preamble(text: str) -> str:
-    """Strip chat assistant pleasantries (e.g. 'Absolutely! Here is...') before saving to blueprint."""
+    """Strip chat assistant pleasantries, citations, and system notices before saving to blueprint."""
     if not text:
         return text
+    # Strip Bedrock content filter notice if present
+    text = re.sub(r'(?i)\s*-\s*The generated text has been blocked by our content filters\.?', '', text).strip()
+    # Strip trailing unbracketed and bracketed citations
+    text = re.sub(r'(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$', '', text).strip()
+    text = re.sub(r'\n*\[Source:\s*[^\]]+\]', '', text).strip()
+
     match = re.search(r'(?i)(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+)', text)
     if match and match.start() > 0:
         preamble = text[:match.start()].strip()
@@ -209,7 +215,8 @@ def update_trip_recommendation(
     - Does NOT trigger any Bedrock AI generation.
     """
     trip = _get_trip_with_ownership_or_raise(db, trip_id, current_user.id, "update this itinerary.")
-    return save_trip_ai_recommendation_db(db, trip, request.ai_recommendation)
+    cleaned_rec = _clean_itinerary_preamble(request.ai_recommendation)
+    return save_trip_ai_recommendation_db(db, trip, cleaned_rec)
 
 
 @router.post("/api/v1/trips/{trip_id}/generate", response_model=GenerateTripResponse)

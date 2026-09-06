@@ -9,19 +9,19 @@ export const SUGGESTED_PROMPTS = [
 
 /**
  * Parses message raw text to extract citations while preserving clean markdown.
- * Supports bracket format [Source: doc.pdf] and standalone Source: doc.pdf.
+ * Supports bracket format [Source: doc.pdf], standalone/multiline Sources: doc.pdf,
+ * and strips any Bedrock content filter notices.
  */
 export function parseMessageContentAndSources(rawContent: string): { text: string; sources: string[] } {
   if (!rawContent) return { text: "", sources: [] };
   const sources: string[] = [];
 
-  // Match [Source: filename.md] or [Source: file1.md, file2.pdf]
+  // 1. Match [Source: filename.md] or [Source: file1.md, file2.pdf]
   const bracketRegex = /\[Source:\s*([^\]]+)\]/gi;
   let match: RegExpExecArray | null;
   while ((match = bracketRegex.exec(rawContent)) !== null) {
     const raw = match[1]?.trim().replace(/[*_`]/g, "");
     if (raw && raw.toLowerCase() !== "n/a") {
-      // Split by comma or semicolons if multiple sources are listed
       const parts = raw.split(/[,;]/);
       for (const p of parts) {
         const filename = p.split("/").pop()?.trim();
@@ -32,8 +32,22 @@ export function parseMessageContentAndSources(rawContent: string): { text: strin
     }
   }
 
-  // Also match plain "Source: filename.md" or "Source: filename.pdf"
-  const plainRegex = /(?:^|\n)\s*Source:\s*([a-zA-Z0-9_\-.]+\.(?:pdf|md|txt))/gi;
+  // 2. Match unbracketed trailing "Source:" or "Sources:" followed by filenames (same line or multi-line)
+  const multilineSourceRegex = /(?:^|\n)\s*Sources?:\s*([a-zA-Z0-9_\-./\s\n,;]+)$/i;
+  const multiMatch = multilineSourceRegex.exec(rawContent);
+  if (multiMatch) {
+    const rawBlock = multiMatch[1];
+    const fileMatches = rawBlock.match(/[a-zA-Z0-9_\-.]+\.(?:pdf|md|txt|docx?)/gi) || [];
+    for (const f of fileMatches) {
+      const filename = f.split("/").pop()?.trim();
+      if (filename && !sources.includes(filename)) {
+        sources.push(filename);
+      }
+    }
+  }
+
+  // 3. Also match plain inline "Source: filename.md" anywhere
+  const plainRegex = /(?:^|\n)\s*Sources?:\s*([a-zA-Z0-9_\-.]+\.(?:pdf|md|txt))/gi;
   while ((match = plainRegex.exec(rawContent)) !== null) {
     const filename = match[1]?.trim();
     if (filename && !sources.includes(filename)) {
@@ -41,13 +55,15 @@ export function parseMessageContentAndSources(rawContent: string): { text: strin
     }
   }
 
-  // Strip citation tags from displayed markdown text
+  // 4. Strip citation tags and AWS Bedrock content filter termination notice from displayed markdown text
   const cleanText = rawContent
+    .replace(/\s*-\s*The generated text has been blocked by our content filters\.?/gi, "")
     .replace(/\[Source:\s*[^\]]+\]/gi, "")
-    .replace(/(?:^|\n)\s*Source:\s*[a-zA-Z0-9_\-.]+\.(?:pdf|md|txt)/gi, "")
+    .replace(/(?:^|\n)\s*Sources?:\s*([a-zA-Z0-9_\-./\s\n,;]+)$/i, "")
+    .replace(/(?:^|\n)\s*Sources?:\s*[a-zA-Z0-9_\-.]+\.(?:pdf|md|txt)/gi, "")
     .trim();
 
-  return { text: cleanText || rawContent, sources };
+  return { text: cleanText, sources };
 }
 
 /**

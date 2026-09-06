@@ -64,8 +64,8 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
 5. ITINERARY FORMAT: When providing a day-by-day travel itinerary in chat, you MUST use the
    following exact markdown structure so it renders cleanly into interactive Blueprint tabs:
 
-   - Start the itinerary IMMEDIATELY with Day 1. DO NOT prefix the itinerary with a document
-     title header (such as "# 5-Day Trip" or "## 5-Day Family Trip to Kazakhstan").
+   - MANDATORY MARKDOWN HASHES: You MUST literally output the markdown hashes (`## ` for Days, `### ` for time-blocks). NEVER output plain unadorned text lines for headings (such as writing 'Day 1' or 'Morning' without hashes).
+   - NO DOCUMENT TITLE: Start the itinerary IMMEDIATELY with Day 1. DO NOT prefix the itinerary with a document title header (such as "# 5-Day Trip" or "5-Day Family Trip to Tokyo and Kyoto").
    - NEVER use bold headers (**Day 1**) or plain-text headings for day sections.
    - NEVER downgrade Day headers to level-3 (### Day 1) or level-4 headings.
    - ALWAYS use level-2 markdown (## ) for day and guide section headers.
@@ -77,7 +77,7 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    ### Afternoon
    [Cultural site, neighborhood stroll, or artisan shops with transit tips]
    ### Evening
-   [Specific dinner recommendation with restaurant/food street name]
+   [Specific authentic dinner recommendation with dish, street, or venue name]
    ### Insider Tip
    [1 practical, non-obvious local tip]
    ### Daily Cost Breakdown
@@ -87,15 +87,20 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    ...
 
    ## Essential Local Dishes & Where to Try Them
-   [Specific local dishes and recommended venues]
+   [Specific local dishes, specialties, and recommended dining areas]
 
    ## Smart Navigation & Transit Advice
-   [Transport options, passes, transit tips]
+   [Transport options, IC passes, transit apps, and tips]
 
    ## Practical Packing & Local Etiquette Tips
-   [Packing list and local customs to respect]
+   [Essential items and local customs to respect]
 
-6. MAXIMUM ITINERARY DURATION & MODULAR BREAKDOWN POLICY (STRICT 14-DAY CAP):
+6. AUTHENTIC LOCAL DINING & ANTI-PLACEHOLDER DIRECTIVE:
+   - Recommend authentic local dishes, specialties, well-known food alleys, market streets, or distinct dining districts (e.g., Ameyoko Market in Ueno, Omoide Yokocho in Shinjuku, Nishiki Market in Kyoto).
+   - NEVER invent repetitive generic placeholder names wrapped in quotes (e.g., do NOT write: `Try "Halal Japanese Cuisine"`, `Try "Halal Ramen"`, `Try "Halal Sushi"`, or `Try "Halal Izakaya"`).
+   - If specific verified restaurant names are not available in `<retrieved_documents>`, recommend authentic culinary dish options (e.g. fresh seafood tendon, vegetable tempura, udon, kaisen-don) and specify authentic dining areas or streets where travelers can find certified options, rather than generating artificial quoted brand names.
+
+7. MAXIMUM ITINERARY DURATION & MODULAR BREAKDOWN POLICY (STRICT 14-DAY CAP):
    - Hard Duration Limit: You MUST NEVER generate a continuous day-by-day itinerary exceeding 14 days in a single response (strictly capped at 14 days maximum).
    - Technical Rationale: KelanaAI's itinerary design mandates rich, granular depth for each day (Morning, Afternoon, Evening, Insider Tip, Daily Cost Breakdown). Generating itineraries longer than 14 days in a single response exceeds LLM output token limits, causing mid-sentence text truncation and degraded recommendation quality.
    - User Inquiries Exceeding 14 Days (e.g., 15-30 days, 3 weeks, 1 month):
@@ -609,7 +614,7 @@ def _generate_ai_response_text(
             modelId=MODEL_ID,
             messages=bedrock_messages,
             system=[{"text": system_prompt}],
-            inferenceConfig={"maxTokens": 2048, "temperature": 0.2}
+            inferenceConfig={"maxTokens": 2048, "temperature": 0.35}
         )
 
         content_blocks = response["output"]["message"].get("content", [])
@@ -617,7 +622,11 @@ def _generate_ai_response_text(
         raw_text = "\n\n".join(text_blocks).strip()
         ai_text = re.sub(r"<thinking>[\s\S]*?</thinking>", "", raw_text).strip()
 
-        # Post-processing guardrail & deterministic citation attachment
+        # Guardrail: Strip Bedrock content filter notice if triggered
+        ai_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", ai_text).strip()
+
+        # Post-processing guardrail: Clean raw unbracketed and bracketed citations before deterministic attachment
+        ai_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", ai_text).strip()
         ai_text = re.sub(r"\n*\[Source:\s*[^\]]+\]", "", ai_text).strip()
 
         if passages:
@@ -862,7 +871,7 @@ def stream_message_and_get_response(
             modelId=MODEL_ID,
             messages=bedrock_messages,
             system=[{"text": system_prompt}],
-            inferenceConfig={"maxTokens": 2048, "temperature": 0.2}
+            inferenceConfig={"maxTokens": 2048, "temperature": 0.35}
         )
         stream = response.get("stream")
         if stream:
@@ -881,8 +890,10 @@ def stream_message_and_get_response(
         full_text += fallback_msg
         yield f"data: {json.dumps({'chunk': fallback_msg})}\n\n"
 
-    # Post-processing citations
+    # Post-processing citations & guardrail sanitization
     full_text = re.sub(r"<thinking>[\s\S]*?</thinking>", "", full_text).strip()
+    full_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", full_text).strip()
+    full_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", full_text).strip()
     full_text = re.sub(r"\n*\[Source:\s*[^\]]+\]", "", full_text).strip()
     if passages:
         verified_sources = list(dict.fromkeys(p["source"] for p in passages if p.get("source")))
