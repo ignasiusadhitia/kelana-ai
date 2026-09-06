@@ -47,6 +47,25 @@ def _clean_itinerary_preamble(text: str) -> str:
     text = re.sub(r'(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$', '', text).strip()
     text = re.sub(r'\n*\[Source:\s*[^\]]+\]', '', text).strip()
 
+    # Normalize stacked markdown headings repeatedly until clean
+    while re.search(r'(?m)^#{1,6}\s+#{1,6}\s+', text):
+        text = re.sub(r'(?m)^#{1,6}\s+(#{1,6}\s+)', r'\1', text)
+
+    # Detect Day 1 or the start of the daily itinerary
+    day_match = re.search(r'(?i)(?:^|\n)(?:#{1,4}\s*(?:\*\*)?(?:Day|Hari)\s+\d+|(?:Day|Hari)\s+\d+[:\s\*\-])', text)
+    if day_match and day_match.start() > 0:
+        preamble = text[:day_match.start()].strip()
+        lines = [l.strip() for l in preamble.splitlines() if l.strip()]
+        # Single title heading line (e.g. '### 5-Day ...') or conversational greeting
+        if len(lines) <= 2 and all(l.startswith('#') or re.match(r'(?i)^(?:sure|here|absolutely|tentu|baik|ini)\b', l) for l in lines):
+            return text[day_match.start():].strip()
+        is_greeting = bool(re.match(
+            r'(?i)^(?:absolutely|sure|certainly|of course|here(?:\'s| is)|i(?:\'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut|\d+[- ]day)\b',
+            preamble
+        )) or (len(preamble) < 350 and not any(line.strip().startswith(('-', '*', '1.')) for line in preamble.splitlines()))
+        if is_greeting:
+            return text[day_match.start():].strip()
+
     match = re.search(r'(?i)(?:^|\n)(#{1,3}\s+[\w\s:-]+|\*\*(?:Day|Hari)\s+\d+|(?:Day|Hari)\s+\d+[:\s\*\-])', text)
     if match and match.start() > 0:
         preamble = text[:match.start()].strip()

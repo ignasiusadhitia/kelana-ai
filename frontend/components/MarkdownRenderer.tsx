@@ -33,8 +33,14 @@ interface MarkdownRendererProps {
 function sanitizeMarkdown(text: string): string {
   if (!text) return "";
 
+  // Step 0: Normalize stacked markdown headings (e.g. "#### ## Day 1" -> "## Day 1", "#### ### Morning" -> "### Morning")
+  let normalized = text;
+  while (/^#{1,6}\s+#{1,6}\s+/m.test(normalized)) {
+    normalized = normalized.replace(/^#{1,6}\s+(#{1,6}\s+)/gm, "$1");
+  }
+
   // Step 1: Clean raw LaTeX math expressions into clean readable text
-  const cleanedMath = text
+  const cleanedMath = normalized
     // Replace \text{...} or \mathrm{...} with just the content first to avoid nested braces
     .replace(/\\(?:text|mathrm|mathbf)\{([^}]+)\}/g, "$1")
     // Replace \frac{numerator}{denominator} with numerator ÷ denominator
@@ -108,11 +114,13 @@ function extractText(node: React.ReactNode): string {
 }
 
 /**
- * Helper to strip leading emojis/pictographs from heading text to avoid duplicate icons.
+ * Helper to strip leading emojis/pictographs and residual markdown symbols from heading text.
  * Preserves alphanumeric characters and digits (e.g. "5-Day", "Day 1").
  */
-function stripLeadingEmoji(text: string): string {
-  return text.replace(/^(?:[^\p{L}\p{N}\s#*]|[\p{Extended_Pictographic}])+\s*/u, "").trim();
+function cleanHeadingText(text: string): string {
+  if (!text) return "";
+  const unhashed = text.replace(/^[#*\s]+/, "");
+  return unhashed.replace(/^(?:[^\p{L}\p{N}\s#*]|[\p{Extended_Pictographic}])+\s*/u, "").trim();
 }
 
 function getTimeBlockBadge(rawText: string) {
@@ -166,14 +174,18 @@ function getTimeBlockBadge(rawText: string) {
 }
 
 const markdownComponents: Components = {
-  h1: ({ children }) => (
-    <h1 className="text-xl font-extrabold text-white mb-3 mt-4 first:mt-0">
-      {children}
-    </h1>
-  ),
+  h1: ({ children }) => {
+    const rawText = extractText(children);
+    const cleanedText = cleanHeadingText(rawText) || rawText;
+    return (
+      <h1 className="text-xl font-extrabold text-white mb-3 mt-4 first:mt-0">
+        {cleanedText}
+      </h1>
+    );
+  },
   h2: ({ children }) => {
     const rawText = extractText(children);
-    const cleanedText = stripLeadingEmoji(rawText) || rawText;
+    const cleanedText = cleanHeadingText(rawText) || rawText;
     return (
       <h2 className="text-base font-bold text-white mb-3 mt-5 first:mt-0 pb-1.5 border-b border-white/10">
         {cleanedText}
@@ -182,8 +194,8 @@ const markdownComponents: Components = {
   },
   h3: ({ children }) => {
     const rawText = extractText(children);
-    const cleanedText = stripLeadingEmoji(rawText) || rawText;
-    const { icon, colorClass } = getTimeBlockBadge(rawText);
+    const cleanedText = cleanHeadingText(rawText) || rawText;
+    const { icon, colorClass } = getTimeBlockBadge(cleanedText);
 
     return (
       <div className="mt-5 mb-2.5 flex items-center gap-2 first:mt-1">
@@ -198,12 +210,12 @@ const markdownComponents: Components = {
   },
   h4: ({ children }) => {
     const rawText = extractText(children);
+    const cleanedText = cleanHeadingText(rawText) || rawText;
     const isTimeBlock = /morning|afternoon|evening|night|budget|cost|breakdown|expense|tip|insider|pagi|siang|sore|malam|biaya/i.test(
-      rawText
+      cleanedText
     );
     if (isTimeBlock) {
-      const cleanedText = stripLeadingEmoji(rawText) || rawText;
-      const { icon, colorClass } = getTimeBlockBadge(rawText);
+      const { icon, colorClass } = getTimeBlockBadge(cleanedText);
       return (
         <div className="mt-4 mb-2 flex items-center gap-2 first:mt-1">
           <span
@@ -217,7 +229,7 @@ const markdownComponents: Components = {
     }
     return (
       <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mt-3 mb-1">
-        {children}
+        {cleanedText}
       </h4>
     );
   },

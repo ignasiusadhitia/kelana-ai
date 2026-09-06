@@ -147,6 +147,18 @@ def _clean_latex_math(text: str) -> str:
     return text.strip()
 
 
+def _clean_markdown_formatting(text: str) -> str:
+    """Normalize stacked headings (e.g. '#### ## Day 1' -> '## Day 1') and LaTeX math formulas."""
+    if not text:
+        return text
+    # 1. Normalize stacked markdown headings repeatedly until clean
+    while re.search(r'(?m)^#{1,6}\s+#{1,6}\s+', text):
+        text = re.sub(r'(?m)^#{1,6}\s+(#{1,6}\s+)', r'\1', text)
+    # 2. Normalize LaTeX math formulas
+    text = _clean_latex_math(text)
+    return text.strip()
+
+
 # ------------------------------------------------------------------------------
 # Part A: RAG Prompt Construction & Knowledge Base Document Injection
 # ------------------------------------------------------------------------------
@@ -210,7 +222,8 @@ def _inject_trip_context(conversation: Conversation, db: Session, system_prompt:
                 f"- Budget Tier: {linked_trip.category}\n\n"
                 f"CRITICAL DIRECTIVES FOR LINKED TRIP:\n"
                 f"1. Seamlessly tailor all advice (dining, transit, packing, lodging, activities) to this specific destination, budget ceiling, and duration.\n"
-                f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters."
+                f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters.\n"
+                f"3. ITINERARY REVISION FORMAT (STRICT): When revising or generating day-by-day itineraries, you MUST strictly use level-2 `## ` for days (e.g. `## Day 1: [Thematic Title]`) and level-3 `### ` for time-blocks (`### Morning`, `### Afternoon`, `### Evening`, `### Insider Tip`, `### Daily Cost Breakdown`). NEVER stack or prefix hashes (do NOT write `#### ## Day 1` or `#### ### Morning`). Start immediately with `## Day 1:` without any document title header."
             )
     return system_prompt
 
@@ -652,8 +665,8 @@ def _generate_ai_response_text(
         # Guardrail: Strip Bedrock content filter notice if triggered
         ai_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", ai_text).strip()
 
-        # Normalize any raw LaTeX math into clean plain text
-        ai_text = _clean_latex_math(ai_text)
+        # Normalize markdown formatting (stacked headings) and raw LaTeX math into clean plain text
+        ai_text = _clean_markdown_formatting(ai_text)
 
         # Post-processing guardrail: Clean raw unbracketed and bracketed citations before deterministic attachment
         ai_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", ai_text).strip()
@@ -923,7 +936,7 @@ def stream_message_and_get_response(
     # Post-processing citations & guardrail sanitization
     full_text = re.sub(r"<thinking>[\s\S]*?</thinking>", "", full_text).strip()
     full_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", full_text).strip()
-    full_text = _clean_latex_math(full_text)
+    full_text = _clean_markdown_formatting(full_text)
     full_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", full_text).strip()
     full_text = re.sub(r"\n*\[Source:\s*[^\]]+\]", "", full_text).strip()
     if passages:

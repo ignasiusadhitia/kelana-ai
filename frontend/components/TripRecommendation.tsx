@@ -30,11 +30,16 @@ interface TripRecommendationProps {
   onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
-// Helper to strip leading emoji/pictographs from title strings without stripping numbers (e.g. "5-Day")
+// Helper to strip leading hashes, asterisks, and whitespace prefixes
+function stripHeaderPrefix(line: string): string {
+  return line.trim().replace(/^[#\s*]+/, "");
+}
+
+// Helper to strip leading emoji/pictographs and markdown symbols from title strings without stripping numbers (e.g. "5-Day")
 function cleanTitleText(text: string): string {
   if (!text) return "";
   return text
-    .replace(/^#+\s*/, "")
+    .replace(/^[#\s]+/, "")
     .replace(/^(?:[^\p{L}\p{N}\s#*]|[\p{Extended_Pictographic}])+\s*/u, "")
     .replace(/\*\*\*(.*?)\*\*\*/g, "$1")
     .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -44,31 +49,32 @@ function cleanTitleText(text: string): string {
     .replace(/_(.*?)_/g, "$1")
     .replace(/`(.*?)`/g, "$1")
     .replace(/[*_`]/g, "")
+    .replace(/^[#\s]+/, "")
     .trim();
 }
 
-// Check if a line is a Day heading (e.g. "## Day 1", "### Day 1:", "**Day 1**", "Day 1 -", "Hari 1")
+// Check if a line is a Day heading (e.g. "## Day 1", "### Day 1:", "**Day 1**", "#### ## Day 1:", "Hari 1")
 function isDayHeaderLine(line: string): boolean {
-  const trimmed = line.trim();
+  const stripped = stripHeaderPrefix(line);
   return (
-    /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+[:\s\*\-]/i.test(trimmed) ||
-    /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+(?:\*\*)?$/i.test(trimmed)
+    /^(?:Day|Hari)\s+\d+[:\s\*\-]/i.test(stripped) ||
+    /^(?:Day|Hari)\s+\d+(?:\*\*)?$/i.test(stripped)
   );
 }
 
 // Check if a line is a known Guide / Appendix heading
 function isGuideHeaderLine(line: string): boolean {
-  const trimmed = line.trim();
-  return /^(?:#{1,4}\s+)?(?:\*\*)?(?:Essential Local Dishes|Smart Navigation|Practical Packing|Guides?\s*(?:&|and)\s*Tips|Travel Tips|Practical Tips|Insider Tips|Tips\s*(?:&|and)\s*(?:Tricks|Panduan)|Panduan\s*(?:&|dan)\s*Tips|Kuliner\s*Khas|Transportasi|Local Etiquette|Recommendations?|Important Notes|General Tips)\b/i.test(
-    trimmed
+  const stripped = stripHeaderPrefix(line);
+  return /^(?:Essential Local Dishes|Smart Navigation|Practical Packing|Guides?\s*(?:&|and)\s*Tips|Travel Tips|Practical Tips|Insider Tips|Tips\s*(?:&|and)\s*(?:Tricks|Panduan)|Panduan\s*(?:&|dan)\s*Tips|Kuliner\s*Khas|Transportasi|Local Etiquette|Recommendations?|Important Notes|General Tips)\b/i.test(
+    stripped
   );
 }
 
 // Check if a line is a sub-timeblock header inside a day (NOT a section delimiter)
 function isTimeBlockHeader(line: string): boolean {
-  const trimmed = line.trim();
-  return /^(?:#{3,4}\s+)?(?:\*\*)?(?:Morning|Afternoon|Evening|Night|Insider Tip|Daily Cost Breakdown|Budget Breakdown|Pagi|Siang|Sore|Malam|Estimasi Biaya)\b/i.test(
-    trimmed
+  const stripped = stripHeaderPrefix(line);
+  return /^(?:Morning|Afternoon|Evening|Night|Insider Tip|Daily Cost Breakdown|Budget Breakdown|Pagi|Siang|Sore|Malam|Estimasi Biaya)\b/i.test(
+    stripped
   );
 }
 
@@ -152,9 +158,10 @@ export function TripRecommendation({
       }
 
       // Check for Guide section delimiter (or any H2/H3 after first day that isn't a time block)
+      const isHeading = /^[#\s]*#{2,}\s+[A-Za-z]/.test(trimmed);
       const isGuideCandidate =
         isGuideHeaderLine(trimmed) ||
-        (hasFoundFirstDay && /^(?:##|###)\s+[A-Za-z]/.test(trimmed) && !isTimeBlockHeader(trimmed));
+        (hasFoundFirstDay && isHeading && !isTimeBlockHeader(trimmed));
 
       if (hasFoundFirstDay && isGuideCandidate) {
         flushCurrentSection();
