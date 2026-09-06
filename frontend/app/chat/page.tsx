@@ -5,7 +5,7 @@
  * Interactive conversational travel planner with multi-turn context and thread management.
  */
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -59,15 +59,12 @@ import {
   Menu,
   Clock,
   Compass,
-  FileText,
   Map,
   Home,
   Search,
   BookmarkPlus,
   BookmarkCheck,
   ChevronDown,
-  WifiOff,
-  ArrowUpRight,
 } from "lucide-react";
 import {
   SidebarConversationSkeleton,
@@ -77,65 +74,19 @@ import {
   ChatPageSkeleton,
 } from "@/components/chat/ChatSkeletons";
 import { SaveChatTripModal } from "@/components/chat/SaveChatTripModal";
-
-const SUGGESTED_PROMPTS = [
-  { label: "Family Trip in Japan", prompt: "Plan a 5-day family trip to Japan with kids." },
-  { label: "Customs Duty-Free Limits", prompt: "What are the duty-free limits for alcohol and electronics under Japan customs?" },
-  { label: "Halal Food in Tokyo", prompt: "How to verify Halal food in Tokyo convenience stores?" },
-  { label: "QRIS Payment in Japan", prompt: "Can I use Indonesian QRIS in Japan?" },
-];
-
-function parseMessageContentAndSources(rawContent: string): { text: string; sources: string[] } {
-  if (!rawContent) return { text: "", sources: [] };
-  const sources: string[] = [];
-
-  // Match [Source: filename.md] or [Source: file1.md, file2.pdf]
-  const bracketRegex = /\[Source:\s*([^\]]+)\]/gi;
-  let match: RegExpExecArray | null;
-  while ((match = bracketRegex.exec(rawContent)) !== null) {
-    const raw = match[1]?.trim().replace(/[*_`]/g, "");
-    if (raw && raw.toLowerCase() !== "n/a") {
-      // Split by comma or semicolons if multiple sources are listed
-      const parts = raw.split(/[,;]/);
-      for (const p of parts) {
-        const filename = p.split("/").pop()?.trim();
-        if (filename && !sources.includes(filename)) {
-          sources.push(filename);
-        }
-      }
-    }
-  }
-
-  // Also match plain "Source: filename.md" or "Source: filename.pdf"
-  const plainRegex = /(?:^|\n)\s*Source:\s*([a-zA-Z0-9_\-.]+\.(?:pdf|md|txt))/gi;
-  while ((match = plainRegex.exec(rawContent)) !== null) {
-    const filename = match[1]?.trim();
-    if (filename && !sources.includes(filename)) {
-      sources.push(filename);
-    }
-  }
-
-  // Strip citation tags from displayed markdown text
-  const cleanText = rawContent
-    .replace(/\[Source:\s*[^\]]+\]/gi, "")
-    .replace(/(?:^|\n)\s*Source:\s*[a-zA-Z0-9_\-.]+\.(?:pdf|md|txt)/gi, "")
-    .trim();
-
-  return { text: cleanText || rawContent, sources };
-}
-
-function isFailedMessage(msg: ChatMessage): boolean {
-  if (msg.role !== "assistant") return false;
-  if (msg.is_error) return true;
-  const text = (msg.content || "").trim();
-  const lower = text.toLowerCase();
-  return (
-    lower.startsWith("sorry, i encountered an issue") ||
-    lower.startsWith("failed to stream message") ||
-    lower.startsWith("i apologize, but i encountered an issue") ||
-    lower.includes("failed to stream message")
-  );
-}
+import { LinkedTripBanner } from "@/components/chat/LinkedTripBanner";
+import { SuggestedPromptsGrid } from "@/components/chat/SuggestedPromptsGrid";
+import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
+import { ChatInputArea } from "@/components/chat/ChatInputArea";
+import {
+  SUGGESTED_PROMPTS,
+  parseMessageContentAndSources,
+  isFailedMessage,
+  formatTimestamp,
+  formatFullDateTooltip,
+  formatDateDivider,
+  formatSidebarTimestamp,
+} from "@/lib/chatUtils";
 
 function ChatContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -479,7 +430,7 @@ function ChatContent() {
     }
   };
 
-  const handleCopyMessage = async (id: string | number, text: string) => {
+  const handleCopyMessage = useCallback(async (id: string | number, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(id);
@@ -490,18 +441,21 @@ function ChatContent() {
       console.error("Failed to copy message to clipboard:", err);
       toast.error("Failed to copy to clipboard.", { title: "Copy Failed" });
     }
-  };
+  }, []);
 
-  const handleStartEditMessage = (msg: ChatMessage) => {
-    if (isSending || isSubmittingEdit || isRegenerating) return;
-    setEditingMessageId(msg.id);
-    setEditMessageInput(msg.content);
-  };
+  const handleStartEditMessage = useCallback(
+    (msg: ChatMessage) => {
+      if (isSending || isSubmittingEdit || isRegenerating) return;
+      setEditingMessageId(msg.id);
+      setEditMessageInput(msg.content);
+    },
+    [isSending, isSubmittingEdit, isRegenerating]
+  );
 
-  const handleCancelEditMessage = () => {
+  const handleCancelEditMessage = useCallback(() => {
     setEditingMessageId(null);
     setEditMessageInput("");
-  };
+  }, []);
 
   const handleSaveEditMessage = async (msgId: string | number) => {
     if (!activeConversationId || isSending || isSubmittingEdit || isSendingRef.current) return;
@@ -699,6 +653,13 @@ function ChatContent() {
   const currentTripId = activeConversation?.trip_id || linkedTripId;
   const currentTripDestination =
     activeConversation?.trip_destination || linkedTripDestination;
+
+  const handleNavigateToTrip = useCallback(
+    (tripId?: string | null) => {
+      router.push(tripId ? `/trips/${tripId}` : "/trips");
+    },
+    [router]
+  );
 
   const handleApplyToBlueprint = async (aiText: string, messageId: string | number) => {
     if (!currentTripId) return;
@@ -907,115 +868,6 @@ function ChatContent() {
     }
   };
 
-  const formatTimestamp = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "";
-    }
-  };
-
-  const formatFullDateTooltip = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return "";
-    }
-  };
-
-  const formatDateDivider = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const now = new Date();
-
-      const isToday =
-        date.getDate() === now.getDate() &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear();
-
-      const yesterday = new Date(now);
-      yesterday.setDate(now.getDate() - 1);
-      const isYesterday =
-        date.getDate() === yesterday.getDate() &&
-        date.getMonth() === yesterday.getMonth() &&
-        date.getFullYear() === yesterday.getFullYear();
-
-      if (isToday) return "Today";
-      if (isYesterday) return "Yesterday";
-
-      return date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-      });
-    } catch {
-      return "";
-    }
-  };
-
-  const formatSidebarTimestamp = (isoString?: string) => {
-    if (!isoString) return "";
-    try {
-      const date = new Date(isoString);
-      const now = new Date();
-
-      const isToday =
-        date.getDate() === now.getDate() &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear();
-
-      if (isToday) {
-        return date.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-      }
-
-      const yesterday = new Date(now);
-      yesterday.setDate(now.getDate() - 1);
-      const isYesterday =
-        date.getDate() === yesterday.getDate() &&
-        date.getMonth() === yesterday.getMonth() &&
-        date.getFullYear() === yesterday.getFullYear();
-
-      if (isYesterday) {
-        return "Yesterday";
-      }
-
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      if (diffDays < 7 && diffDays >= 0) {
-        return date.toLocaleDateString("en-US", { weekday: "short" });
-      }
-
-      if (date.getFullYear() === now.getFullYear()) {
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-      }
-
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "";
-    }
-  };
 
   return (
     <div className="flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-blue-500/20 selection:text-blue-200">
@@ -1342,25 +1194,7 @@ function ChatContent() {
               </div>
 
               {/* Linked Trip Context Banner (Model 3 Bridge) */}
-              {currentTripDestination && (
-                <div className="px-3 sm:px-5 py-2 border-b border-amber-500/20 bg-amber-950/20 flex items-center justify-between gap-2 shrink-0 animate-in fade-in duration-200">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Map className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span className="text-[11px] text-amber-300 font-medium truncate">
-                      Linked Trip: <span className="font-bold text-amber-200">{currentTripDestination}</span>
-                    </span>
-                  </div>
-                  {currentTripId && (
-                    <Link
-                      href={`/trips/${currentTripId}`}
-                      className="text-[10px] text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline shrink-0 flex items-center gap-1 active:scale-95"
-                    >
-                      <span>Open Blueprint</span>
-                      <ArrowUpRight className="w-3 h-3" />
-                    </Link>
-                  )}
-                </div>
-              )}
+              <LinkedTripBanner destination={currentTripDestination} tripId={currentTripId} />
 
               {/* Messages Scroll Area */}
               <div
@@ -1371,49 +1205,17 @@ function ChatContent() {
                 {isLoadingMessages ? (
                   <MessageThreadSkeleton />
                 ) : messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-3 sm:p-4 max-w-2xl mx-auto my-auto">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-2 shadow-inner">
-                      <Compass className="w-5 h-5" />
-                    </div>
-                    <Typography variant="h3" className="text-sm sm:text-base font-bold text-white">
-                      Start Your Travel Conversation
-                    </Typography>
-                    <p className="text-[11px] text-zinc-400 mt-0.5 mb-3 sm:mb-4 max-w-md">
-                      Plan itineraries or ask verified travel policy questions (Customs, Halal dining, QRIS).
-                    </p>
-
-                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-left">
-                      {suggestedPrompts.map((item, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => handleSendMessage(item.prompt)}
-                          disabled={isSending}
-                          className="text-left text-xs text-zinc-300 bg-zinc-950/60 hover:bg-blue-600/20 hover:text-blue-200 hover:border-blue-500/40 border border-white/10 rounded-xl p-2.5 transition-all flex items-center justify-between group shadow-sm active:scale-98 disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <span className="font-semibold text-white block text-[11px] group-hover:text-blue-300 truncate">
-                              {item.label}
-                            </span>
-                            <span className="text-[10px] text-zinc-400 line-clamp-1">
-                              {item.prompt}
-                            </span>
-                          </div>
-                          <Send className="w-3 h-3 text-zinc-500 group-hover:text-blue-400 transition-colors shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <SuggestedPromptsGrid
+                    prompts={suggestedPrompts}
+                    onSelectPrompt={handleSendMessage}
+                    disabled={isSending}
+                  />
                 ) : (
                   messages.map((msg, idx) => {
                     const isUser = msg.role === "user";
                     const isLastMessage = idx === messages.length - 1;
                     const isEditingThis = editingMessageId === msg.id;
                     const isCopied = copiedMessageId === msg.id;
-                    const { text: cleanText, sources } = isUser
-                      ? { text: msg.content, sources: [] }
-                      : parseMessageContentAndSources(msg.content);
-                    const isFailed = isFailedMessage(msg);
 
                     const prevMsg = idx > 0 ? messages[idx - 1] : null;
                     const showDateDivider =
@@ -1429,8 +1231,8 @@ function ChatContent() {
                     const isTargetRegenerating =
                       !isUser &&
                       ((regeneratingMessageId && String(msg.id) === String(regeneratingMessageId)) ||
-                       (isRegenerating && isLastMessage) ||
-                       (!msg.content && (isSending || isRegenerating)));
+                        (isRegenerating && isLastMessage) ||
+                        (!msg.content && (isSending || isRegenerating)));
 
                     if (isTargetRegenerating) {
                       return (
@@ -1449,321 +1251,33 @@ function ChatContent() {
                       );
                     }
 
-                    if (!isUser && !msg.content) return null;
-
                     return (
-                      <div key={msg.id} className="space-y-3.5 sm:space-y-4">
-                        {/* Centered Date Divider Pill between calendar days */}
-                        {showDateDivider && (
-                          <div className="flex items-center justify-center my-3 sm:my-4">
-                            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-900/90 px-3 py-1 shadow-sm backdrop-blur-md">
-                              <span className="text-[10px] sm:text-[11px] font-medium text-zinc-400">
-                                {formatDateDivider(msg.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div
-                          className={`group/msg flex gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-bottom-1 duration-200 ${
-                            isUser ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          {!isUser && (
-                            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                              <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                            </div>
-                          )}
-
-                          <div className={`max-w-[88%] sm:max-w-[78%] flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-                            {/* Message bubble OR inline editor */}
-                            {isEditingThis ? (
-                              <div className="w-full flex flex-col gap-2">
-                                {/* Truncation notice if editing older message */}
-                                {idx < messages.length - 2 && (
-                                  <p className="text-[10px] text-amber-400/80 flex items-center gap-1 px-1">
-                                    <span>⚠</span>
-                                    Subsequent messages will be cleared and regenerated from here.
-                                  </p>
-                                )}
-                                <textarea
-                                  autoFocus
-                                  value={editMessageInput}
-                                  onChange={(e) => setEditMessageInput(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Escape") handleCancelEditMessage();
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                      e.preventDefault();
-                                      handleSaveEditMessage(msg.id);
-                                    }
-                                  }}
-                                  disabled={isSubmittingEdit}
-                                  rows={3}
-                                  className="w-full min-w-[260px] sm:min-w-[340px] bg-zinc-900/80 border border-blue-500/50 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400/70 resize-none disabled:opacity-60"
-                                />
-                                <div className="flex items-center gap-1.5 justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={handleCancelEditMessage}
-                                    className="px-2.5 py-1 rounded-lg text-[10px] text-zinc-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSaveEditMessage(msg.id)}
-                                    disabled={isSubmittingEdit || !editMessageInput.trim()}
-                                    className="px-2.5 py-1 rounded-lg text-[10px] bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                  >
-                                    {isSubmittingEdit ? (
-                                      <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                    ) : (
-                                      <Send className="w-2.5 h-2.5" />
-                                    )}
-                                    Save & Submit
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                {/* --- Error card (failed stream) --- */}
-                                {isFailed ? (
-                                  <div className="rounded-2xl rounded-bl-xs px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-md bg-red-950/40 border border-red-500/25 text-red-300 max-w-xs">
-                                    <div className="flex items-start gap-2">
-                                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                                      <div className="space-y-2">
-                                        <p className="text-[11px] sm:text-xs leading-relaxed">
-                                          Something went wrong — the response could not be generated.
-                                        </p>
-                                        <button
-                                          type="button"
-                                          onClick={handleRegenerateResponse}
-                                          disabled={isSending || isRegenerating}
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-red-500/20 hover:bg-red-500/35 border border-red-500/30 text-red-300 hover:text-red-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                          {isRegenerating ? (
-                                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                          ) : (
-                                            <RotateCcw className="w-2.5 h-2.5" />
-                                          )}
-                                          Try Again
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* --- Normal message content bubble --- */
-                                  <div
-                                    className={`group/bubble relative rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-md ${
-                                      isUser
-                                        ? "bg-blue-600 text-white rounded-br-xs"
-                                        : "bg-zinc-950/75 border border-white/10 text-zinc-200 rounded-bl-xs"
-                                    }`}
-                                  >
-                                    {isUser ? (
-                                      <p className="leading-relaxed whitespace-pre-wrap">{cleanText}</p>
-                                    ) : (
-                                      <div className="prose prose-invert prose-xs sm:prose-sm max-w-none break-words">
-                                        <MarkdownRenderer content={cleanText} />
-                                      </div>
-                                    )}
-
-                                    {/* User message hover actions: Copy & Edit */}
-                                    {isUser && !isSending && (
-                                      <div className="absolute -left-16 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                                        <Tooltip content="Copy" side="top">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleCopyMessage(msg.id, cleanText)}
-                                            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
-                                          >
-                                            {isCopied ? (
-                                              <Check className="w-3 h-3 text-emerald-400" />
-                                            ) : (
-                                              <Copy className="w-3 h-3" />
-                                            )}
-                                          </button>
-                                        </Tooltip>
-                                        <Tooltip content="Edit" side="top">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleStartEditMessage(msg)}
-                                            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/10 transition-colors"
-                                          >
-                                            <Edit2 className="w-3 h-3" />
-                                          </button>
-                                        </Tooltip>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Source citation badge — only for normal AI messages */}
-                                {!isUser && !isFailed && sources.length > 0 && (
-                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-zinc-400">
-                                    <FileText className="w-3 h-3 text-blue-400 shrink-0" />
-                                    <span>{sources.length > 1 ? "Sources:" : "Source:"}</span>
-                                    {sources.map((src, i) => (
-                                      <code
-                                        key={i}
-                                        className="rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 font-mono text-[10px] font-medium text-blue-300"
-                                      >
-                                        {src}
-                                      </code>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* Bottom action row: timestamp + Copy + Regenerate — hidden for error messages */}
-                                {!isFailed && (
-                                  <div className={`mt-1 flex items-center gap-1.5 px-1 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-                                    <Tooltip content={formatFullDateTooltip(msg.created_at)} side="top">
-                                      <span className="text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1 cursor-default select-none">
-                                        <Clock className="w-2.5 h-2.5" />
-                                        {formatTimestamp(msg.created_at)}
-                                      </span>
-                                    </Tooltip>
-
-                                    {/* Copy button — all non-error messages */}
-                                    <Tooltip content={isCopied ? "Copied!" : "Copy message"} side="top">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCopyMessage(msg.id, cleanText)}
-                                        aria-label="Copy message"
-                                        className={`p-1 rounded-md transition-all ${
-                                          isCopied
-                                            ? "text-emerald-400 opacity-100"
-                                            : "text-zinc-500 hover:text-zinc-200 hover:bg-white/10 sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
-                                        }`}
-                                      >
-                                        {isCopied ? (
-                                          <Check className="w-2.5 h-2.5 text-emerald-400" />
-                                        ) : (
-                                          <Copy className="w-2.5 h-2.5" />
-                                        )}
-                                      </button>
-                                    </Tooltip>
-
-                                    {/* Edit button for user messages on mobile */}
-                                    {isUser && (
-                                      <Tooltip content="Edit" side="top">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleStartEditMessage(msg)}
-                                          disabled={isSending}
-                                          className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors sm:hidden disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                          <Edit2 className="w-2.5 h-2.5" />
-                                        </button>
-                                      </Tooltip>
-                                    )}
-
-                                    {/* Regenerate — latest assistant turn only (non-error) */}
-                                    {!isUser && isLastMessage && (
-                                      <Tooltip content="Regenerate response" side="top">
-                                        <button
-                                          type="button"
-                                          onClick={handleRegenerateResponse}
-                                          disabled={isSending || isRegenerating}
-                                          className="p-1 rounded-md text-zinc-500 hover:text-blue-400 hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed sm:opacity-0 sm:group-hover/msg:opacity-100 focus:opacity-100"
-                                        >
-                                          <RotateCw className={`w-2.5 h-2.5 ${isRegenerating ? "animate-spin text-blue-400" : ""}`} />
-                                        </button>
-                                      </Tooltip>
-                                    )}
-
-                                    {/* Save as Trip button — only for normal AI messages with itinerary content */}
-                                    {!isUser &&
-                                      (cleanText.includes("Day 1") ||
-                                        cleanText.includes("## Day") ||
-                                        cleanText.toLowerCase().includes("itinerary") ||
-                                        cleanText.toLowerCase().includes("jadwal") ||
-                                        cleanText.toLowerCase().includes("hari 1")) && (
-                                      savedMessageIds.has(msg.id) ? (
-                                        <Tooltip
-                                          content={
-                                            currentTripId
-                                              ? "Applied to linked Blueprint (Click to view)"
-                                              : "Already saved to My Trips (Click to view)"
-                                          }
-                                          side="top"
-                                        >
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              router.push(currentTripId ? `/trips/${currentTripId}` : "/trips")
-                                            }
-                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-blue-300 hover:text-blue-200 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition-all active:scale-95 ml-1"
-                                          >
-                                            <BookmarkCheck className="w-2.5 h-2.5 text-blue-400" />
-                                            <span className="hidden sm:inline">Saved</span>
-                                          </button>
-                                        </Tooltip>
-                                      ) : currentTripId ? (
-                                        /* Kasus A: Linked Chat -> Apply to Blueprint */
-                                        <Tooltip
-                                          content={
-                                            /(?:^|\n)##\s+Day/i.test(cleanText) ||
-                                            /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
-                                              ? "Apply this itinerary update to your linked Blueprint"
-                                              : "Apply to Blueprint (Note: message doesn't have standard ## Day headings)"
-                                          }
-                                          side="top"
-                                        >
-                                          <button
-                                            type="button"
-                                            onClick={() => handleApplyToBlueprint(cleanText, msg.id)}
-                                            disabled={applyingBlueprintMessageId === msg.id}
-                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 transition-all active:scale-95 ml-1 disabled:opacity-50"
-                                          >
-                                            {applyingBlueprintMessageId === msg.id ? (
-                                              <>
-                                                <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
-                                                <span className="hidden sm:inline">Applying...</span>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Sparkles className="w-2.5 h-2.5" />
-                                                <span className="hidden sm:inline">Apply to Blueprint</span>
-                                              </>
-                                            )}
-                                          </button>
-                                        </Tooltip>
-                                      ) : (
-                                        /* Kasus B: Standalone Chat -> Save as Official Trip */
-                                        <Tooltip
-                                          content={
-                                            /(?:^|\n)##\s+Day/i.test(cleanText) ||
-                                            /(?:^|\n)\*\*(?:Day|Hari)\s+\d+/i.test(cleanText)
-                                              ? "Save this itinerary as an official Trip Blueprint"
-                                              : "Save as official Trip (Day-by-Day formatting recommended)"
-                                          }
-                                          side="top"
-                                        >
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenSaveTrip(cleanText, msg.id)}
-                                            className="cursor-pointer inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all active:scale-95 ml-1"
-                                          >
-                                            <BookmarkPlus className="w-2.5 h-2.5" />
-                                            <span className="hidden sm:inline">Save as Official Trip</span>
-                                          </button>
-                                        </Tooltip>
-                                      )
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                          {isUser && (
-                            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-zinc-800 border border-white/10 text-zinc-300 flex items-center justify-center shrink-0 mt-0.5">
-                              <User className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <ChatMessageItem
+                        key={msg.id}
+                        msg={msg}
+                        idx={idx}
+                        totalMessages={messages.length}
+                        showDateDivider={showDateDivider}
+                        isEditingThis={isEditingThis}
+                        editMessageInput={editMessageInput}
+                        isSubmittingEdit={isSubmittingEdit}
+                        isSending={isSending}
+                        isCopied={isCopied}
+                        isRegenerating={isRegenerating}
+                        isLastMessage={isLastMessage}
+                        currentTripId={currentTripId}
+                        isSaved={savedMessageIds.has(msg.id)}
+                        isApplyingBlueprint={applyingBlueprintMessageId === msg.id}
+                        onStartEditMessage={handleStartEditMessage}
+                        onCancelEditMessage={handleCancelEditMessage}
+                        onSaveEditMessage={handleSaveEditMessage}
+                        onEditInputChange={setEditMessageInput}
+                        onCopyMessage={handleCopyMessage}
+                        onRegenerateResponse={handleRegenerateResponse}
+                        onApplyToBlueprint={handleApplyToBlueprint}
+                        onOpenSaveTrip={handleOpenSaveTrip}
+                        onNavigateToTrip={handleNavigateToTrip}
+                      />
                     );
                   })
                 )}
@@ -1796,50 +1310,15 @@ function ChatContent() {
               )}
 
               {/* Chat Input Box: Pinned & Optimized for Mobile Viewport */}
-              <div className="p-3 sm:p-4 border-t border-white/10 bg-zinc-950/60 shrink-0 pb-safe sm:pb-4">
-                {/* Offline Warning Banner */}
-                {!isOnline && (
-                  <div className="mb-2 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs animate-in fade-in select-none">
-                    <WifiOff className="w-3.5 h-3.5 shrink-0" />
-                    <span>You are currently offline. Check your internet connection.</span>
-                  </div>
-                )}
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }}
-                  className="relative flex items-end gap-1.5 sm:gap-2 bg-zinc-950/80 border border-white/10 rounded-xl p-1.5 focus-within:border-blue-500/60 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-inner"
-                >
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={
-                      !isOnline
-                        ? "Offline - waiting for connection..."
-                        : "Ask about itineraries, day-by-day plans, local tips, customs... (Enter to send)"
-                    }
-                    rows={1}
-                    disabled={isSending || !isOnline}
-                    className="w-full resize-none bg-transparent px-2 sm:px-2.5 py-1.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none max-h-32 disabled:opacity-50 transition-[height] duration-75 overflow-y-auto"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSending || !input.trim() || !isOnline}
-                    aria-label="Send message"
-                    className="inline-flex items-center justify-center w-8 h-8 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white shadow-md hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none transition-all shrink-0 active:scale-95"
-                  >
-                    {isSending ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </form>
-              </div>
+              <ChatInputArea
+                input={input}
+                isSending={isSending}
+                isOnline={isOnline}
+                textareaRef={textareaRef}
+                onInputChange={setInput}
+                onKeyDown={handleKeyDown}
+                onSubmit={handleSendMessage}
+              />
             </div>
           </div>
         )}

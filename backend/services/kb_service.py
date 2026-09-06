@@ -6,6 +6,7 @@ import os
 import glob
 import re
 from typing import Any, Optional
+from functools import lru_cache
 import boto3
 from dotenv import load_dotenv
 from utils.security import sanitize_user_input
@@ -17,8 +18,9 @@ load_dotenv()
 # Part A: AWS Client Initialization & Configuration
 # ------------------------------------------------------------------------------
 
+@lru_cache(maxsize=1)
 def get_kb_client():
-    """Create and return a configured Bedrock Agent Runtime boto3 client using AWS credentials."""
+    """Create and return a cached Bedrock Agent Runtime boto3 client using AWS credentials (Singleton)."""
     return boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=os.getenv("AWS_REGION", "ap-southeast-2"),
@@ -26,8 +28,9 @@ def get_kb_client():
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
 
+@lru_cache(maxsize=1)
 def get_bedrock_runtime_client():
-    """Create and return Bedrock Runtime client for Converse API."""
+    """Create and return cached Bedrock Runtime client for Converse API (Singleton)."""
     return boto3.client(
         service_name="bedrock-runtime",
         region_name=os.getenv("AWS_REGION", "ap-southeast-2"),

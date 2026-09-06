@@ -6,6 +6,7 @@ import os
 import uvicorn
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from database import init_db, SessionLocal
@@ -37,6 +38,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# HTTP response compression for JSON payloads >= 1KB (itineraries, blueprints, chat logs)
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=1000,
 )
 
 # Initialize database schema & run modular idempotent migrations on startup

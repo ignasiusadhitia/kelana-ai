@@ -86,49 +86,50 @@ function extractText(node: React.ReactNode): string {
 
 /**
  * Helper to strip leading emojis/pictographs from heading text to avoid duplicate icons.
+ * Preserves alphanumeric characters and digits (e.g. "5-Day", "Day 1").
  */
 function stripLeadingEmoji(text: string): string {
-  return text.replace(/^[\p{Emoji}\p{Extended_Pictographic}\s:-]+/u, "").trim();
+  return text.replace(/^(?:[^\p{L}\p{N}\s#*]|[\p{Extended_Pictographic}])+\s*/u, "").trim();
 }
 
 function getTimeBlockBadge(rawText: string) {
-  if (/morning/i.test(rawText)) {
+  if (/morning|pagi/i.test(rawText)) {
     return {
       icon: <Sunrise className="w-3.5 h-3.5 text-amber-400" />,
       colorClass: "bg-amber-500/10 text-amber-300 border-amber-500/20",
     };
   }
-  if (/afternoon/i.test(rawText)) {
+  if (/afternoon|siang|sore/i.test(rawText)) {
     return {
       icon: <Sun className="w-3.5 h-3.5 text-sky-400" />,
       colorClass: "bg-sky-500/10 text-sky-300 border-sky-500/20",
     };
   }
-  if (/evening|night/i.test(rawText)) {
+  if (/evening|night|malam/i.test(rawText)) {
     return {
       icon: <Moon className="w-3.5 h-3.5 text-indigo-400" />,
       colorClass: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
     };
   }
-  if (/budget|cost|breakdown|expense/i.test(rawText)) {
+  if (/budget|cost|breakdown|expense|biaya/i.test(rawText)) {
     return {
       icon: <CircleDollarSign className="w-3.5 h-3.5 text-emerald-400" />,
       colorClass: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
     };
   }
-  if (/food|dish|culinary|dining/i.test(rawText)) {
+  if (/food|dish|culinary|dining|kuliner|makan/i.test(rawText)) {
     return {
       icon: <Utensils className="w-3.5 h-3.5 text-orange-400" />,
       colorClass: "bg-orange-500/10 text-orange-300 border-orange-500/20",
     };
   }
-  if (/transport|navigate|subway|train/i.test(rawText)) {
+  if (/transport|navigate|subway|train|transit/i.test(rawText)) {
     return {
       icon: <Train className="w-3.5 h-3.5 text-purple-400" />,
       colorClass: "bg-purple-500/10 text-purple-300 border-purple-500/20",
     };
   }
-  if (/tip|insider|essential|advice/i.test(rawText)) {
+  if (/tip|insider|essential|advice|panduan|catatan/i.test(rawText)) {
     return {
       icon: <Lightbulb className="w-3.5 h-3.5 text-teal-400" />,
       colorClass: "bg-teal-500/10 text-teal-300 border-teal-500/20",
@@ -172,11 +173,31 @@ const markdownComponents: Components = {
       </div>
     );
   },
-  h4: ({ children }) => (
-    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mt-3 mb-1">
-      {children}
-    </h4>
-  ),
+  h4: ({ children }) => {
+    const rawText = extractText(children);
+    const isTimeBlock = /morning|afternoon|evening|night|budget|cost|breakdown|expense|tip|insider|pagi|siang|sore|malam|biaya/i.test(
+      rawText
+    );
+    if (isTimeBlock) {
+      const cleanedText = stripLeadingEmoji(rawText) || rawText;
+      const { icon, colorClass } = getTimeBlockBadge(rawText);
+      return (
+        <div className="mt-4 mb-2 flex items-center gap-2 first:mt-1">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide uppercase ${colorClass}`}
+          >
+            {icon}
+            <span>{cleanedText}</span>
+          </span>
+        </div>
+      );
+    }
+    return (
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mt-3 mb-1">
+        {children}
+      </h4>
+    );
+  },
   p: ({ children }) => (
     <p className="text-sm leading-relaxed text-zinc-300 mb-3 last:mb-0">
       {children}

@@ -12,6 +12,7 @@ export interface SectionItem {
   body: string;
   isDay: boolean;
   dayNumber?: number;
+  isOverview?: boolean;
 }
 
 /**
@@ -27,6 +28,8 @@ export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const daySections = sections.filter((s) => s.isDay);
+  const guideSections = sections.filter((s) => !s.isDay && !s.isOverview);
+  const overviewSection = sections.find((s) => s.isOverview);
 
   const toggleSection = (id: string) => {
     setExpandedSections((prev) => ({
@@ -53,7 +56,8 @@ export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
 
   const filteredSections = sections.filter((section) => {
     if (activeFilter === "all") return true;
-    if (activeFilter === "guides") return !section.isDay;
+    if (activeFilter === "guides") return !section.isDay && !section.isOverview;
+    if (activeFilter === "overview") return Boolean(section.isOverview);
     return section.id === activeFilter;
   });
 
@@ -79,6 +83,20 @@ export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
                 All Days Overview
               </button>
 
+              {overviewSection && (
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter("overview")}
+                  className={`cursor-pointer shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 ${
+                    activeFilter === "overview"
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-blue-600/20 ring-2 ring-primary/30"
+                      : "border border-border bg-secondary/80 text-muted-foreground hover:border-zinc-700 hover:text-foreground"
+                  }`}
+                >
+                  Overview
+                </button>
+              )}
+
               {daySections.map((sec, i) => (
                 <button
                   key={sec.id}
@@ -90,11 +108,11 @@ export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
                       : "border border-border bg-secondary/80 text-muted-foreground hover:border-zinc-700 hover:text-foreground"
                   }`}
                 >
-                  Day {i + 1}
+                  Day {sec.dayNumber || i + 1}
                 </button>
               ))}
 
-              {sections.some((s) => !s.isDay) && (
+              {guideSections.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setActiveFilter("guides")}

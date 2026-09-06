@@ -127,7 +127,12 @@ def send_message_endpoint(
     if stream:
         return StreamingResponse(
             stream_message_and_get_response(db, id, current_user.id, payload.content),
-            media_type="text/event-stream"
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
         )
 
     ai_message = send_message_and_get_response(db, id, current_user.id, payload.content)

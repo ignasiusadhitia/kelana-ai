@@ -3,14 +3,16 @@
 # ==============================================================================
 
 import os
+from functools import lru_cache
 from dotenv import load_dotenv
 import boto3
 
 # Load environment variables from .env
 load_dotenv()
 
+@lru_cache(maxsize=1)
 def get_bedrock_client():
-    """Create and return a configured Bedrock Runtime boto3 client."""
+    """Create and return a cached Bedrock Runtime boto3 client (Singleton)."""
     return boto3.client(
         service_name="bedrock-runtime",
         region_name=os.getenv("AWS_REGION", "ap-southeast-2"),

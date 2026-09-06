@@ -2,7 +2,8 @@
 # 2. VIEWS: Trip Controller (FastAPI Endpoints for Itinerary Management)
 # ==============================================================================
 
-from fastapi import APIRouter, HTTPException, Depends, status
+import re
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from services.trip_services import (
@@ -25,9 +26,6 @@ from services.bedrock_service import (
     generate_trip_recommendation,
 )
 
-import re
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
 from utils.rate_limiter import check_ai_rate_limit
 
 from services.auth_deps import get_current_user

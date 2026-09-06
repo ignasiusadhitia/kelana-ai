@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
+from database import SessionLocal
 
 from models.conversation import Conversation, Message
 from models.user import User
@@ -61,7 +62,14 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    - NEVER output <thinking> tags or internal reasoning.
 
 5. ITINERARY FORMAT: When providing a day-by-day travel itinerary in chat, you MUST use the
-   following exact markdown structure so it renders correctly in the Blueprint UI:
+   following exact markdown structure so it renders cleanly into interactive Blueprint tabs:
+
+   - Start the itinerary IMMEDIATELY with Day 1. DO NOT prefix the itinerary with a document
+     title header (such as "# 5-Day Trip" or "## 5-Day Family Trip to Kazakhstan").
+   - NEVER use bold headers (**Day 1**) or plain-text headings for day sections.
+   - NEVER downgrade Day headers to level-3 (### Day 1) or level-4 headings.
+   - ALWAYS use level-2 markdown (## ) for day and guide section headers.
+   - Time-blocks within each day MUST be level-3 markdown (### Morning, ### Afternoon, etc.).
 
    ## Day 1: [Thematic Title]
    ### Morning
@@ -86,9 +94,6 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
 
    ## Practical Packing & Local Etiquette Tips
    [Packing list and local customs to respect]
-
-   NEVER use bold headers (**Day 1**) or plain-text headings for day sections.
-   ALWAYS use level-2 markdown (## ) for day and guide section headers.
 
 6. MAXIMUM ITINERARY DURATION & MODULAR BREAKDOWN POLICY (STRICT 14-DAY CAP):
    - Hard Duration Limit: You MUST NEVER generate a continuous day-by-day itinerary exceeding 14 days in a single response (strictly capped at 14 days maximum).
@@ -839,6 +844,17 @@ def stream_message_and_get_response(
     while bedrock_messages and bedrock_messages[0]["role"] != "user":
         bedrock_messages.pop(0)
 
+    # Cache necessary identifiers before releasing DB connection
+    conv_id = conversation.id
+    conv_title = conversation.title
+    user_msg_pub_id = user_msg.public_id
+
+    # Optimization: Release initial DB connection back to connection pool during long-running Bedrock stream
+    try:
+        db.close()
+    except Exception as e:
+        print(f"[Warning] Failed to release DB session before streaming: {e}")
+
     # Stream from Bedrock Converse Stream
     full_text = ""
     try:
@@ -879,31 +895,45 @@ def stream_message_and_get_response(
         full_text = "I apologize, but I am unable to process your request at this time. Please try sending your message again."
         yield f"data: {json.dumps({'chunk': full_text})}\n\n"
 
-    # Step 5: Persist assistant message to database
-    ai_msg = Message(
-        conversation_id=conversation.id,
-        role="assistant",
-        content=full_text
-    )
-    db.add(ai_msg)
-
-    # Step 6: Auto-generate thread title on first turn
-    if conversation.title in ("New Conversation", "Untitled", ""):
-        first_user_msg = (
-            db.query(Message)
-            .filter(Message.conversation_id == conversation.id, Message.role == "user")
-            .order_by(Message.id.asc())
-            .first()
+    # Step 5: Persist assistant message and update conversation title using a short-lived DB session
+    save_db = SessionLocal()
+    ai_msg_pub_id = ""
+    final_title = conv_title
+    try:
+        ai_msg = Message(
+            conversation_id=conv_id,
+            role="assistant",
+            content=full_text
         )
-        if first_user_msg:
-            conversation.title = _auto_generate_title(first_user_msg.content)
+        save_db.add(ai_msg)
 
-    conversation.updated_at = func.now()
-    db.add(conversation)
-    db.commit()
-    db.refresh(ai_msg)
+        # Step 6: Auto-generate thread title on first turn
+        if conv_title in ("New Conversation", "Untitled", ""):
+            first_user_msg = (
+                save_db.query(Message)
+                .filter(Message.conversation_id == conv_id, Message.role == "user")
+                .order_by(Message.id.asc())
+                .first()
+            )
+            if first_user_msg:
+                final_title = _auto_generate_title(first_user_msg.content)
 
-    yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
+        conv_record = save_db.query(Conversation).filter(Conversation.id == conv_id).first()
+        if conv_record:
+            conv_record.title = final_title
+            conv_record.updated_at = func.now()
+            save_db.add(conv_record)
+
+        save_db.commit()
+        save_db.refresh(ai_msg)
+        ai_msg_pub_id = ai_msg.public_id
+    except Exception as e:
+        print(f"[Error] Failed to persist streaming assistant response: {e}")
+        save_db.rollback()
+    finally:
+        save_db.close()
+
+    yield f"data: {json.dumps({'done': True, 'message_id': ai_msg_pub_id, 'user_message_id': user_msg_pub_id, 'title': final_title})}\n\n"
 
 
 def edit_user_message_and_regenerate(

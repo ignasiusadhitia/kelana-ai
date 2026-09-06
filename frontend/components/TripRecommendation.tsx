@@ -30,12 +30,12 @@ interface TripRecommendationProps {
   onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
-// Helper to strip leading emoji and markdown artifacts (**bold**, *italic*, `code`, # headings) from title strings
+// Helper to strip leading emoji/pictographs from title strings without stripping numbers (e.g. "5-Day")
 function cleanTitleText(text: string): string {
   if (!text) return "";
   return text
     .replace(/^#+\s*/, "")
-    .replace(/^[\p{Emoji}\p{Extended_Pictographic}\s:-]+/u, "")
+    .replace(/^(?:[^\p{L}\p{N}\s#*]|[\p{Extended_Pictographic}])+\s*/u, "")
     .replace(/\*\*\*(.*?)\*\*\*/g, "$1")
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/\*(.*?)\*/g, "$1")
@@ -45,6 +45,31 @@ function cleanTitleText(text: string): string {
     .replace(/`(.*?)`/g, "$1")
     .replace(/[*_`]/g, "")
     .trim();
+}
+
+// Check if a line is a Day heading (e.g. "## Day 1", "### Day 1:", "**Day 1**", "Day 1 -", "Hari 1")
+function isDayHeaderLine(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+[:\s\*\-]/i.test(trimmed) ||
+    /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+(?:\*\*)?$/i.test(trimmed)
+  );
+}
+
+// Check if a line is a known Guide / Appendix heading
+function isGuideHeaderLine(line: string): boolean {
+  const trimmed = line.trim();
+  return /^(?:#{1,4}\s+)?(?:\*\*)?(?:Essential Local Dishes|Smart Navigation|Practical Packing|Guides?\s*(?:&|and)\s*Tips|Travel Tips|Practical Tips|Insider Tips|Tips\s*(?:&|and)\s*(?:Tricks|Panduan)|Panduan\s*(?:&|dan)\s*Tips|Kuliner\s*Khas|Transportasi|Local Etiquette|Recommendations?|Important Notes|General Tips)\b/i.test(
+    trimmed
+  );
+}
+
+// Check if a line is a sub-timeblock header inside a day (NOT a section delimiter)
+function isTimeBlockHeader(line: string): boolean {
+  const trimmed = line.trim();
+  return /^(?:#{3,4}\s+)?(?:\*\*)?(?:Morning|Afternoon|Evening|Night|Insider Tip|Daily Cost Breakdown|Budget Breakdown|Pagi|Siang|Sore|Malam|Estimasi Biaya)\b/i.test(
+    trimmed
+  );
 }
 
 export function TripRecommendation({
@@ -58,90 +83,126 @@ export function TripRecommendation({
   const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  // Parses markdown sections by top-level "## " headings or conversational Day/Hari markers
+  // Resilient multi-level parser: accurately splits Day sections, Guide sections,
+  // and substantive Overviews regardless of markdown heading levels (H2, H3, H4, bold)
   const parseSections = (rawText: string): SectionItem[] => {
-    // 1. Primary: split by top-level "## " headings (standard Bedrock format)
-    const hasH2 = /(?:^|\n)##\s+/.test(rawText);
-    let rawParts: string[] = [];
+    if (!rawText || !rawText.trim()) return [];
 
-    if (hasH2) {
-      const sectionDelimiter = /(?:^|\n)(?=##\s+)/g;
-      rawParts = rawText.split(sectionDelimiter).filter((s) => s.trim().length > 0);
-    } else {
-      // 2. Fallback for conversational itineraries: split by Day/Hari or guide sections
-      const conversationalDelimiter = /(?:^|\n)(?=(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+|(?:#{2,4}\s+)(?:\*\*)?(?:Tips|Informasi|Rencana|Catatan|Notes|Practical))/gi;
-      rawParts = rawText.split(conversationalDelimiter).filter((s) => s.trim().length > 0);
-    }
+    const lines = rawText.replace(/\r\n/g, "\n").split("\n");
+    const parsedSections: SectionItem[] = [];
+    let currentTitle = "";
+    let currentBodyLines: string[] = [];
+    let isCurrentDay = false;
+    let hasFoundFirstDay = false;
+    let preambleLines: string[] = [];
 
-    // Filter out conversational assistant greeting preambles before the first day section
-    if (rawParts.length > 1) {
-      const firstPart = rawParts[0].trim();
-      const firstLine = firstPart.split("\n")[0].trim();
-      const isHeading = firstLine.startsWith("#");
-      const isDayMarker = /^(?:#{1,4}\s+)?(?:\*\*)?(?:Day|Hari)\s+\d+/i.test(firstLine);
+    const flushCurrentSection = () => {
+      if (!currentTitle && currentBodyLines.length === 0) return;
 
-      if (!isHeading && !isDayMarker) {
-        const isConversationalPreamble =
-          /^(?:absolutely|sure|certainly|of course|here(?:'s| is)|i(?:'ve| have) (?:created|updated|revised|prepared|tailored)|tentu|baik|ini|berikut)\b/i.test(firstLine) ||
-          (firstPart.length < 350 && !firstPart.includes("\n-") && !firstPart.includes("\n*") && !firstPart.includes("\n1."));
+      const rawTitle = currentTitle || "Overview";
+      const cleanTitle = cleanTitleText(rawTitle) || rawTitle;
+      const isDay = isCurrentDay || /^(?:Day|Hari)\s+\d+/i.test(cleanTitle);
 
-        if (isConversationalPreamble) {
-          rawParts.shift(); // Drop the conversational greeting so itinerary cleanly starts with Day 1
+      parsedSections.push({
+        id: `section-${parsedSections.length}`,
+        rawTitle,
+        cleanTitle,
+        icon: "",
+        body: currentBodyLines.join("\n").trim(),
+        isDay,
+        isOverview: !isDay && parsedSections.length === 0 && !hasFoundFirstDay,
+      });
+
+      currentTitle = "";
+      currentBodyLines = [];
+      isCurrentDay = false;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Check for Day section delimiter
+      if (isDayHeaderLine(trimmed)) {
+        if (!hasFoundFirstDay) {
+          const preambleText = preambleLines.join("\n").trim();
+          const firstLine = preambleText.split("\n")[0] || "";
+          const bodyAfterTitle = preambleText.split("\n").slice(1).join("\n").trim();
+
+          // If preamble has substantive overview content (>80 chars), keep as an Overview section
+          if (bodyAfterTitle.length > 80) {
+            parsedSections.push({
+              id: "section-overview",
+              rawTitle: firstLine.replace(/^#+\s*/, "").trim() || "Trip Overview",
+              cleanTitle: cleanTitleText(firstLine) || "Trip Overview",
+              icon: "",
+              body: bodyAfterTitle,
+              isDay: false,
+              isOverview: true,
+            });
+          }
+          hasFoundFirstDay = true;
+        } else {
+          flushCurrentSection();
         }
+
+        currentTitle = trimmed;
+        isCurrentDay = true;
+        continue;
+      }
+
+      // Check for Guide section delimiter (or any H2/H3 after first day that isn't a time block)
+      const isGuideCandidate =
+        isGuideHeaderLine(trimmed) ||
+        (hasFoundFirstDay && /^(?:##|###)\s+[A-Za-z]/.test(trimmed) && !isTimeBlockHeader(trimmed));
+
+      if (hasFoundFirstDay && isGuideCandidate) {
+        flushCurrentSection();
+        currentTitle = trimmed;
+        isCurrentDay = false;
+        continue;
+      }
+
+      if (!hasFoundFirstDay) {
+        preambleLines.push(line);
+      } else {
+        currentBodyLines.push(line);
       }
     }
 
-    if (rawParts.length <= 1) {
+    // Flush trailing section
+    flushCurrentSection();
+
+    // Fallback: If no day sections were detected via lines, return single Overview section
+    if (parsedSections.length === 0) {
       return [
         {
           id: "section-0",
           rawTitle: "Itinerary Overview",
           cleanTitle: "Itinerary Overview",
           icon: "1",
-          body: rawText,
+          body: rawText.trim(),
           isDay: false,
         },
       ];
     }
 
+    // Assign sequential day numbers and icons
     let dayCounter = 0;
-    return rawParts.map((part, idx) => {
-      const lines = part.trim().split("\n");
-      const firstLine = lines[0].trim();
-      const isHeading = firstLine.startsWith("#");
-      const isBoldTitle = /^\*\*(?:Day|Hari)\s+\d+/i.test(firstLine);
-
-      let rawTitle = "";
-      if (isHeading) {
-        rawTitle = firstLine.replace(/^#+\s*/, "").trim();
-      } else if (isBoldTitle) {
-        rawTitle = firstLine
-          .replace(/^\*\*(.*?)\*\*:?.*$/, "$1")
-          .replace(/^_(.*?)_:?.*$/, "$1")
-          .trim();
-      } else {
-        rawTitle = idx === 0 ? "Trip Overview" : `Section ${idx + 1}`;
-      }
-
-      if (!rawTitle) {
-        rawTitle = idx === 0 ? "Trip Overview" : `Section ${idx + 1}`;
-      }
-
-      const body = (isHeading || isBoldTitle) ? lines.slice(1).join("\n").trim() : part.trim();
-      const cleanTitle = cleanTitleText(rawTitle) || rawTitle;
-      const isDay = /^(?:Day|Hari)\s+\d+/i.test(cleanTitle);
-      if (isDay) {
+    return parsedSections.map((sec, idx) => {
+      if (sec.isDay) {
         dayCounter += 1;
+        return {
+          ...sec,
+          id: `section-${idx}`,
+          icon: String(dayCounter),
+          dayNumber: dayCounter,
+        };
       }
-
       return {
+        ...sec,
         id: `section-${idx}`,
-        rawTitle,
-        cleanTitle,
-        icon: isDay ? String(dayCounter) : "",
-        body: body || part.trim(),
-        isDay,
-        dayNumber: isDay ? dayCounter : undefined,
+        icon: "",
       };
     });
   };
