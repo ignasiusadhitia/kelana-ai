@@ -203,28 +203,29 @@ def _build_rag_system_prompt(passages: list[dict[str, Any]]) -> str:
     )
 
 
-def _inject_trip_context(conversation: Conversation, db: Session, system_prompt: str) -> str:
+def _inject_trip_context(conversation: Conversation, db: Session, system_prompt: str, linked_trip: Optional[Any] = None) -> str:
     """
     Inject active linked trip blueprint into the system prompt if conversation is linked to a trip.
     Runs AFTER RAG retrieval and intent routing — grounds answers directly to the traveler's active itinerary.
     """
-    if hasattr(conversation, "trip_id") and conversation.trip_id:
+    if linked_trip is None and hasattr(conversation, "trip_id") and conversation.trip_id:
         from models.trip import Trip
         linked_trip = db.query(Trip).filter(Trip.id == conversation.trip_id, Trip.deleted_at.is_(None)).first()
-        if linked_trip:
-            return system_prompt + (
-                f"\n\n### LINKED ACTIVE TRIP BLUEPRINT:\n"
-                f"The user is discussing or refining a specific trip blueprint:\n"
-                f"- Destination: {linked_trip.destination}\n"
-                f"- Duration: {linked_trip.days} days\n"
-                f"- Total Budget: USD {linked_trip.budget:,.2f} (Daily Limit: USD {linked_trip.daily_budget:,.2f}/day)\n"
-                f"- Travel Persona / Style: {linked_trip.travel_style or 'Solo'}\n"
-                f"- Budget Tier: {linked_trip.category}\n\n"
-                f"CRITICAL DIRECTIVES FOR LINKED TRIP:\n"
-                f"1. Seamlessly tailor all advice (dining, transit, packing, lodging, activities) to this specific destination, budget ceiling, and duration.\n"
-                f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters.\n"
-                f"3. ITINERARY REVISION FORMAT (STRICT): When revising or generating day-by-day itineraries, you MUST strictly use level-2 `## ` for days (e.g. `## Day 1: [Thematic Title]`) and level-3 `### ` for time-blocks (`### Morning`, `### Afternoon`, `### Evening`, `### Insider Tip`, `### Daily Cost Breakdown`). NEVER stack or prefix hashes (do NOT write `#### ## Day 1` or `#### ### Morning`). Start immediately with `## Day 1:` without any document title header."
-            )
+    if linked_trip:
+        return system_prompt + (
+            f"\n\n### LINKED ACTIVE TRIP BLUEPRINT:\n"
+            f"The user is discussing or refining a specific trip blueprint:\n"
+            f"- Destination: {linked_trip.destination}\n"
+            f"- Duration: {linked_trip.days} days\n"
+            f"- Total Budget: USD {linked_trip.budget:,.2f} (Daily Limit: USD {linked_trip.daily_budget:,.2f}/day)\n"
+            f"- Travel Persona / Style: {linked_trip.travel_style or 'Solo'}\n"
+            f"- Budget Tier: {linked_trip.category}\n\n"
+            f"CRITICAL DIRECTIVES FOR LINKED TRIP:\n"
+            f"1. Seamlessly tailor all advice (dining, transit, packing, lodging, activities) to this specific destination, budget ceiling, and duration.\n"
+            f"2. If asked about travel regulations (customs duty-free allowances, halal dining, cross-border QRIS, visa requirements), ground the rules directly to {linked_trip.destination} in the context of this traveler's specific trip parameters.\n"
+            f"3. ITINERARY REVISION FORMAT (STRICT): When revising or generating day-by-day itineraries, you MUST strictly use level-2 `## ` for days (e.g. `## Day 1: [Thematic Title]`) and level-3 `### ` for time-blocks (`### Morning`, `### Afternoon`, `### Evening`, `### Insider Tip`, `### Daily Cost Breakdown`). NEVER stack or prefix hashes (do NOT write `#### ## Day 1` or `#### ### Morning`). Start immediately with `## Day 1:` without any document title header.\n"
+            f"4. DESTINATION INTEGRITY & FEASIBILITY (STRICT): You MUST keep the itinerary strictly grounded in the designated destination: {linked_trip.destination}. NEVER switch, swap, or drift to a completely different destination (e.g. NEVER change Maldives to Kyoto/Japan or Bali). If the traveler requests features or attractions that do not exist or are uncommon in {linked_trip.destination} (for example, asking for 'historical Buddhist temples and traditional Zen gardens' in the Maldives, which is an Islamic island archipelago), you MUST: (a) politely explain what {linked_trip.destination} actually offers (e.g. in the Maldives: historic coral-stone mosques like the 17th-century Old Friday Mosque / Hukuru Miskiy, Medhu Ziyaaraiy, Sultan Park, National Museum in Malé, and local island cultural heritage), and (b) offer a tailored itinerary focusing on the authentic cultural, historical, and garden/nature landmarks of {linked_trip.destination}, or ask if they meant to switch the trip destination to another country."
+        )
     return system_prompt
 
 
@@ -563,6 +564,15 @@ def _generate_ai_response_text(
     if intent_result.intent == IntentType.OUT_OF_SCOPE:
         return get_out_of_scope_refusal(sanitized_text)
 
+    # Check for active linked trip context for destination alignment
+    linked_trip = None
+    destination_scope = None
+    if hasattr(conversation, "trip_id") and conversation.trip_id:
+        from models.trip import Trip
+        linked_trip = db.query(Trip).filter(Trip.id == conversation.trip_id, Trip.deleted_at.is_(None)).first()
+        if linked_trip:
+            destination_scope = linked_trip.destination
+
     # Dynamic Semantic Vector Routing with Anti-Anaphora Augmentation (Tier 2)
     passages: list[dict[str, Any]] = []
     if intent_result.intent == IntentType.CONVERSATIONAL_META:
@@ -578,8 +588,8 @@ def _generate_ai_response_text(
         previous_history = effective_history[:-1]
         augmented_query = build_augmented_retrieval_query(sanitized_text, previous_history)
 
-        # Probe S3 Knowledge Base with empirical semantic similarity threshold (default 0.70)
-        passages = retrieve_passages(augmented_query, top_k=5)
+        # Probe S3 Knowledge Base with empirical semantic similarity threshold and destination scoping
+        passages = retrieve_passages(augmented_query, top_k=5, destination_scope=destination_scope)
 
         if passages:
             # Grounded RAG Mode: document matches verified facts above threshold
@@ -624,7 +634,7 @@ def _generate_ai_response_text(
             )
 
     # Linked Trip Blueprint Grounding (Model 3)
-    system_prompt = _inject_trip_context(conversation, db, system_prompt)
+    system_prompt = _inject_trip_context(conversation, db, system_prompt, linked_trip=linked_trip)
 
     # 14-Day Trip Planning Limit & Modular Breakdown Guardrail
     system_prompt = _inject_duration_limit_alert(sanitized_text, system_prompt)
@@ -825,6 +835,15 @@ def stream_message_and_get_response(
         yield f"data: {json.dumps({'done': True, 'message_id': ai_msg.public_id, 'user_message_id': user_msg.public_id, 'title': conversation.title})}\n\n"
         return
 
+    # Check for active linked trip context for destination alignment
+    linked_trip = None
+    destination_scope = None
+    if hasattr(conversation, "trip_id") and conversation.trip_id:
+        from models.trip import Trip
+        linked_trip = db.query(Trip).filter(Trip.id == conversation.trip_id, Trip.deleted_at.is_(None)).first()
+        if linked_trip:
+            destination_scope = linked_trip.destination
+
     # Semantic Vector Routing
     passages: list[dict[str, Any]] = []
     if intent_result.intent == IntentType.CONVERSATIONAL_META:
@@ -837,7 +856,7 @@ def stream_message_and_get_response(
     else:
         previous_history = history_messages[:-1]
         augmented_query = build_augmented_retrieval_query(sanitized_text, previous_history)
-        passages = retrieve_passages(augmented_query, top_k=5)
+        passages = retrieve_passages(augmented_query, top_k=5, destination_scope=destination_scope)
         if passages:
             system_prompt = _build_rag_system_prompt(passages)
         else:
@@ -876,7 +895,7 @@ def stream_message_and_get_response(
             )
 
     # Linked Trip Blueprint Grounding (Model 3)
-    system_prompt = _inject_trip_context(conversation, db, system_prompt)
+    system_prompt = _inject_trip_context(conversation, db, system_prompt, linked_trip=linked_trip)
 
     # 14-Day Trip Planning Limit & Modular Breakdown Guardrail
     system_prompt = _inject_duration_limit_alert(sanitized_text, system_prompt)

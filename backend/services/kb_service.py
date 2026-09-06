@@ -46,7 +46,8 @@ def get_bedrock_runtime_client():
 def retrieve_passages(
     question: str,
     top_k: int = 5,
-    min_score: Optional[float] = None
+    min_score: Optional[float] = None,
+    destination_scope: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """
     Retrieve raw document passages from S3 Knowledge Base without internal LLM synthesis.
@@ -91,13 +92,27 @@ def retrieve_passages(
                     "score": score,
                 })
 
-        # Destination alignment: if user query explicitly mentions a destination,
+        # Destination alignment: if user query explicitly mentions a destination or linked trip scope is provided,
         # filter out documents from conflicting unmentioned destinations or external locations
         known_destinations = ["tokyo", "osaka", "kyoto", "japan", "jepang", "singapore", "bali", "indonesia", "korea", "seoul"]
-        external_locations = ["swiss", "switzerland", "alps", "paris", "france", "europe", "eropa", "germany", "jerman", "italy", "italia", "uk", "london", "australia", "america", "usa", "thailand", "bangkok", "vietnam"]
+        external_locations = [
+            "swiss", "switzerland", "alps", "paris", "france", "europe", "eropa", "germany", "jerman",
+            "italy", "italia", "uk", "london", "australia", "america", "usa", "thailand", "bangkok",
+            "vietnam", "maldives", "maladewa", "male", "malé"
+        ]
         q_lower = sanitized_q.lower()
         mentioned_destinations = [d for d in known_destinations if d in q_lower]
         mentioned_external = [e for e in external_locations if e in q_lower]
+
+        # Inherit from destination_scope (linked trip) if user query did not explicitly mention another destination
+        if not mentioned_destinations and not mentioned_external and destination_scope:
+            scope_lower = destination_scope.lower()
+            scope_known = [d for d in known_destinations if d in scope_lower]
+            if scope_known:
+                mentioned_destinations = scope_known
+            else:
+                # destination_scope is an external / uncovered location like 'Maldives'
+                mentioned_external = [scope_lower]
 
         if mentioned_external and not mentioned_destinations:
             # Query targets an external destination outside KB; filter out specific destination guides to prevent ghost citations
