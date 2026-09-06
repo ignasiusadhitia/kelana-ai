@@ -111,18 +111,25 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    - User Inquiries Exceeding 14 Days (e.g., 15-30 days, 3 weeks, 1 month):
      * DO NOT attempt to generate an itinerary with more than 14 days.
      * DO NOT produce a rushed, shallow, or truncated itinerary that cuts off mid-generation.
-     * INSTEAD, politely guide the traveler through a structured modular breakdown (communicating in the user's language, e.g. Indonesian if the user writes in Indonesian):
-       a. Transparent Explanation: Politely explain that KelanaAI caps single itineraries at 14 days so that every day receives authentic, curated local detail without running into text truncation limits.
-       b. Strategic Multi-Leg Breakdown: Analyze the destination and propose a sensible breakdown into distinct regional legs or travel phases (each <= 14 days, typically 4-7 days per leg). For example:
-          - For 20 days in Japan:
-            * Leg 1: Tokyo & Kanto Region (6-7 days)
-            * Leg 2: Kansai: Kyoto, Osaka & Nara (6-7 days)
-            * Leg 3: Hokkaido or Hiroshima & Miyajima (5-6 days)
-          - For 3 weeks in Europe:
-            * Leg 1: Western Europe: France & Belgium (7 days)
-            * Leg 2: Central Europe: Switzerland & Germany (7 days)
-            * Leg 3: Southern Europe: Italy (7 days)
-       c. Interactive Next Step: Invite the traveler to choose which leg or region they want to detail first (e.g. "Which leg or destination would you like to plan first? We can start with Leg 1 right now, or customize one of these options!").
+     * INSTEAD, respond with an engaging, beautifully formatted modular proposal in a warm, expert travel consultant tone (always in the traveler's language).
+     * STRICT VOICE & FORMATTING DIRECTIVES:
+       - PROHIBITED ROBOTIC META-HEADERS: NEVER output robotic headers or checklist titles such as "Warm Welcome and Itinerary Overview", "Modular Breakdown and Budget Allocation", "Next Steps", "Overview", or "Action Required". Write naturally and warmly like a luxury travel concierge.
+       - MAIN TITLE: Begin with `## Planning Your [X]-Day Trip to [Destination]` (use `## `, NEVER `### `, so it renders as an elegant document header).
+       - CONVERSATIONAL OPENING: Write 1–2 natural sentences warmly acknowledging the trip and transparently explaining that KelanaAI curates itineraries up to 14 days per plan to preserve authentic, deep local recommendations without text cut-offs.
+       - POLISHED REGIONAL LEG CARDS: Propose 2 to 3 regional legs (each 4 to 7 days, <= 14 days) formatted cleanly with structured sub-bullets:
+         - **Leg 1: [Region Name] (Days 1–[X])**
+           - **Highlights:** [Key sights, cultural experiences, family attractions]
+           - **Estimated Budget:** [Proportional budget share]
+         - **Leg 2: [Region Name] (Days [X+1]–[Y])**
+           - **Highlights:** [Key sights, food districts, activities]
+           - **Estimated Budget:** [Proportional budget share]
+         - **Leg 3: [Region Name] (Days [Y+1]–[Total Days])**
+           - **Highlights:** [Key sights, scenic exploration]
+           - **Estimated Budget:** [Proportional budget share]
+       - BUDGET SUMMARY: Include a clean total budget line matching the user's requested budget (e.g. `**Total Estimated Budget:** $5,000`).
+       - INTERACTIVE CALL TO ACTION: Conclude with an engaging prompt:
+         `💡 **Which leg would you like to plan first?** We can start with **Leg 1** right now, or customize any of these legs to match your preferences!`
+       - STOP HERE: DO NOT generate any day-by-day itinerary (`## Day 1`, `### Morning`, etc.) in this initial response. Wait for the traveler to pick or confirm a leg first.
    - Subsequent Responses: When the user selects a specific leg (<= 14 days), generate the complete, rich day-by-day itinerary for that leg using the standard ITINERARY FORMAT.
 """
 
@@ -148,13 +155,27 @@ def _clean_latex_math(text: str) -> str:
 
 
 def _clean_markdown_formatting(text: str) -> str:
-    """Normalize stacked headings (e.g. '#### ## Day 1' -> '## Day 1') and LaTeX math formulas."""
+    """Normalize stacked headings, strip robotic boilerplate headers, and normalize LaTeX math formulas."""
     if not text:
         return text
     # 1. Normalize stacked markdown headings repeatedly until clean
     while re.search(r'(?m)^#{1,6}\s+#{1,6}\s+', text):
         text = re.sub(r'(?m)^#{1,6}\s+(#{1,6}\s+)', r'\1', text)
-    # 2. Normalize LaTeX math formulas
+    # 2. Strip robotic boilerplate meta-headers from modular breakdown responses
+    robotic_headers_pattern = (
+        r'(?im)^[#*\s]*(?:'
+        r'Warm Welcome(?:\s*(?:and|&)\s*Itinerary\s*Overview)?|'
+        r'Modular Breakdown(?:\s*(?:and|&)\s*Budget\s*Allocation)?|'
+        r'Itinerary\s*Overview(?:\s*(?:and|&)\s*Warm\s*Welcome)?|'
+        r'Budget\s*Allocation(?:\s*(?:and|&)\s*Modular\s*Breakdown)?|'
+        r'Next\s*Steps?|'
+        r'Sambutan\s*Hangat(?:\s*(?:dan|&)\s*Gambaran\s*Itinerary)?|'
+        r'Pembagian\s*Modular(?:\s*(?:dan|&)\s*Alokasi\s*Anggaran)?|'
+        r'Langkah\s*Selanjutnya'
+        r')[#*\s]*\n+'
+    )
+    text = re.sub(robotic_headers_pattern, '', text)
+    # 3. Normalize LaTeX math formulas
     text = _clean_latex_math(text)
     return text.strip()
 
@@ -277,11 +298,23 @@ def _inject_duration_limit_alert(text: str, system_prompt: str) -> str:
             f"\n\n### ACTIVE TRIP DURATION NOTICE: USER REQUESTED {detected_days} DAYS (> 14 DAYS)\n"
             f"The traveler is asking to plan an itinerary of {detected_days} days. REMINDER: STRICT 14-DAY MAXIMUM CAP APPLIES.\n"
             f"DO NOT generate a day-by-day itinerary of {detected_days} days. Single responses longer than 14 days suffer output truncation.\n"
-            f"CRITICAL ACTION REQUIRED (INTERACTIVE MODULAR PLANNING FLOW):\n"
-            f"1. Acknowledge the destination and duration warmly.\n"
-            f"2. Transparently explain in the user's language that KelanaAI curates itineraries up to 14 days per plan to maintain deep, authentic local recommendations without cut-offs or truncation.\n"
-            f"3. Propose a smart, modular breakdown into distinct regional legs or travel phases (each 4 to 7 days, up to 14 days per leg) with an overview of what each leg covers and an estimated proportional budget share.\n"
-            f"4. STOP HERE AND INVITE SELECTION: Ask the traveler which leg they would like to detail first (e.g. 'Shall we start with Leg 1, or would you like to customize one of these legs?'). DO NOT generate a day-by-day itinerary in this initial response; wait for the traveler to confirm or pick a leg first. Once they choose, you will generate the full, rich day-by-day itinerary for that specific leg using mandatory `## Day X:` and `### ` syntax."
+            f"MANDATORY MODULAR BREAKDOWN PROPOSAL FORMAT & VOICE CONSTRAINTS (NO ROBOTIC HEADERS):\n"
+            f"1. Main Title: Begin directly with `## Planning Your {detected_days}-Day Trip to [Destination]` (use `## `, NEVER `### `).\n"
+            f"2. Conversational Opening: Write 1-2 natural, warm sentences in the traveler's language acknowledging the trip and explaining that KelanaAI curates comprehensive itineraries up to 14 days per plan to preserve authentic local depth and avoid text cut-offs.\n"
+            f"   - STRICTLY FORBIDDEN: NEVER write robotic meta-headers like 'Warm Welcome and Itinerary Overview', 'Modular Breakdown and Budget Allocation', 'Next Steps', or 'Phase 1'. Write naturally and smoothly like a luxury personal travel consultant.\n"
+            f"3. Beautiful Regional Leg Cards: Propose 2 to 3 distinct regional legs (each 4 to 7 days, <= 14 days) formatted cleanly with structured sub-bullets:\n"
+            f"   - **Leg 1: [Region Name] (Days 1–[X])**\n"
+            f"     - **Highlights:** [Key sights, cultural experiences, family attractions]\n"
+            f"     - **Estimated Budget:** [Proportional budget share matching user's budget]\n"
+            f"   - **Leg 2: [Region Name] (Days [X+1]–[Y])**\n"
+            f"     - **Highlights:** [Key sights, food districts, activities]\n"
+            f"     - **Estimated Budget:** [Proportional budget share]\n"
+            f"   - **Leg 3: [Region Name] (Days [Y+1]–{detected_days})**\n"
+            f"     - **Highlights:** [Key sights, scenic exploration]\n"
+            f"     - **Estimated Budget:** [Proportional budget share]\n"
+            f"4. Total Budget: Show a clean `**Total Estimated Budget:** [Total]` matching user's stated budget.\n"
+            f"5. Interactive Call to Action: Conclude with `💡 **Which leg would you like to plan first?** We can start with **Leg 1** right now, or customize any leg to fit your preferences!`\n"
+            f"6. STOP HERE: DO NOT generate any day-by-day itinerary (`## Day 1`, `### Morning`, etc.) in this initial response. Wait for the traveler to pick a leg first."
         )
     return system_prompt
 

@@ -34,7 +34,8 @@ from services.conversation_service import (
     regenerate_latest_response,
     _auto_generate_title,
     _detect_requested_duration_days,
-    _inject_duration_limit_alert
+    _inject_duration_limit_alert,
+    _clean_markdown_formatting
 )
 
 class TestConversationalReActAndVectorStore(unittest.TestCase):
@@ -399,6 +400,24 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         # 4. Test no injection when <= 14 days
         clean_prompt = _inject_duration_limit_alert("Plan a 7-day trip to Tokyo", base_prompt)
         self.assertEqual(clean_prompt, base_prompt)
+
+        # 5. Test stripping of robotic meta-headers from AI outputs
+        raw_ai_sample = (
+            "## Planning a 20-Day Family Trip to Japan\n\n"
+            "**Warm Welcome and Itinerary Overview**\n\n"
+            "We are thrilled to help you plan your journey!\n\n"
+            "**Modular Breakdown and Budget Allocation**\n\n"
+            "- **Leg 1: Tokyo**\n"
+            "  - **Highlights:** Sights\n\n"
+            "**Next Steps**\n\n"
+            "Which leg would you like to plan first?"
+        )
+        cleaned_output = _clean_markdown_formatting(raw_ai_sample)
+        self.assertNotIn("Warm Welcome", cleaned_output)
+        self.assertNotIn("Modular Breakdown", cleaned_output)
+        self.assertNotIn("Next Steps", cleaned_output)
+        self.assertIn("## Planning a 20-Day Family Trip to Japan", cleaned_output)
+        self.assertIn("- **Leg 1: Tokyo**", cleaned_output)
 
 
 

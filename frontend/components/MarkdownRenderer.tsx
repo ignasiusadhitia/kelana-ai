@@ -39,6 +39,12 @@ function sanitizeMarkdown(text: string): string {
     normalized = normalized.replace(/^#{1,6}\s+(#{1,6}\s+)/gm, "$1");
   }
 
+  // Step 0.5: Strip robotic boilerplate meta-headers if present
+  normalized = normalized.replace(
+    /^[#*\s]*(?:Warm Welcome(?:\s*(?:and|&)\s*Itinerary\s*Overview)?|Modular Breakdown(?:\s*(?:and|&)\s*Budget\s*Allocation)?|Itinerary\s*Overview(?:\s*(?:and|&)\s*Warm\s*Welcome)?|Budget\s*Allocation(?:\s*(?:and|&)\s*Modular\s*Breakdown)?|Next Steps?|Sambutan\s*Hangat(?:\s*(?:dan|&)\s*Gambaran\s*Itinerary)?|Pembagian\s*Modular(?:\s*(?:dan|&)\s*Alokasi\s*Anggaran)?|Langkah\s*Selanjutnya)[#*\s]*\n+/gim,
+    ""
+  );
+
   // Step 1: Clean raw LaTeX math expressions into clean readable text
   const cleanedMath = normalized
     // Replace \text{...} or \mathrm{...} with just the content first to avoid nested braces
@@ -195,17 +201,26 @@ const markdownComponents: Components = {
   h3: ({ children }) => {
     const rawText = extractText(children);
     const cleanedText = cleanHeadingText(rawText) || rawText;
-    const { icon, colorClass } = getTimeBlockBadge(cleanedText);
-
+    const isTimeBlock = /morning|afternoon|evening|night|breakfast|lunch|dinner|brunch|budget|cost|breakdown|expense|tip|insider|pagi|siang|sore|malam|sarapan|biaya/i.test(
+      cleanedText
+    );
+    if (isTimeBlock) {
+      const { icon, colorClass } = getTimeBlockBadge(cleanedText);
+      return (
+        <div className="mt-5 mb-2.5 flex items-center gap-2 first:mt-1">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide uppercase ${colorClass}`}
+          >
+            {icon}
+            <span>{cleanedText}</span>
+          </span>
+        </div>
+      );
+    }
     return (
-      <div className="mt-5 mb-2.5 flex items-center gap-2 first:mt-1">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold tracking-wide uppercase ${colorClass}`}
-        >
-          {icon}
-          <span>{cleanedText}</span>
-        </span>
-      </div>
+      <h3 className="text-sm font-bold text-white mt-4 mb-2">
+        {cleanedText}
+      </h3>
     );
   },
   h4: ({ children }) => {
