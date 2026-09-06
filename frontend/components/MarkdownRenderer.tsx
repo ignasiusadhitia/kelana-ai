@@ -25,15 +25,38 @@ interface MarkdownRendererProps {
 
 /**
  * Normalizes LLM markdown formatting:
- * 1. Trims spaces INSIDE bold delimiters: `** text **` -> `**text**` so CommonMark parses it as bold.
- * 2. Guarantees a single space OUTSIDE if a normal word is glued directly to the asterisks: `to**The` -> `to **The`.
- * 3. Preserves punctuation directly attached to bold: `**Activity 1:**` -> `**Activity 1:**` (no space before `:`).
+ * 1. Converts raw LaTeX math blocks (\[ ... \], \text{...}, \frac{...}{...}) into clean, readable plain-text calculations.
+ * 2. Trims spaces INSIDE bold delimiters: `** text **` -> `**text**` so CommonMark parses it as bold.
+ * 3. Guarantees a single space OUTSIDE if a normal word is glued directly to the asterisks: `to**The` -> `to **The`.
+ * 4. Preserves punctuation directly attached to bold: `**Activity 1:**` -> `**Activity 1:**` (no space before `:`).
  */
 function sanitizeMarkdown(text: string): string {
   if (!text) return "";
 
+  // Step 1: Clean raw LaTeX math expressions into clean readable text
+  const cleanedMath = text
+    // Replace \text{...} or \mathrm{...} with just the content first to avoid nested braces
+    .replace(/\\(?:text|mathrm|mathbf)\{([^}]+)\}/g, "$1")
+    // Replace \frac{numerator}{denominator} with numerator ÷ denominator
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1 ÷ $2")
+    // Replace common math symbols
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\div/g, "÷")
+    .replace(/\\approx/g, "≈")
+    .replace(/\\le\b|\\leq\b/g, "≤")
+    .replace(/\\ge\b|\\geq\b/g, "≥")
+    // Remove \[ and \] display math delimiters
+    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (match, inner) => inner.trim())
+    // Remove \( and \) inline math delimiters
+    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (match, inner) => inner.trim())
+    // Clean up residual unescaped [ ... ] blocks if CommonMark or LLM output plain [ ... ]
+    .replace(/\[\s*([\d\w\s.,$€¥£×÷=\-\/]+(?:USD|JPY|IDR|EUR|SGD|days?|hari|pax|×|÷|=)[\d\w\s.,$€¥£×÷=\-\/]*)\s*\]/gi, (match, inner) => inner.trim())
+    // Clean up double spaces created by stripped \text{ USD}
+    .replace(/ {2,}/g, " ");
+
   return (
-    text
+    cleanedMath
       // Normalize double asterisks bold pairs
       .replace(/(^|[\s\S])\*\*([^*\n]+?)\*\*([\s\S]|$)/g, (match, before, content, after) => {
         const trimmed = content.trim();

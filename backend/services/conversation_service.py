@@ -40,6 +40,7 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
    - Indonesian: "Maaf, saya adalah asisten perjalanan KelanaAI dan hanya dapat membantu pertanyaan seputar liburan, destinasi wisata, kuliner, dan regulasi perjalanan. Ada yang bisa saya bantu terkait rencana liburan Anda?"
    - English: "Sorry, I am the KelanaAI travel assistant. I can only assist with questions regarding travel planning, destinations, dining recommendations, and travel regulations. Is there anything I can help with regarding your trip?"
 3. EXCEPTION: Math calculations directly connected to travel (such as estimating trip budgets, converting currency, calculating days/nights, or splitting accommodation/flight costs) ARE permitted and encouraged.
+   - FORMATTING TRAVEL CALCULATIONS: Always format calculations in clean plain text with standard symbols (e.g. "$2,000 × 150 = 300,000 JPY", "300,000 JPY ÷ 5 days = 60,000 JPY/day"). NEVER use LaTeX math syntax (such as "\\[", "\\]", "\\text{...}", or "\\frac{...}{...}"). Keep all calculations clean, direct, and readable.
 
 ### CITATION RULES (STRICT):
 1. If <retrieved_documents> is present in this prompt:
@@ -124,6 +125,26 @@ BASE_SYSTEM_PROMPT = """You are KelanaAI, an authoritative, helpful, and persona
        c. Interactive Next Step: Invite the traveler to choose which leg or region they want to detail first (e.g. "Which leg or destination would you like to plan first? We can start with Leg 1 right now, or customize one of these options!").
    - Subsequent Responses: When the user selects a specific leg (<= 14 days), generate the complete, rich day-by-day itinerary for that leg using the standard ITINERARY FORMAT.
 """
+
+
+def _clean_latex_math(text: str) -> str:
+    """Normalize raw LaTeX math formulas into human-readable plain text travel calculations."""
+    if not text:
+        return text
+    # 1. Strip \text{...}, \mathrm{...}, \mathbf{...}
+    text = re.sub(r'\\(?:text|mathrm|mathbf)\{([^}]+)\}', r'\1', text)
+    # 2. Normalize \frac{a}{b} -> a ÷ b
+    text = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1 ÷ \2', text)
+    # 3. Replace common math symbols
+    text = text.replace(r'\times', '×').replace(r'\cdot', '·').replace(r'\div', '÷').replace(r'\approx', '≈')
+    # 4. Remove \[ ... \] and \( ... \) math delimiters
+    text = re.sub(r'\\\[\s*([\s\S]*?)\s*\\\]', r'\1', text)
+    text = re.sub(r'\\\(\s*([\s\S]*?)\s*\\\)', r'\1', text)
+    # 5. Clean up residual unescaped [ ... ] blocks around math/currency
+    text = re.sub(r'\[\s*([\d\w\s.,$€¥£×÷=\-\/]+(?:USD|JPY|IDR|EUR|SGD|days?|hari|pax|×|÷|=)[\d\w\s.,$€¥£×÷=\-\/]*)\s*\]', r'\1', text, flags=re.IGNORECASE)
+    # 6. Clean up double spaces
+    text = re.sub(r' {2,}', ' ', text)
+    return text.strip()
 
 
 # ------------------------------------------------------------------------------
@@ -631,6 +652,9 @@ def _generate_ai_response_text(
         # Guardrail: Strip Bedrock content filter notice if triggered
         ai_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", ai_text).strip()
 
+        # Normalize any raw LaTeX math into clean plain text
+        ai_text = _clean_latex_math(ai_text)
+
         # Post-processing guardrail: Clean raw unbracketed and bracketed citations before deterministic attachment
         ai_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", ai_text).strip()
         ai_text = re.sub(r"\n*\[Source:\s*[^\]]+\]", "", ai_text).strip()
@@ -899,6 +923,7 @@ def stream_message_and_get_response(
     # Post-processing citations & guardrail sanitization
     full_text = re.sub(r"<thinking>[\s\S]*?</thinking>", "", full_text).strip()
     full_text = re.sub(r"(?i)\s*-\s*The generated text has been blocked by our content filters\.?", "", full_text).strip()
+    full_text = _clean_latex_math(full_text)
     full_text = re.sub(r"(?i)(?:\n|^)\s*Sources?:\s*(?:[a-zA-Z0-9_\-./\s\n,;]+)$", "", full_text).strip()
     full_text = re.sub(r"\n*\[Source:\s*[^\]]+\]", "", full_text).strip()
     if passages:
