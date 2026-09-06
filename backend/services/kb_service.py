@@ -92,36 +92,42 @@ def retrieve_passages(
                     "score": score,
                 })
 
-        # Destination alignment: if user query explicitly mentions a destination or linked trip scope is provided,
-        # filter out documents from conflicting unmentioned destinations or external locations
-        known_destinations = ["tokyo", "osaka", "kyoto", "japan", "jepang", "singapore", "bali", "indonesia", "korea", "seoul"]
-        external_locations = [
-            "swiss", "switzerland", "alps", "paris", "france", "europe", "eropa", "germany", "jerman",
-            "italy", "italia", "uk", "london", "australia", "america", "usa", "thailand", "bangkok",
-            "vietnam", "maldives", "maladewa", "male", "malé"
-        ]
-        q_lower = sanitized_q.lower()
-        mentioned_destinations = [d for d in known_destinations if d in q_lower]
-        mentioned_external = [e for e in external_locations if e in q_lower]
+        # Universal Destination-Scoped Filtering:
+        # Knowledge Base documents tied to a specific destination (e.g. Kyoto, Tokyo, Singapore, Korea, Bali)
+        # must ONLY be returned if the query or active trip context explicitly targets that destination.
+        # General cross-destination guides (customs, payment/QRIS, packing, insurance) are valid for any destination worldwide.
+        DESTINATION_TAG_MAP = {
+            "tokyo": ["tokyo", "japan", "jepang"],
+            "kyoto": ["kyoto", "japan", "jepang"],
+            "osaka": ["osaka", "japan", "jepang"],
+            "japan": ["japan", "jepang"],
+            "singapore": ["singapore", "singapura"],
+            "korea": ["korea", "seoul"],
+            "bali": ["bali", "indonesia"],
+        }
 
-        # Inherit from destination_scope (linked trip) if user query did not explicitly mention another destination
-        if not mentioned_destinations and not mentioned_external and destination_scope:
-            scope_lower = destination_scope.lower()
-            scope_known = [d for d in known_destinations if d in scope_lower]
-            if scope_known:
-                mentioned_destinations = scope_known
+        context_lower = f"{sanitized_q.lower()} {(destination_scope or '').lower()}"
+
+        aligned_results = []
+        for r in results:
+            src_lower = r.get("source", "").lower()
+            # Check if this document is destination-specific
+            matched_tag = None
+            for tag in DESTINATION_TAG_MAP:
+                if tag in src_lower:
+                    matched_tag = tag
+                    break
+
+            if matched_tag:
+                # Only include if user context (query or linked trip) explicitly targets this destination
+                allowed_keywords = DESTINATION_TAG_MAP[matched_tag]
+                if any(kw in context_lower for kw in allowed_keywords):
+                    aligned_results.append(r)
             else:
-                # destination_scope is an external / uncovered location like 'Maldives'
-                mentioned_external = [scope_lower]
+                # General policy/packing/payment guide: valid for any destination worldwide
+                aligned_results.append(r)
 
-        if mentioned_external and not mentioned_destinations:
-            # Query targets an external destination outside KB; filter out specific destination guides to prevent ghost citations
-            results = [r for r in results if not any(d in r["source"].lower() for d in known_destinations)]
-        elif mentioned_destinations:
-            has_matching = any(any(d in r["source"].lower() for d in mentioned_destinations) for r in results)
-            if has_matching:
-                unmentioned = [d for d in known_destinations if d not in mentioned_destinations]
-                results = [r for r in results if not any(d in r["source"].lower() for d in unmentioned)]
+        results = aligned_results
 
         return results[:top_k]
     except Exception as e:
