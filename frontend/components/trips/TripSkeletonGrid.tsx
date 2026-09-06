@@ -33,6 +33,10 @@ export function TripCardSkeleton({
   );
 }
 
+/**
+ * Skeleton loading placeholder grid rendering pulse placeholder cards
+ * while trips are fetched from the API.
+ */
 export function TripSkeletonGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

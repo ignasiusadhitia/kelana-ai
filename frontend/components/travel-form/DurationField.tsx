@@ -24,6 +24,10 @@ const POPULAR_DURATIONS = [
   { days: 14, label: "14 Days", sub: "Full 2 Wks" },
 ];
 
+/**
+ * Form field for trip duration in days, providing quick preset buttons
+ * from weekend getaways (3 days) to full fortnight itineraries (14 days).
+ */
 export function DurationField({ register, setValue, watchedDays, error }: DurationFieldProps) {
   return (
     <div>

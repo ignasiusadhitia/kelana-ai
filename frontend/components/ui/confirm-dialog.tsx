@@ -22,6 +22,10 @@ export interface ConfirmDialogProps {
   icon?: React.ReactNode;
 }
 
+/**
+ * Accessible confirmation modal dialog with customizable title, description,
+ * destructive action styling, and keyboard escape handling.
+ */
 export function ConfirmDialog({
   isOpen,
   onClose,

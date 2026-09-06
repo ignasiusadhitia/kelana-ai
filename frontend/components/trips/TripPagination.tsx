@@ -14,6 +14,10 @@ interface TripPaginationProps {
   itemsPerPage: number;
 }
 
+/**
+ * Pagination bar displaying current page index, total page count,
+ * item boundaries, and previous/next page navigation buttons.
+ */
 export function TripPagination({
   currentPage,
   totalPages,

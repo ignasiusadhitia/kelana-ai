@@ -30,6 +30,10 @@ interface TripFiltersToolbarProps {
   totalTripsCount: number;
 }
 
+/**
+ * Search and filter toolbar for saved trips, featuring live keyword search,
+ * travel style pill filters, and sorting criteria selectors.
+ */
 export function TripFiltersToolbar({
   searchQuery,
   onSearchChange,

@@ -20,6 +20,10 @@ interface TripDetailModalProps {
   onTripUpdated?: (updatedTrip: TripResponse) => void;
 }
 
+/**
+ * Modal dialog presenting a full-screen view of a selected trip itinerary
+ * without navigating away from the current page.
+ */
 export function TripDetailModal({
   trip,
   isOpen,

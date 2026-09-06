@@ -50,6 +50,10 @@ function renderStyleIcon(iconKey: string, isSelected: boolean) {
   }
 }
 
+/**
+ * User profile preferences card allowing travelers to configure and save
+ * their default travel style for personalized AI recommendations.
+ */
 export function TravelerPreferencesCard() {
   const { user, updateProfile } = useAuth();
   const currentDefault = user?.default_travel_style || "Family";

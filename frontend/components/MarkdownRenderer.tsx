@@ -300,6 +300,10 @@ const markdownComponents: Components = {
   ),
 };
 
+/**
+ * Markdown renderer transforming sanitized markdown text into stylized HTML
+ * with custom badges for time blocks, meals, budgets, and practical tips.
+ */
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const sanitizedContent = sanitizeMarkdown(content);
 

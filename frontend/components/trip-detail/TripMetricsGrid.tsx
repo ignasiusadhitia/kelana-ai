@@ -13,6 +13,10 @@ interface TripMetricsGridProps {
   onOpenEditBudget: () => void;
 }
 
+/**
+ * Grid displaying key trip metrics: duration, total budget, estimated daily allowance,
+ * travel style badge, and category classification.
+ */
 export function TripMetricsGrid({ trip, onOpenEditBudget }: TripMetricsGridProps) {
   return (
     <div className="mt-5 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-5">

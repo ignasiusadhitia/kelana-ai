@@ -43,6 +43,10 @@ function renderPresetIcon(iconKey: string, isSelected: boolean) {
   }
 }
 
+/**
+ * Form field for selecting travel preferences, supporting curated style tiles
+ * (Cultural, Luxury, Adventure, Culinary, Wellness) and freeform custom inputs.
+ */
 export function TravelStyleField({
   setValue,
   watchedStyle,

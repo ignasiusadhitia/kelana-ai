@@ -33,6 +33,10 @@ function getInitialDraft(): Partial<TripFormValues> | null {
   }
 }
 
+/**
+ * Travel planning form collecting destination, duration, budget, and travel style
+ * with client-side validation and session draft persistence.
+ */
 export function TravelForm({ onSubmit }: TravelFormProps) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();

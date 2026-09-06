@@ -9,6 +9,10 @@ import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "@/components/ui/toast";
 
+/**
+ * Wraps the application with TanStack QueryClientProvider and ToastProvider,
+ * establishing global cache lifetimes and notification contexts.
+ */
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>

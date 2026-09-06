@@ -25,6 +25,10 @@ interface LoadingStateProps {
   fullScreen?: boolean;
 }
 
+/**
+ * Animated loading indicator displaying sequential itinerary compilation phases,
+ * pulse spinners, and skeleton placeholders.
+ */
 export function LoadingState({ fullScreen = true }: LoadingStateProps) {
   const [currentStep, setCurrentStep] = useState(0);
 

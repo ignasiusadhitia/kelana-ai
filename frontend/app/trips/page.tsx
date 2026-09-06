@@ -544,6 +544,10 @@ function TripsContent() {
   );
 }
 
+/**
+ * Saved trips dashboard page rendering search filters, style pills,
+ * active trip blueprints, and soft-deleted trash bin with restoration.
+ */
 export default function TripsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">

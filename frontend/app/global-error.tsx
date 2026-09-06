@@ -15,6 +15,10 @@ interface GlobalErrorProps {
   reset: () => void;
 }
 
+/**
+ * Root-level error boundary catching unhandled runtime exceptions
+ * across the application and root providers.
+ */
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
     console.error("Global application error:", error);

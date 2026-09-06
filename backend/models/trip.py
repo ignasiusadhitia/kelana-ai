@@ -36,4 +36,5 @@ class Trip(Base):
 
     @property
     def user_public_id(self) -> str:
+        """Public identifier (usr_...) of the owner, or empty string if unassigned."""
         return self.user.public_id if self.user else ""

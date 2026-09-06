@@ -16,6 +16,10 @@ interface EmptyStateProps {
   actionHref?: string;
 }
 
+/**
+ * Welcoming empty state placeholder rendered when a collection has no items,
+ * providing descriptive feedback and an actionable primary button.
+ */
 export function EmptyState({
   title = "No trips found.",
   description = "Plan your first trip and save your itinerary here.",

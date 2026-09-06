@@ -24,6 +24,10 @@ const POPULAR_DESTINATIONS = [
   { name: "Paris, France" },
 ];
 
+/**
+ * Form field for destination input, featuring quick-selection pill badges
+ * for trending international destinations.
+ */
 export function DestinationField({ register, setValue, error }: DestinationFieldProps) {
   return (
     <div>

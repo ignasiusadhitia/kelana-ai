@@ -13,6 +13,10 @@ interface SummaryBarProps {
   summaryInfo: TripSummaryInfo;
 }
 
+/**
+ * Compact banner displaying destination, duration, and budget parameters
+ * during generation, loading, and error states.
+ */
 export function SummaryBar({ summaryInfo }: SummaryBarProps) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border bg-card p-4 shadow-lg backdrop-blur-xl">

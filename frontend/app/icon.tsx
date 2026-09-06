@@ -9,6 +9,9 @@ export const size = {
 };
 export const contentType = "image/png";
 
+/**
+ * Generates dynamic circular PNG favicon matching the official KelanaAI compass logo badge.
+ */
 export default function Icon() {
   return new ImageResponse(
     (

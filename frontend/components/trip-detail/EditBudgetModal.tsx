@@ -21,6 +21,10 @@ interface EditBudgetModalProps {
   onSave: (newBudget: number, alsoRegenerate: boolean) => Promise<void>;
 }
 
+/**
+ * Modal dialog for updating a trip's budget allocation, with optional
+ * toggle to automatically regenerate the AI itinerary aligned to the new budget.
+ */
 export function EditBudgetModal({
   isOpen,
   trip,

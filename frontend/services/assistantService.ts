@@ -36,6 +36,10 @@ export interface AssistantResponse {
   mode?: "rag" | "base_model";
 }
 
+/**
+ * Dispatches an AI assistant query to the backend API, optionally specifying
+ * session identifier and RAG retrieval enablement.
+ */
 export async function askAssistant(
   question: string,
   sessionId?: string,

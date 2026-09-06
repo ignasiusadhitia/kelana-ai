@@ -34,6 +34,10 @@ export interface TypographyProps
   as?: React.ElementType;
 }
 
+/**
+ * Polymorphic typography component providing consistent typographic scale,
+ * font weights, semantic HTML tags, and color styling across the application.
+ */
 export function Typography({
   className,
   variant = "body",

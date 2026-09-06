@@ -203,6 +203,10 @@ function LoginFormContent() {
   );
 }
 
+/**
+ * Authentication sign-in page providing credentials validation, error alerts,
+ * guest trial redirection, and registration routing.
+ */
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">

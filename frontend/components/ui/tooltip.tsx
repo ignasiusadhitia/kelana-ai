@@ -19,6 +19,10 @@ export interface TooltipProps {
   disabled?: boolean;
 }
 
+/**
+ * Accessible hover/focus tooltip wrapper rendering directional hint popovers
+ * with configurable delay and portal positioning.
+ */
 export function Tooltip({
   content,
   children,

@@ -13,6 +13,10 @@ interface ErrorStateProps {
   message?: string;
 }
 
+/**
+ * Error state display offering recovery actions, retry triggers,
+ * and contextual login/register gates when encountering authentication rejections.
+ */
 export function ErrorState({
   onRetry,
   message = "We encountered an issue preparing your travel plan. Please check your connection and try again.",

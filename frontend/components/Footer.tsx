@@ -11,6 +11,9 @@ interface FooterProps {
   onPlanTrip?: () => void;
 }
 
+/**
+ * Application footer displaying brand summary, navigation links, and copyright information.
+ */
 export function Footer({ onPlanTrip }: FooterProps) {
   const currentYear = new Date().getFullYear();
 

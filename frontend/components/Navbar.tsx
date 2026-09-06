@@ -17,6 +17,10 @@ interface NavbarProps {
   onPlanTrip?: () => void;
 }
 
+/**
+ * Primary navigation bar featuring brand identity, navigation routes,
+ * user session states, and PWA installation prompt triggers.
+ */
 export function Navbar({ onPlanTrip }: NavbarProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();

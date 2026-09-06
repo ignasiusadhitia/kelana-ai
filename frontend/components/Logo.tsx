@@ -10,6 +10,9 @@ interface LogoProps extends React.SVGProps<SVGSVGElement> {
   size?: number;
 }
 
+/**
+ * Renders the official circular compass logo badge for KelanaAI.
+ */
 export function Logo({ size = 32, className, ...props }: LogoProps) {
   return (
     <svg

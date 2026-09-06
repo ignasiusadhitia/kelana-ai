@@ -29,6 +29,10 @@ interface SaveChatTripModalProps {
   onSaved?: (trip: TripResponse) => void;
 }
 
+/**
+ * Modal dialog enabling travelers to promote and save an AI chat itinerary
+ * into their permanent travel blueprints with custom destination, budget, and tags.
+ */
 export function SaveChatTripModal({
   isOpen,
   onClose,

@@ -23,6 +23,10 @@ interface TripCardProps {
   isHighlighted?: boolean;
 }
 
+/**
+ * Renders an interactive travel blueprint summary card with destination badge,
+ * duration, style icon, budget details, and lifecycle actions (delete, restore, view).
+ */
 export function TripCard({
   trip,
   mode = "active",

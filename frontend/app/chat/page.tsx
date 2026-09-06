@@ -1352,6 +1352,9 @@ function ChatContent() {
   );
 }
 
+/**
+ * Interactive multi-turn AI travel chat page, wrapped in Suspense for search parameter hydration.
+ */
 export default function ChatPage() {
   return (
     <Suspense fallback={<ChatPageSkeleton />}>

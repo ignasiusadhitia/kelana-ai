@@ -20,6 +20,10 @@ interface TripHeaderProps {
   onExportCalendar?: () => void;
 }
 
+/**
+ * Top header banner for the trip detail view, displaying destination title,
+ * creation timestamp, and action buttons (AI regeneration, copy, export, print).
+ */
 export function TripHeader({
   trip,
   copied,

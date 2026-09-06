@@ -23,6 +23,10 @@ const POPULAR_BUDGETS = [
   { amount: 8000, label: "$8,000", sub: "Luxury" },
 ];
 
+/**
+ * Form field for total trip budget in USD, providing rapid preset buttons
+ * from backpacker budgets ($800) to luxury tiers ($8,000).
+ */
 export function BudgetField({ register, setValue, watchedBudget, error }: BudgetFieldProps) {
   return (
     <div>

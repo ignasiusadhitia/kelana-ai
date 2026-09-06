@@ -9,6 +9,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
+/**
+ * Progressive Web App offline fallback page rendered when network connectivity is lost.
+ */
 export default function OfflinePage() {
   const handleReload = () => {
     if (typeof window !== "undefined") {

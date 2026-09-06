@@ -23,6 +23,10 @@ interface TripDayAccordionsProps {
   sections: SectionItem[];
 }
 
+/**
+ * Interactive day-by-day accordion list featuring day tab filters,
+ * collapse/expand toggles, and formatted markdown day itineraries.
+ */
 export function TripDayAccordions({ sections }: TripDayAccordionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});

@@ -13,6 +13,7 @@ init_db()
 client = TestClient(app)
 
 def test_full_auth_and_isolation_flow():
+    """End-to-end integration test verifying registration, login, JWT validation, and user data isolation."""
     print("\n--- [TEST 1: Register New Users] ---")
     alice_email = f"alice_{os.urandom(4).hex()}@test.com"
     bob_email = f"bob_{os.urandom(4).hex()}@test.com"
@@ -233,6 +234,7 @@ def test_full_auth_and_isolation_flow():
     print("========================================================")
 
 def test_register_rate_limiting():
+    """Verify IP-based registration rate limiting blocks automated spam attempts with 429."""
     print("\n--- [TEST 9: Register Rate Limiting Protection] ---")
     from utils.rate_limiter import register_rate_limiter
     register_rate_limiter.reset()

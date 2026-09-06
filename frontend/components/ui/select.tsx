@@ -22,6 +22,10 @@ interface CustomSelectProps {
   ariaLabel?: string;
 }
 
+/**
+ * Accessible custom dropdown select component supporting keyboard navigation,
+ * aria attributes, and branded dark-mode popover styling.
+ */
 export function CustomSelect({
   value,
   onValueChange,

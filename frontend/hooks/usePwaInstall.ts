@@ -20,6 +20,10 @@ declare global {
   }
 }
 
+/**
+ * Custom hook managing the Progressive Web App (PWA) installation lifecycle.
+ * Captures the browser's `beforeinstallprompt` event and exposes triggerable install handlers.
+ */
 export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);

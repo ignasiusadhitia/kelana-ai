@@ -42,6 +42,10 @@ interface PageProps {
   }>;
 }
 
+/**
+ * Standalone trip detail page rendering full itinerary accordions,
+ * budget overview metrics, AI regeneration triggers, and markdown export tools.
+ */
 export default function TripDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const router = useRouter();

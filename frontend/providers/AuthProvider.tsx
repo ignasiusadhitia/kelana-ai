@@ -36,6 +36,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Provides global authentication context, managing user profile state,
+ * session validation via HttpOnly cookies, and account action dispatchers.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -170,6 +174,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * Custom hook to access the current authentication context.
+ * Throws an error if invoked outside of an AuthProvider.
+ */
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {

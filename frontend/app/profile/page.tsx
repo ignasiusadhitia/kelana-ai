@@ -77,6 +77,10 @@ function ProfileSkeleton() {
   );
 }
 
+/**
+ * User profile management page presenting travel analytics, style preferences,
+ * password change security settings, and account deletion workflows.
+ */
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout, refreshUser } = useAuth();
   const { isInstallable, installApp } = usePwaInstall();

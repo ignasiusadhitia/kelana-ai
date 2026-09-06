@@ -275,6 +275,10 @@ function RegisterFormContent() {
   );
 }
 
+/**
+ * User registration page creating new traveler accounts with full name,
+ * email verification, password security, and default travel preference selection.
+ */
 export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">

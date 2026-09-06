@@ -78,6 +78,10 @@ function isTimeBlockHeader(line: string): boolean {
   );
 }
 
+/**
+ * Comprehensive travel itinerary display component featuring day tabs,
+ * collapsible day accordions, action toolbars, and budget editing capabilities.
+ */
 export function TripRecommendation({
   trip,
   onReset,

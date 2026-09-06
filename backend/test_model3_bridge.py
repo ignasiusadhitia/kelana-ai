@@ -12,7 +12,10 @@ from services.conversation_service import (
 )
 
 class TestModel3Bridge(unittest.TestCase):
+    """Test suite for Model 3 Chat-to-Blueprint grounding, context injection, and trip isolation."""
+
     def setUp(self):
+        """Initialize database session with dedicated test user and trip fixture."""
         self.db = SessionLocal()
         # Find or create a test user
         self.user = self.db.query(User).first()
@@ -43,6 +46,7 @@ class TestModel3Bridge(unittest.TestCase):
         self.db.refresh(self.trip)
 
     def tearDown(self):
+        """Clean up test conversation, trip fixture, and database connection."""
         # Cleanup
         if hasattr(self, "conversation") and self.conversation:
             self.db.query(Conversation).filter(Conversation.id == self.conversation.id).delete()

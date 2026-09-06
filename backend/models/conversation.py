@@ -32,10 +32,12 @@ class Conversation(Base):
 
     @property
     def trip_public_id(self) -> str | None:
+        """Public identifier (trp_...) of the linked trip blueprint, or None if unlinked."""
         return self.trip.public_id if self.trip else None
 
     @property
     def trip_destination(self) -> str | None:
+        """Destination of the linked trip blueprint, or None if unlinked."""
         return self.trip.destination if self.trip else None
 
 

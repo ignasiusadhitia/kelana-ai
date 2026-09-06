@@ -15,6 +15,10 @@ interface MobileBottomNavProps {
   onPlanTrip?: () => void;
 }
 
+/**
+ * Floating dock navigation bar for mobile viewports (< 640px),
+ * offering quick switching between Home, Trips, Chat, and Profile.
+ */
 export function MobileBottomNav({ onPlanTrip }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();

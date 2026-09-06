@@ -24,6 +24,10 @@ interface TravelAnalyticsGridProps {
   user: UserProfile;
 }
 
+/**
+ * Profile analytics dashboard displaying aggregate travel metrics: total trips,
+ * cumulative planned budget, total days explored, and visited destination chips.
+ */
 export function TravelAnalyticsGrid({ user }: TravelAnalyticsGridProps) {
   const totalTrips = user.total_trips || 0;
   const totalBudget = user.total_budget || 0;

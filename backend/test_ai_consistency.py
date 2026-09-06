@@ -33,6 +33,7 @@ from services.conversation_service import (
 )
 
 class TestResult:
+    """Represents a benchmark test result tracking status, latency, and failure details."""
     def __init__(self, code: str, title: str, category: str):
         self.code = code
         self.title = title
@@ -45,6 +46,7 @@ class TestResult:
 results: List[TestResult] = []
 
 def record_pass(tr: TestResult, latency_ms: float, details: str = ""):
+    """Record a passing test case with execution latency and optional details."""
     tr.passed = True
     tr.latency_ms = latency_ms
     tr.details = details
@@ -54,6 +56,7 @@ def record_pass(tr: TestResult, latency_ms: float, details: str = ""):
         print(f"        Info: {details[:120]}")
 
 def record_fail(tr: TestResult, latency_ms: float, error: str):
+    """Record a failed test case with execution latency and failure reason."""
     tr.passed = False
     tr.latency_ms = latency_ms
     tr.error = error
@@ -62,15 +65,18 @@ def record_fail(tr: TestResult, latency_ms: float, error: str):
     print(f"        Error: {error[:160]}")
 
 def extract_sources(text: str) -> List[str]:
+    """Extract list of source file citations from bracketed [Source: ...] tags."""
     matches = re.findall(r"\[Source:\s*([^\]]+)\]", text)
     if not matches:
         return []
     return [s.strip() for s in matches[0].split(",")]
 
 def has_forbidden_tags(text: str) -> bool:
+    """Check whether text contains forbidden internal LLM XML tags (<thinking>, <system>)."""
     return bool(re.search(r"<(thinking|system|instructions)>", text, re.IGNORECASE))
 
 def main():
+    """Execute end-to-end AI response consistency test cases against Bedrock."""
     print("=" * 80)
     print("KELANA-AI: FULL AI RESPONSE CONSISTENCY TEST SUITE")
     print("=" * 80)

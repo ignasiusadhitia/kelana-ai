@@ -39,8 +39,10 @@ from services.conversation_service import (
 )
 
 class TestConversationalReActAndVectorStore(unittest.TestCase):
+    """Test suite for conversational multi-turn ReAct orchestration, vector math, and security."""
 
     def setUp(self):
+        """Create a dedicated test user and database session."""
         self.db = SessionLocal()
         unique_id = uuid.uuid4().hex[:6]
         self.user = User(
@@ -53,6 +55,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.db.refresh(self.user)
 
     def tearDown(self):
+        """Clean up test messages, conversations, and user record."""
         try:
             self.db.query(Message).filter(
                 Message.conversation_id.in_(
@@ -68,6 +71,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
             self.db.close()
 
     def test_auto_generate_title(self):
+        """Verify dynamic thread title generation with conversational noise stripping."""
         title = _auto_generate_title("plan a 5 day family trip to tokyo japan")
         self.assertEqual(title, "Plan a 5 day family...")
         
@@ -81,6 +85,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertTrue("Kyoto" in noisy_title or "Rencana" in noisy_title)
 
     def test_rate_limiter(self):
+        """Verify sliding window rate limiter request throttling."""
         from utils.rate_limiter import SlidingWindowRateLimiter
         limiter = SlidingWindowRateLimiter(max_requests=3, window_seconds=60)
         key = "test_client_99"
@@ -93,6 +98,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertGreater(retry_after, 0)
 
     def test_create_and_list_conversations(self):
+        """Verify conversation thread creation and user-scoped listing."""
         conv1 = create_conversation(self.db, self.user.id, "Japan Family Trip")
         conv2 = create_conversation(self.db, self.user.id, "Singapore Food Tour")
 
@@ -103,11 +109,13 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertIn("Singapore Food Tour", titles)
 
     def test_rename_conversation(self):
+        """Verify updating conversation thread title."""
         conv = create_conversation(self.db, self.user.id, "Untitled")
         updated = update_conversation_title(self.db, conv.id, self.user.id, "Tokyo Winter Vacation")
         self.assertEqual(updated.title, "Tokyo Winter Vacation")
 
     def test_delete_conversation_cascades_messages(self):
+        """Verify that deleting a conversation thread cascades to all child messages."""
         conv = create_conversation(self.db, self.user.id, "To Delete")
         msg = Message(conversation_id=conv.id, role="user", content="Hello world")
         self.db.add(msg)
@@ -121,6 +129,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertIsNone(deleted_msg)
 
     def test_cosine_similarity_math(self):
+        """Verify mathematical correctness of cosine similarity calculations."""
         # Identical vectors -> 1.0
         vec_a = [1.0, 2.0, 3.0]
         vec_b = [1.0, 2.0, 3.0]
@@ -137,6 +146,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
         self.assertAlmostEqual(cosine_similarity(vec_e, vec_f), -1.0, places=4)
 
     def test_out_of_scope_fast_path_refusal(self):
+        """Verify that non-travel queries trigger fast-path refusals without LLM inference."""
         conv = create_conversation(self.db, self.user.id, "Out of Scope Test")
         response_msg = send_message_and_get_response(
             self.db,
@@ -171,6 +181,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
 
     @patch("services.conversation_service.get_bedrock_client")
     def test_direct_conversation_flow(self, mock_bedrock_client):
+        """Verify normal single-turn assistant response flow with Bedrock converse mock."""
         # Mock Bedrock client for direct end_turn response
         mock_client_instance = MagicMock()
         mock_client_instance.converse.return_value = {
@@ -203,6 +214,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
 
     @patch("services.conversation_service.get_bedrock_client")
     def test_edit_user_message_truncates_subsequent_and_regenerates(self, mock_bedrock_client):
+        """Verify editing a mid-thread user message deletes subsequent turns and regenerates."""
         mock_client = MagicMock()
         mock_client.converse.return_value = {
             "stopReason": "end_turn",
@@ -256,6 +268,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
 
     @patch("services.conversation_service.get_bedrock_client")
     def test_regenerate_latest_response(self, mock_bedrock_client):
+        """Verify regenerating the latest assistant response replaces the final message."""
         mock_client = MagicMock()
         mock_client.converse.return_value = {
             "stopReason": "end_turn",
@@ -288,6 +301,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
 
     @patch("services.conversation_service.get_bedrock_client")
     def test_regenerate_latest_response_when_stream_failed_with_user_turn_only(self, mock_bedrock_client):
+        """Verify regenerating recovers seamlessly when a previous streaming attempt aborted."""
         mock_client = MagicMock()
         mock_client.converse.return_value = {
             "stopReason": "end_turn",
@@ -320,6 +334,7 @@ class TestConversationalReActAndVectorStore(unittest.TestCase):
 
     @patch("services.conversation_service.get_bedrock_client")
     def test_llm_injection_defense(self, mock_bedrock_client):
+        """Verify LLM-based injection classifier defenses against prompt jailbreaks."""
         # Scenario 1: LLM classifier returns YES -> triggers security refusal immediately
         mock_client_injection = MagicMock()
         mock_client_injection.converse.return_value = {
