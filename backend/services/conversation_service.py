@@ -277,11 +277,11 @@ def _inject_duration_limit_alert(text: str, system_prompt: str) -> str:
             f"\n\n### ACTIVE TRIP DURATION NOTICE: USER REQUESTED {detected_days} DAYS (> 14 DAYS)\n"
             f"The traveler is asking to plan an itinerary of {detected_days} days. REMINDER: STRICT 14-DAY MAXIMUM CAP APPLIES.\n"
             f"DO NOT generate a day-by-day itinerary of {detected_days} days. Single responses longer than 14 days suffer output truncation.\n"
-            f"CRITICAL ACTION REQUIRED:\n"
+            f"CRITICAL ACTION REQUIRED (INTERACTIVE MODULAR PLANNING FLOW):\n"
             f"1. Acknowledge the destination and duration warmly.\n"
-            f"2. Transparently explain in the user's language that KelanaAI curates itineraries up to 14 days per plan to maintain deep, authentic local recommendations without cut-offs.\n"
-            f"3. Propose a smart, modular breakdown into distinct regional legs or travel phases (each 3 to 7 days, up to 14 days per leg).\n"
-            f"4. Offer clear options and invite the traveler to pick which leg or destination to plan first (e.g. 'Shall we start with Leg 1, or would you like to customize one of these legs?')."
+            f"2. Transparently explain in the user's language that KelanaAI curates itineraries up to 14 days per plan to maintain deep, authentic local recommendations without cut-offs or truncation.\n"
+            f"3. Propose a smart, modular breakdown into distinct regional legs or travel phases (each 4 to 7 days, up to 14 days per leg) with an overview of what each leg covers and an estimated proportional budget share.\n"
+            f"4. STOP HERE AND INVITE SELECTION: Ask the traveler which leg they would like to detail first (e.g. 'Shall we start with Leg 1, or would you like to customize one of these legs?'). DO NOT generate a day-by-day itinerary in this initial response; wait for the traveler to confirm or pick a leg first. Once they choose, you will generate the full, rich day-by-day itinerary for that specific leg using mandatory `## Day X:` and `### ` syntax."
         )
     return system_prompt
 
