@@ -113,62 +113,40 @@ graph TD
 
 ---
 
-## 🗄️ Database Schema & Relational Model
+## 🗄️ Domain Architecture & Conceptual Entity Model
+
+KelanaAI structures travel data into four isolated domain entities, enforcing relational ownership, cascading lifecycles, and Model 3 Chat-to-Blueprint context binding:
 
 ```mermaid
 erDiagram
-    USERS ||--o{ TRIPS : "owns"
-    USERS ||--o{ CONVERSATIONS : "creates"
-    TRIPS ||--o{ CONVERSATIONS : "grounds"
-    CONVERSATIONS ||--o{ MESSAGES : "contains"
+    USER ||--o{ TRIP : "manages"
+    USER ||--o{ CONVERSATION : "initiates"
+    TRIP ||--o{ CONVERSATION : "grounds (Model 3 trip_id)"
+    CONVERSATION ||--o{ MESSAGE : "contains"
 
-    USERS {
-        int id PK
-        string public_id UK
-        string email UK
-        string full_name
-        string password_hash
-        string travel_style
-        string home_currency
-        datetime created_at
-        datetime updated_at
+    USER {
+        string Identifier "Cryptographic Public UUID"
+        string Identity "Account Credentials & Preferences"
+        string Audit "Audit Timestamps"
     }
 
-    TRIPS {
-        int id PK
-        string public_id UK
-        int user_id FK
-        string destination
-        int duration_days
-        string travel_style
-        decimal total_budget
-        decimal daily_budget
-        string status
-        text recommendation
-        text notes
-        datetime deleted_at
-        datetime created_at
-        datetime updated_at
+    TRIP {
+        string Identifier "Cryptographic Public UUID"
+        string Specifications "Destination, Duration & Style"
+        string Financials "Total Budget & Daily Allocation"
+        string State "Active / Soft-Deleted Lifecycle"
     }
 
-    CONVERSATIONS {
-        int id PK
-        string public_id UK
-        int user_id FK
-        int trip_id FK "Nullable"
-        string title
-        datetime created_at
-        datetime updated_at
+    CONVERSATION {
+        string Identifier "Cryptographic Public UUID"
+        string Grounding "Optional Relational Trip Reference"
+        string Metadata "Session Title & Timestamps"
     }
 
-    MESSAGES {
-        int id PK
-        string public_id UK
-        int conversation_id FK
-        string role "user | assistant | system"
-        text content
-        jsonb sources
-        datetime created_at
+    MESSAGE {
+        string Identifier "Cryptographic Public UUID"
+        string Turn "Role (User / Assistant)"
+        string Payload "Itinerary Content & RAG Citations"
     }
 ```
 
