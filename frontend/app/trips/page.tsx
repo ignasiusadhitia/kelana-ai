@@ -122,7 +122,8 @@ function TripsContent() {
   });
 
   const displayedTrips = viewTab === "active" ? activeTrips : trashTrips;
-  const isLoading = viewTab === "active" ? isActiveLoading : isTrashLoading;
+  const isQueryLoading = viewTab === "active" ? isActiveLoading : isTrashLoading;
+  const isLoading = isAuthLoading || (isAuthenticated && isQueryLoading);
   const isError = viewTab === "active" ? isActiveError : isTrashError;
   const currentError = viewTab === "active" ? activeError : trashError;
 
@@ -545,6 +546,38 @@ function TripsContent() {
 }
 
 /**
+ * Skeleton loading placeholder matching the Trips dashboard layout.
+ * Eliminates spinner flicker during Next.js client hydration and route transitions.
+ */
+function TripsPageSkeleton() {
+  return (
+    <div className="relative mx-auto max-w-5xl space-y-6 animate-pulse">
+      {/* 1. Header Bar Skeleton */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-36 rounded-xl bg-zinc-800" />
+            <div className="h-5 w-16 rounded-full bg-zinc-800/60" />
+          </div>
+          <div className="h-4 w-64 rounded bg-zinc-800/40 mt-2" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-32 rounded-xl bg-zinc-800/60" />
+          <div className="h-9 w-28 rounded-xl bg-zinc-800/60" />
+        </div>
+      </div>
+
+      {/* 2. Filter & Search Toolbar Skeleton */}
+      <div className="h-12 w-full rounded-2xl bg-zinc-800/30 border border-white/5" />
+
+      {/* 3. Trip Cards Skeleton Grid */}
+      <TripSkeletonGrid />
+    </div>
+  );
+}
+
+/**
  * Saved trips dashboard page rendering search filters, style pills,
  * active trip blueprints, and soft-deleted trash bin with restoration.
  */
@@ -554,15 +587,9 @@ export default function TripsPage() {
       <Navbar />
 
       <main className="relative flex-1 px-4 py-8 pb-24 sm:pb-8 sm:px-6 lg:px-8">
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-80 w-full max-w-4xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12),transparent_60%)]" />
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-80 w-full max-w-5xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.12),transparent_60%)]" />
 
-        <Suspense
-          fallback={
-            <div className="mx-auto max-w-5xl py-12 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
-            </div>
-          }
-        >
+        <Suspense fallback={<TripsPageSkeleton />}>
           <TripsContent />
         </Suspense>
       </main>
