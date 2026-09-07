@@ -132,9 +132,9 @@ export default function AboutPage() {
 
       <main className="relative flex-1 px-4 py-8 pb-24 sm:pb-16 sm:px-6 lg:px-8">
         {/* Ambient Top Lighting Glow */}
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[450px] w-full max-w-4xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.15),transparent_70%)]" />
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[450px] w-full max-w-5xl bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.15),transparent_70%)]" />
 
-        <div className="relative mx-auto max-w-4xl space-y-16 sm:space-y-20">
+        <div className="relative mx-auto max-w-5xl space-y-16 sm:space-y-20">
           {/* HERO SECTION */}
           <section className="text-center max-w-2xl mx-auto pt-4 sm:pt-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/40 px-3.5 py-1 text-xs font-semibold text-blue-300 shadow-sm backdrop-blur-md mb-6">
