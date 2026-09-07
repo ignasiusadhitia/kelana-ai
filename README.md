@@ -1,5 +1,12 @@
-# 🧭 KelanaAI — Cloud-Native Travel Intelligence Platform
+<div align="center">
 
+# 🧭 KelanaAI
+
+**Enterprise Cloud-Native Travel Intelligence & Itinerary Synthesis Platform**
+
+[Live Application](https://kelana-ai-ignasiusadhitia.vercel.app) • [API Documentation](http://127.0.0.1:8000/docs) • [System Architecture](#-system-architecture) • [Getting Started](#-getting-started) • [API Reference](#-api-reference--route-specifications)
+
+[![Release](https://img.shields.io/badge/Release-v0.2.0-10B981?style=flat)](https://github.com/ignasiusadhitia/kelana-ai/releases)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16.3.2-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19.2.8-blue?style=flat&logo=react)](https://react.dev/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
@@ -7,30 +14,73 @@
 [![Amazon Bedrock](https://img.shields.io/badge/Amazon_Bedrock-Nova_Lite-FF9900?style=flat&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon_Serverless-4169E1?style=flat&logo=postgresql&logoColor=white)](https://neon.tech/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Release](https://img.shields.io/badge/Release-v0.2.0-10B981?style=flat)](https://github.com/ignasiusadhitia/kelana-ai/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**KelanaAI** is a cloud-native travel planning and itinerary synthesis platform engineered with **Next.js 16 (App Router & Turbopack)**, **Python FastAPI 0.115**, **Amazon Bedrock (Amazon Nova Lite)**, and **Neon Serverless PostgreSQL 16**. The system implements an asynchronous Backend-For-Frontend (BFF) topology, destination-scoped vector retrieval-augmented generation (RAG), bidirectional chat-to-blueprint synchronization, and strict zero-trust session isolation.
-
-Developed as the capstone project for the **Alkademi AI Native Software Engineer Bootcamp**.
+</div>
 
 ---
 
-## 🚀 Live Cloud Deployment
+## 📑 Table of Contents
 
-| Service Component | Cloud Platform | Role / Runtime | Deployment Region | Status |
+- [Overview](#-overview)
+- [Live Cloud Deployments](#-live-cloud-deployments)
+- [System Architecture](#-system-architecture)
+  - [Topology Diagram](#topology-diagram)
+  - [Architectural Principles](#architectural-principles)
+- [Core Engineering Capabilities](#-core-engineering-capabilities)
+  - [1. Model 3: Chat-to-Blueprint Relational Grounding](#1-model-3-chat-to-blueprint-relational-grounding)
+  - [2. Modular Breakdown Policy for Extended Journeys (>14 Days)](#2-modular-breakdown-policy-for-extended-journeys-14-days)
+  - [3. Destination-Scoped Vector RAG](#3-destination-scoped-vector-rag)
+  - [4. Multi-Turn Conversational Memory & Real-Time SSE](#4-multi-turn-conversational-memory--real-time-sse)
+  - [5. Enterprise Security Posture & Hardening](#5-enterprise-security-posture--hardening)
+  - [6. Progressive Web App (PWA) & Offline Resiliency](#6-progressive-web-app-pwa--offline-resiliency)
+- [Domain Architecture & Conceptual Entity Model](#-domain-architecture--conceptual-entity-model)
+- [API Reference & Route Specifications](#-api-reference--route-specifications)
+- [Technology Stack](#-technology-stack)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Backend Setup](#backend-setup)
+  - [Frontend Setup](#frontend-setup)
+- [Environment Configuration Matrix](#-environment-configuration-matrix)
+- [Cloud Deployment Runbook](#-cloud-deployment-runbook)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
+- [Codebase Documentation Standards](#-codebase-documentation-standards)
+- [Contributing](#-contributing)
+- [Security Policy](#-security-policy)
+- [Acknowledgements](#-acknowledgements)
+- [License](#-license)
+
+---
+
+## 🔭 Overview
+
+**KelanaAI** is a cloud-native travel planning and itinerary synthesis platform engineered with **Next.js 16 (App Router & Turbopack)**, **Python FastAPI 0.115**, **Amazon Bedrock (Amazon Nova Lite)**, and **Neon Serverless PostgreSQL 16**.
+
+The system addresses fundamental reliability and security challenges common in LLM-based itinerary planning:
+* **Context Drift & Hallucination**: Eliminates regulatory and geographic contamination via destination-scoped OpenSearch vector retrieval (RAG).
+* **Token Output Truncation**: Enforces a strict 14-day limit per synthesis unit and partitions extended trips (>14 days) into balanced 6–7 day regional legs with conversational selection gates.
+* **Disconnected Chat State**: Implements **Model 3 Bidirectional Grounding**, coupling conversation threads with saved trip records (`trip_id` foreign key) for real-time prompt context injection and in-place blueprint modifications.
+* **Client Token Insecurity**: Employs an asynchronous **Backend-For-Frontend (BFF)** proxy pattern that stores JWT authentication tokens in `HttpOnly`, `SameSite=Lax` cookies, removing client-side token exposure.
+
+Developed as the capstone showcase project for the **Alkademi AI Native Software Engineer Bootcamp**.
+
+---
+
+## 🚀 Live Cloud Deployments
+
+| Component | Platform | Role / Runtime | Deployment Region | Status |
 |---|---|---|---|---|
-| **Frontend & BFF Edge** | [Vercel](https://vercel.com) | Next.js 16 App Router UI, BFF Proxy & Service Worker | Global Edge Network | [Live Application](https://kelana-ai-ignasiusadhitia.vercel.app) |
+| **Frontend & BFF Edge** | [Vercel](https://vercel.com) | Next.js 16 App Router UI, Edge Proxy & Service Worker | Global Edge Network | [Live Application](https://kelana-ai-ignasiusadhitia.vercel.app) |
 | **Backend API Engine** | [FastAPI Cloud](https://fastapicloud.com) | Asynchronous Python 3.12 REST & SSE Microservice | Containerized Cloud | Active (`/health`) |
-| **Relational Database** | [Neon](https://neon.tech) | Managed Serverless PostgreSQL 16 (Connection Pooled) | `ap-southeast-1` / `us-east-1` | Active (SSL Required) |
-| **Foundation Model** | [Amazon Bedrock](https://aws.amazon.com/bedrock) | Amazon Nova Lite (`amazon.nova-lite-v1:0`) | `ap-southeast-2` (Sydney) | Active |
+| **Relational Database** | [Neon](https://neon.tech) | Managed Serverless PostgreSQL 16 (Connection Pooled) | `ap-southeast-1` / `us-east-1` | Active (SSL Enforced) |
+| **Foundation LLM** | [Amazon Bedrock](https://aws.amazon.com/bedrock) | Amazon Nova Lite (`amazon.nova-lite-v1:0`) | `ap-southeast-2` (Sydney) | Active |
 | **Vector Knowledge Base** | [Amazon Bedrock KB](https://aws.amazon.com/bedrock/knowledge-bases/) | OpenSearch Serverless Vector Store (Cosine Similarity) | `ap-southeast-2` (Sydney) | Active |
 
 ---
 
 ## 🏛️ System Architecture
 
-KelanaAI decouples client presentation from upstream cloud services via an asynchronous **Backend-For-Frontend (BFF)** proxy pattern. All client network traffic terminates on same-origin `/api/v1/*` route handlers, preventing Cross-Origin Resource Sharing (CORS) failures and eliminating client-side credential exposure.
+### Topology Diagram
 
 ```mermaid
 graph TD
@@ -67,9 +117,9 @@ graph TD
 
 ---
 
-## ⚙️ Core Subsystems & Technical Specifications
+## ⚙️ Core Engineering Capabilities
 
-### 1. Model 3: Chat-to-Blueprint Relational Grounding (`/chat` & `/trips`)
+### 1. Model 3: Chat-to-Blueprint Relational Grounding
 * **Relational Schema Link**: `conversations.trip_id` references `trips.id` with `ON DELETE SET NULL` cascade behavior. Linking a conversation to a trip allows travelers to query, expand, or adjust their itineraries interactively.
 * **Context Injection Pipeline**: When `trip_id` is supplied, `_inject_trip_context()` extracts destination, duration, budget, style, and daily activities, serializing them into the LLM system prompt as an immutable baseline.
 * **Blueprint Promotion Workflow**: Travelers can apply conversational recommendations directly back to their saved trip blueprint via `PUT /api/v1/trips/{id}/recommendation`, which sanitizes markdown preambles and writes the updated itinerary in-place.
@@ -87,13 +137,13 @@ graph TD
 * **Conversational Selection Gate**: The model presents structured leg cards and pauses generation, requesting that the user select which leg to detail first, preventing premature and truncated day-by-day dumps.
 * **Anti-Placeholder & Anti-Fabrication Directive**: Strictly prohibits repetitive generic quoted venue placeholders (e.g., `"Halal Japanese Dining"`) or generic `"free time"` fillers. Mandates authentic food streets, verified dining districts (e.g., Omoide Yokocho, Nishiki Market), or verified dietary anchors.
 
-### 3. Destination-Scoped Vector RAG & Hallucination Elimination
+### 3. Destination-Scoped Vector RAG
 * **Scoped Vector Retrieval**: Vector search requests pass a `destination_scope` parameter to `retrieve_passages()`. This prevents documents for indexed destinations (e.g., `KyotoTravelGuideEN.md`) from leaking into inquiries for distinct locations (e.g., Maldives).
 * **Semantic Threshold Verification**: Knowledge base passages are filtered by a strict cosine similarity cutoff (`RAG_SEMANTIC_THRESHOLD=0.35`). Passages scoring below threshold are rejected.
 * **Deterministic Source Attribution**: Retrieved passages attach URI citations and chunk offsets to generated responses, exposed in the UI as verified source badges.
 * **Autonomous Out-of-Domain Handling**: When an inquiry targets a location outside indexed travel guides, the system gracefully generates authentic, reality-grounded itineraries without fabricating non-existent visa or regulatory claims.
 
-### 4. Multi-Turn Conversational Memory & SSE Streaming
+### 4. Multi-Turn Conversational Memory & Real-Time SSE
 * **Hybrid Sliding-Window Memory**: Preserves recent conversation turns verbatim to maintain acute conversational context, while synthesizing older dialogue into compressed background summaries to prevent context drift.
 * **Server-Sent Events (SSE) Protocol**: Real-time token streaming using FastAPI `StreamingResponse` and event streams (`event: token`, `event: error`, `event: done`), supporting client-side abort controllers.
 * **Thread Management**: Supports title auto-generation, multi-thread persistence, turn-by-turn history, message editing, and response regeneration.
@@ -152,7 +202,7 @@ erDiagram
 
 ---
 
-## 🔌 API Specification & Route Reference
+## 🔌 API Reference & Route Specifications
 
 ### Authentication Services (`/api/v1/auth`)
 
@@ -200,44 +250,37 @@ erDiagram
 
 ---
 
-## 🛠️ Technology Stack & Dependencies
+## 🛠️ Technology Stack
 
-```text
-KelanaAI
-├── Frontend & PWA
-│   ├── Next.js 16.3.2 (App Router, Turbopack, Edge Middleware)
-│   ├── React 19.2.8 & React DOM 19.2.8
-│   ├── TypeScript 5.x (Strict Type Checking)
-│   ├── Tailwind CSS v4 (PostCSS Engine)
-│   ├── TanStack Query v5.102.2 (Server State Synchronization)
-│   ├── React Hook Form v7.86.0 & Zod v4.4.3 (Schema Validation)
-│   ├── Lucide React v1.34.0 (Component Iconography)
-│   └── Vanilla Service Worker (Cache-First Shell PWA Engine)
-│
-├── Backend REST API
-│   ├── Python 3.12+ & FastAPI 0.115+ (Asynchronous ASGI Framework)
-│   ├── Uvicorn (ASGI Production Server)
-│   ├── SQLAlchemy 2.0 (Object-Relational Mapping & Connection Pool)
-│   ├── Psycopg2-Binary (PostgreSQL Engine Driver)
-│   ├── Pydantic v2 (Request/Response Contract Validation)
-│   ├── Python-JOSE & Passlib[Bcrypt] (Cryptographic Auth & JWT)
-│   └── Boto3 v1.43.56 (AWS Bedrock & Knowledge Base SDK)
-│
-└── Cloud Infrastructure
-    ├── Vercel (Edge Network Hosting & BFF Proxy Execution)
-    ├── FastAPI Cloud (Containerized Backend Application Hosting)
-    ├── Neon (Managed Serverless PostgreSQL with Pooled SSL Endpoints)
-    └── Amazon Bedrock (Nova Lite Foundation LLM & OpenSearch Serverless RAG)
-```
+| Layer | Technology | Version | Purpose |
+|---|---|---|---|
+| **Frontend Framework** | Next.js | 16.3.2 | React App Router, Turbopack, Edge Middleware, Static Site Generation |
+| **UI Library** | React / React DOM | 19.2.8 | Declarative component UI and concurrent rendering |
+| **Language** | TypeScript | 5.x | Strict static typing across frontend interfaces and API contracts |
+| **Styling** | Tailwind CSS | 4.x | Utility-first styling with PostCSS pipeline |
+| **State Management** | TanStack Query | 5.102.2 | Client-side cache synchronization and async query management |
+| **Form & Validation** | React Hook Form & Zod | 7.86 / 4.4 | Typed client-side form controls and runtime schema validation |
+| **Icons** | Lucide React | 1.34.0 | Accessible SVG iconography |
+| **Offline Engine** | Vanilla Service Worker | Native | Cache-first shell asset storage and network-first navigation fallback |
+| **Backend Framework** | FastAPI | 0.115+ | High-throughput asynchronous Python REST and SSE microservice |
+| **ASGI Server** | Uvicorn | Standard | Asynchronous production web server |
+| **Database ORM** | SQLAlchemy | 2.0+ | Object-relational mapping with connection pooling |
+| **Database Driver** | Psycopg2-Binary | 2.9+ | High-performance PostgreSQL interface |
+| **Data Validation** | Pydantic | 2.x | Strict request/response serialization and schema enforcement |
+| **Authentication** | Python-JOSE / Passlib | 3.3 / 1.7 | JWT generation, validation, and Bcrypt password hashing |
+| **Cloud Database** | Neon PostgreSQL | 16 | Serverless PostgreSQL with auto-scaling connection pooling |
+| **AI Foundation** | Amazon Bedrock | Nova Lite | Foundation model inference via Boto3 Converse API |
+| **Vector Engine** | Bedrock Knowledge Bases | OpenSearch | Managed serverless vector search with cosine similarity filtering |
 
 ---
 
-## 💻 Local Development Setup
+## 💻 Getting Started
 
 ### Prerequisites
+
 * **Node.js**: `v20.10.0` LTS or higher
 * **Python**: `3.11` or `3.12`
-* **PostgreSQL**: Local instance or a free Neon connection URI
+* **PostgreSQL**: Local instance or a free [Neon](https://neon.tech) connection URI
 * **AWS Credentials**: IAM user or role with `AmazonBedrockFullAccess`
 
 ---
@@ -251,7 +294,7 @@ cd kelana-ai
 
 ---
 
-### Step 2: Backend Configuration & Execution
+### Step 2: Backend Setup
 
 ```bash
 cd backend
@@ -271,21 +314,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Configure `backend/.env` with your development credentials:
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/kelana_ai
-AWS_REGION=ap-southeast-2
-MODEL_ID=amazon.nova-lite-v1:0
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-KNOWLEDGE_BASE_ID=your_knowledge_base_id
-KNOWLEDGE_BASE_MODEL_ARN=arn:aws:bedrock:ap-southeast-2::foundation-model/amazon.nova-lite-v1:0
-JWT_SECRET_KEY=your_random_64_character_cryptographic_secret
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
-RAG_SEMANTIC_THRESHOLD=0.35
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
+Edit `backend/.env` with your development credentials (see [Environment Configuration Matrix](#-environment-configuration-matrix)).
 
 Execute database schema initialization and migrations:
 
@@ -305,7 +334,7 @@ uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 ---
 
-### Step 3: Frontend Configuration & Execution
+### Step 3: Frontend Setup
 
 ```bash
 cd ../frontend
@@ -317,7 +346,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Configure `frontend/.env.local`:
+Edit `frontend/.env.local`:
 
 ```env
 BACKEND_URL=http://127.0.0.1:8000
@@ -334,12 +363,39 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
-## ☁️ Cloud Deployment Configuration
+## 🔐 Environment Configuration Matrix
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Default / Example | Description |
+|---|---|---|---|
+| `DATABASE_URL` | **Yes** | `postgresql://user:pass@localhost:5432/kelana_ai` | PostgreSQL connection string (append `?sslmode=require` for Neon). |
+| `AWS_REGION` | **Yes** | `ap-southeast-2` | AWS region hosting Amazon Bedrock and Knowledge Bases. |
+| `MODEL_ID` | **Yes** | `amazon.nova-lite-v1:0` | Amazon Bedrock foundation model identifier. |
+| `AWS_ACCESS_KEY_ID` | **Yes** | `AKIA...` | AWS IAM access key with Bedrock permissions. |
+| `AWS_SECRET_ACCESS_KEY`| **Yes** | `wJalr...` | AWS IAM secret access key. |
+| `KNOWLEDGE_BASE_ID` | **Yes** | `your_kb_id` | Amazon Bedrock Knowledge Base identifier. |
+| `KNOWLEDGE_BASE_MODEL_ARN` | **Yes** | `arn:aws:bedrock:...` | Model ARN configured for Knowledge Base retrieval. |
+| `JWT_SECRET_KEY` | **Yes** | `64_character_random_hex` | Cryptographic secret for signing session JWTs. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `10080` (7 days) | Lifetime of access tokens, synchronized with cookie expiry. |
+| `RAG_SEMANTIC_THRESHOLD` | No | `0.35` | Minimum cosine similarity score for vector passage filtering. |
+| `CORS_ORIGINS` | No | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated list of allowed CORS origins. |
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Required | Default / Example | Description |
+|---|---|---|---|
+| `BACKEND_URL` | **Yes** | `http://127.0.0.1:8000` | Upstream FastAPI backend URL consumed by the server-side BFF proxy. |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:3000` | Public origin of the frontend web application. |
+
+---
+
+## ☁️ Cloud Deployment Runbook
 
 ### 1. Neon Serverless PostgreSQL
 1. Create a project at [neon.tech](https://neon.tech) in your target region (`ap-southeast-1` or `us-east-1`).
 2. Copy the pooled connection string containing `?sslmode=require`.
-3. Apply database migrations from a terminal with access to the cloud database:
+3. Apply database migrations from a terminal:
    ```bash
    $env:DATABASE_URL="postgresql://user:pass@ep-xyz.neon.tech/neondb?sslmode=require"
    python migrate.py
@@ -352,23 +408,16 @@ Open `http://localhost:3000` in your browser.
    * **Python Version**: `3.12`
    * **Build Command**: `pip install -r requirements.txt`
    * **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-3. Configure environment variables in the FastAPI Cloud console:
-   * `DATABASE_URL`: Cloud connection string with `?sslmode=require`.
-   * `CORS_ORIGINS`: `https://kelana-ai-ignasiusadhitia.vercel.app,http://localhost:3000`
-   * `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
-   * `MODEL_ID`: `amazon.nova-lite-v1:0`
-   * `JWT_SECRET_KEY`: 64-character secret.
-   * `ACCESS_TOKEN_EXPIRE_MINUTES`: `10080` (7-day cookie parity).
-   * `KNOWLEDGE_BASE_ID`, `KNOWLEDGE_BASE_MODEL_ARN`, `RAG_SEMANTIC_THRESHOLD`
-4. Deploy the service and record the public API URL (e.g., `https://api.your-domain.fastapicloud.com`).
+3. Configure environment variables in the console according to the [Backend Matrix](#backend-backendenv).
+4. Record the deployed API URL (e.g., `https://api.your-domain.fastapicloud.com`).
 
 ### 3. Vercel Frontend & BFF Proxy
 1. Import the repository into [Vercel](https://vercel.com).
 2. Set **Root Directory** to `frontend`.
-3. Framework preset will automatically resolve to **Next.js**.
+3. Framework preset resolves automatically to **Next.js**.
 4. Configure environment variables:
    * `BACKEND_URL`: Public URL of your FastAPI Cloud deployment *(without trailing slash)*.
-   * `NEXT_PUBLIC_API_URL`: Public URL of the frontend deployment or empty string *(BFF proxy automatically handles `/api/v1/*` routes)*.
+   * `NEXT_PUBLIC_API_URL`: Public URL of your Vercel deployment or empty string.
 5. Trigger production deployment.
 
 ---
@@ -377,7 +426,7 @@ Open `http://localhost:3000` in your browser.
 
 ### Automated Backend Test Suites
 
-The backend includes comprehensive test suites covering multi-turn memory, authentication isolation, Model 3 Chat-to-Blueprint grounding, rate limiting, and RAG retrieval:
+The backend test suite verifies multi-turn memory, authentication isolation, Model 3 Chat-to-Blueprint grounding, rate limiting, and RAG retrieval:
 
 ```bash
 cd backend
@@ -433,6 +482,34 @@ The entire KelanaAI codebase adheres to unified, production-grade documentation 
   Every module, class, route handler, database model, service method, and test case contains standardized English PEP 257 docstrings detailing operational semantics, argument types, return values, and failure modes.
 * **Frontend Application (TSDoc / JSDoc Standard)**:
   All React components, Next.js App Router pages, custom hooks, providers, and utility functions feature comprehensive JSDoc/TSDoc type annotations and parameter descriptions.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. **Fork the Repository** on GitHub.
+2. **Create a Feature Branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. **Commit Changes**: Follow conventional commits (`feat: ...`, `fix: ...`, `docs: ...`). Ensure all docstrings and comments are in English.
+4. **Run Verification**: Ensure all backend unit tests (`26/26 PASS`) and frontend build (`npm run build`) pass cleanly.
+5. **Open a Pull Request** with a detailed summary of changes and testing evidence.
+
+---
+
+## 🛡️ Security Policy
+
+### Reporting Vulnerabilities
+
+If you discover a security vulnerability in KelanaAI, please do not open a public issue. Instead, report it privately to the maintainers via [GitHub Security Advisories](https://github.com/ignasiusadhitia/kelana-ai/security/advisories).
+
+### Session & Token Security
+* KelanaAI enforces strict zero-trust token handling: JWTs are never stored in browser `localStorage` or `sessionStorage`.
+* Production bundles strip all debugging console outputs and suppress browser source maps.
+* All database queries enforce row-level ownership isolation (`user_id == current_user.id`).
 
 ---
 
