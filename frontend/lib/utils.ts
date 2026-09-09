@@ -187,76 +187,105 @@ export function extractTripDetailsFromContent({
 
   // 3. BUDGET (USD)
   let budget = 1500;
-  const totalBudgetMatch = combined.match(
-    /(?:total\s*(?:estimated\s*)?budget|estimated\s*budget|total\s*biaya|total\s*cost)[\s:]*~?\s*(?:(?:USD|\$|Rp\.?|IDR)\s*)?([0-9][0-9,.]*)/i
-  );
-  const promptBudgetMatch = combined.match(
+  // Priority 1: Explicit budget stated in USER PROMPT (user's explicit constraint)
+  const promptExplicitBudget = userPrompt.match(
     /(?:budget|biaya|anggaran)(?:\s*(?:of|is|sebesar|sekitar|:))?\s*~?\s*(?:(?:USD|\$|Rp\.?|IDR)\s*)?([0-9][0-9,.]*)/i
   );
-  const dollarMatch = userPrompt.match(/(?:USD|\$)\s*([0-9][0-9,]*)/i);
-  const trailingDollarMatch = userPrompt.match(/([0-9][0-9,]*)\s*(?:USD|dollar|dolar)\b/i);
+  const promptDollarMatch = userPrompt.match(/(?:USD|\$)\s*([0-9][0-9,.]*)/i);
+  const promptTrailingDollar = userPrompt.match(/([0-9][0-9,.]*)\s*(?:USD|dollar|dolar)\b/i);
 
-  const rawBudgetStr =
-    totalBudgetMatch?.[1] || promptBudgetMatch?.[1] || dollarMatch?.[1] || trailingDollarMatch?.[1];
-  if (rawBudgetStr) {
-    const num = parseInt(rawBudgetStr.replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num >= 50 && num <= 100000) {
+  const userPromptBudgetStr =
+    promptExplicitBudget?.[1] || promptDollarMatch?.[1] || promptTrailingDollar?.[1];
+
+  if (userPromptBudgetStr) {
+    const num = parseInt(userPromptBudgetStr.replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num >= 50 && num <= 1000000) {
       budget = num;
+    }
+  } else {
+    // Priority 2: Budget extracted from AI text / total estimated budget
+    const totalBudgetMatch = aiText.match(
+      /(?:total\s*(?:estimated\s*)?budget|estimated\s*budget|total\s*biaya|total\s*cost)[\s:]*~?\s*(?:(?:USD|\$|Rp\.?|IDR)\s*)?([0-9][0-9,.]*)/i
+    );
+    const aiBudgetMatch = aiText.match(
+      /(?:budget|biaya|anggaran)(?:\s*(?:of|is|sebesar|sekitar|:))?\s*~?\s*(?:(?:USD|\$|Rp\.?|IDR)\s*)?([0-9][0-9,.]*)/i
+    );
+    const aiRawBudgetStr = totalBudgetMatch?.[1] || aiBudgetMatch?.[1];
+    if (aiRawBudgetStr) {
+      const num = parseInt(aiRawBudgetStr.replace(/[,.]/g, ""), 10);
+      if (!isNaN(num) && num >= 50 && num <= 1000000) {
+        budget = num;
+      }
     }
   }
 
   // 4. DESTINATION
   let destination = "";
-  const firstLines = aiText.split("\n").slice(0, 8).join("\n");
 
-  // Pattern 1: ## ... to/in/ke/di [Destination] (e.g. ## 5-Day Family Trip to Kazakhstan)
-  const p1 = firstLines.match(
-    /(?:^|\n)##?\s+.*?\b(?:to|in|ke|di)\s+([A-Z][A-Za-z0-9\s,.-]+?)(?:\s+[-–—:|]|\s*\n|$)/i
-  );
-  if (p1) {
-    destination = p1[1].trim();
+  // Priority 1: Explicit destination in USER PROMPT (e.g. "trip to Mozambique", "liburan ke Bali", "in Osaka focusing on food")
+  if (userPrompt) {
+    const pPrompt = userPrompt.match(
+      /\b(?:to|ke|in|di|for|keliling|visit|visiting)\s+([A-Z][A-Za-z\s]{1,40}?)(?:\s+(?:with|for|pada|selama|dengan|budget|under|using|ala|fokus|focus|focusing|focussing|focused|focussed|highlighting|featuring|exploring|around|trip|travel|holiday|vacation|liburan|tour)|\s*[,.?!]|$)/i
+    );
+    if (pPrompt) {
+      destination = pPrompt[1].trim();
+    }
   }
 
-  // Pattern 2: ## [Destination] [N]-Day Itinerary
+  // Priority 2: Document title in AI text (excluding Day/Hari headers)
   if (!destination) {
+    const firstLines = aiText.split("\n").slice(0, 8).join("\n");
+    const pDoc = firstLines.match(
+      /(?:^|\n)##?\s+(?!Day\b|Hari\b).*?\b(?:to|in|ke|di)\s+([A-Z][A-Za-z0-9\s,.-]+?)(?:\s+[-–—:|]|\s*\n|$)/i
+    );
+    if (pDoc) {
+      destination = pDoc[1].trim();
+    }
+  }
+
+  // Priority 3: ## [Destination] [N]-Day Itinerary in AI text
+  if (!destination) {
+    const firstLines = aiText.split("\n").slice(0, 8).join("\n");
     const p2 = firstLines.match(
-      /(?:^|\n)##?\s+([A-Z][A-Za-z\s]+?)\s+\d+[\s-]*(?:days?|hari)\b/i
+      /(?:^|\n)##?\s+(?!Day\b|Hari\b)([A-Z][A-Za-z\s]+?)\s+\d+[\s-]*(?:days?|hari)\b/i
     );
     if (p2) destination = p2[1].trim();
   }
 
-  // Pattern 3: user prompt ... to/ke/in/di [Destination] (e.g. Plan a 5-day trip to Kazakhstan)
-  if (!destination && userPrompt) {
-    const p3 = userPrompt.match(
-      /\b(?:to|ke|in|di)\s+([A-Z][A-Za-z\s]+?)(?:\s+(?:with|for|pada|selama|dengan|budget|under|using|ala)|\s*[,.?!]|$)/i
-    );
-    if (p3) destination = p3[1].trim();
-  }
-
-  // Pattern 4: conversation title fallback
+  // Priority 4: Destination from conversation title
   if (!destination && conversationTitle) {
     const cleanTitle = conversationTitle
       .replace(/^(?:Chat:\s*|Trip:\s*)/i, "")
       .replace(/\.\.\.$/, "")
       .trim();
-    const p4 = cleanTitle.match(
-      /\b(?:to|ke|in|di)\s+([A-Z][A-Za-z\s]+?)(?:\s+(?:with|for|pada|selama|dengan|budget|under)|\s*[,.?!]|$)/i
+    const pTitle = cleanTitle.match(
+      /\b(?:to|ke|in|di|for|keliling)\s+([A-Z][A-Za-z\s]+?)(?:\s+(?:with|for|pada|selama|dengan|budget|under)|\s*[,.?!]|$)/i
     );
-    if (p4) {
-      destination = p4[1].trim();
+    if (pTitle) {
+      destination = pTitle[1].trim();
     } else if (!/^(?:plan|buatkan|bantu|rencana|new\s+conversation)\b/i.test(cleanTitle)) {
       destination = cleanTitle;
+    }
+  }
+
+  // Priority 5: Fallback to arrival city from Day 1 header if nothing else matched
+  if (!destination) {
+    const firstLines = aiText.split("\n").slice(0, 8).join("\n");
+    const pFallback = firstLines.match(
+      /(?:^|\n)##?\s+.*?\b(?:to|in|ke|di)\s+([A-Z][A-Za-z0-9\s,.-]+?)(?:\s+[-–—:|]|\s*\n|$)/i
+    );
+    if (pFallback) {
+      destination = pFallback[1].trim();
     }
   }
 
   // Clean destination string from trailing modifier noise
   if (destination) {
     destination = destination
-      .replace(/\s+(?:with|for|and|pada|selama|dengan|budget|itinerary|trip|tour)\b.*$/i, "")
+      .replace(/\s+(?:with|for|and|pada|selama|dengan|budget|itinerary|trip|tour|focusing|focus|fokus)\b.*$/i, "")
       .replace(/^[#*\s-]+|[#*\s-]+$/g, "")
       .trim();
   }
 
   return { destination, days, budget, travelStyle };
 }
-
